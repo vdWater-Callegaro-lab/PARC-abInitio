@@ -56,6 +56,9 @@ figures/
 
 # input
 input/
+BMD_input/
+TXGMAPr_files/
+data/
 
 # output
 output/
