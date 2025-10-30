@@ -47,3 +47,15 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# figures
+figures/
+*.pdf
+*.png
+*.jpeg
+
+# input
+input/
+
+# output
+output/
