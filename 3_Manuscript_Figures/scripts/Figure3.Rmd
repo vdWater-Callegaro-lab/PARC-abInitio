@@ -1,0 +1,251 @@
+---
+title: "Figure3"
+output: html_document
+date: "2025-04-24"
+---
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+```
+
+
+
+MANUSCRIPT FIGURE 3
+Here, we will generate figure 3 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, patchwork, here, GGally, ggplotify, grid)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+
+```
+
+
+
+# Generate figure
+
+## Figure 3a
+Here we plot the accumulation of the HALLMARK pathways
+
+```{r}
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, partner = "Aristotle University") +
+  theme(
+    plot.title = element_text(color = "firebrick")
+  ) +
+  xlim(c(0,50))
+
+
+fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, partner = "BPI") + 
+  theme(
+    plot.title = element_text(color = "gray30")
+  ) +
+  xlim(c(0,50))
+
+
+fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, partner = "Ghent University") +
+  theme(
+    plot.title = element_text(color = "gold1")
+  ) +
+  xlim(c(0,50))
+
+fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, partner = "Leiden University") + 
+  theme(
+    plot.title = element_text(color = "blue2")
+  ) +
+  xlim(c(0,50))
+
+
+fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, partner = "Sciensano") +
+  theme(
+    plot.title = element_text(color = "forestgreen")
+  ) +
+  xlim(c(0,50))
+
+
+# generate title 
+fig3a_lab = wrap_elements(panel = textGrob("Median BMC accumulation HALLMARK pathways (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig3a = wrap_elements(fig3a_lab / wrap_elements(fig3a_AU + fig3a_BPI + fig3a_GU + fig3a_LU + fig3a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")) + plot_layout(heights = c(0.5, 5)))
+
+fig3a
+
+ggsave(plot = fig3a, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5)
+
+```
+
+
+## Figure 3b
+```{r}
+fig3b_cor = GGally::ggpairs(norm_HALLMARK_combined_wide, aes(color = timepoint),
+                columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"),
+                columnLabels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano"),
+                upper = list(continuous = wrap("cor", size = 6))) +
+  theme_bw() +
+  theme(strip.text = element_text(size = 16),
+        axis.text = element_text(size = 12))
+
+
+fig3b_cor_gg = wrap_elements(full = ggmatrix_gtable(fig3b_cor)) # convert to ggplot
+
+# generate title
+fig3b_lab <- wrap_elements(panel = textGrob("Median BMC correlations (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig3b = wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
+
+fig3b
+
+ggsave(plot = fig3b, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
+
+```
+
+
+
+## Figure 3c
+```{r}
+
+fig3c_24hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24hr", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3c_48hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48hr", pathway_oi = "HALLMARK_P53_PATHWAY")
+
+fig3c = wrap_elements(fig3c_24hr / fig3c_48hr + plot_layout(guides = "collect", axis = "collect"))
+fig3c
+
+ggsave(plot = fig3c, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, height = 10.5)
+```
+
+
+
+## Figure 3d
+```{r}
+
+fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24hr"), aes(x=partner, y=finalBMD, color = partner)) +
+  geom_violin() +
+  geom_jitter() +
+  stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "24hr",
+       x = "BMC")
+
+
+fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48hr"), aes(x=partner, y=finalBMD, color = partner)) +
+  geom_violin() +
+  geom_jitter() +
+  stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "48hr",
+       x = "BMC")
+
+
+# generate title
+fig3d_lab = wrap_elements(panel = textGrob("BMC distribution genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+fig3d = wrap_elements(fig3d_24h / fig3d_48h + plot_layout(heights = c(7.5, 7.5), axis = "collect", guides = "collect"))
+
+fig3d
+
+
+ggsave(plot = fig3d, filename = file.path(plotDir, "fig3d.pdf"), width = 7.5, height = 17.5)
+
+
+```
+
+
+## Create total figure 3
+```{r}
+
+# fix second row
+fig3_row2 = wrap_elements(fig3b + fig3c + plot_layout(widths = 10, 7.5))
+
+figure3 = fig3a /
+  (fig3b + fig3c + plot_layout(widths = c(10, 7.5))) /
+  fig3d +
+  plot_layout(guides = "collect", axis = "collect", heights = c(5.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
+
+figure3
+
+ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 15, height = 16)
+
+fig3_row3 = wrap_elements(fig3c + fig3d + plot_layout(guides = "collect"))
+
+figure3 = fig3a /
+  fig3b /
+  fig3_row3 +
+  plot_layout(heights = c(4.5, 14, 8))
+
+ggsave(plot = figure3, file.path(plotDir, "Figure3_v2.pdf"), width = 17, height = 22)
+
+  
+
+```
+
+

@@ -1,0 +1,210 @@
+---
+title: "SupplementalFigure1"
+output: html_document
+date: "2025-04-24"
+---
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+```
+
+
+
+MANUSCRIPT SUPPLEMENTAL FIGURE 1
+Here, we will generate supplemental figure 1 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, patchwork, grid)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+
+# BMD log2fc
+# Leiden University
+LU_fc_BMD = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_log2fc_BMD_output.txt"))) %>%
+  dplyr::rename("finalBMD" = Best.BMD, 
+                "gene_symbol_entrez_id" = Probe.ID,
+                "finalBMDL" = Best.BMDL,
+                "finalBMDU" = Best.BMDU) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+
+
+# R-ODAF
+ODAF_fc_BMD = read.delim(file.path(inputDir, "ODAF", paste0(studyNR, "_RODAF_log2fc_BMD_output.txt"))) %>% 
+  dplyr::rename("finalBMD" = "Best.BMD", 
+                "gene_symbol_entrez_id" = "Probe.ID") %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+
+
+```
+
+
+
+# Wrangle data
+```{r}
+LU_fc_select = LU_fc_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD) %>% mutate(partner = "LU")
+ODAF_fc_select = ODAF_fc_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD) %>% mutate(partner = "R-ODAF")
+
+df_list = list(LU_fc_select, ODAF_fc_select)
+
+fc_BMD_combined = bind_rows(df_list) %>% as_tibble()
+```
+
+
+
+# Generate figure
+
+## Accumulation plots
+```{r}
+sup1a_LU = BMDaccumulationPlot(BMDoutput = LU_fc_BMD, partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue2")) + 
+  ylim(c(0, 5300))
+
+sup1a_ODAF = BMDaccumulationPlot(BMDoutput = ODAF_fc_BMD, partner = "R-ODAF") +
+  theme(plot.title = element_text(color = "orange")) +
+  ylim(c(0, 5300))
+
+
+sup1a_row1 = sup1a_LU + sup1a_ODAF + plot_layout(guides = "collect", axis = "collect")
+sup1a_row1
+
+
+```
+
+
+## Accumulation plots zoom
+```{r}
+sup1a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_fc_BMD)
+sup1a_ODAF_zoom = BMDaccumulationPlot_zoom(BMDoutput = ODAF_fc_BMD)
+
+sup1a_row2 = sup1a_LU_zoom + sup1a_ODAF_zoom + plot_layout(guides = "collect", axis = "collect")
+sup1a_row2
+
+```
+
+
+## Generate total supplemental figure 1a
+```{r}
+# generate title
+sup1a_lab <- wrap_elements(panel = textGrob("BMC accumulation (log2fc)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+sup1a = wrap_elements(sup1a_lab /
+  sup1a_row1 /
+  sup1a_row2 + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 2.5, 2.5)))
+
+
+sup1a
+ggsave(plot = sup1a, file.path(plotDir, "sup1a_total.pdf"), width = 7.5, height = 5.5)
+
+
+```
+
+
+# Supplemental figure 1b
+```{r}
+sup1b = fc_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% 
+  filter(timepoint == "24hr") %>%
+  group_by(partner) %>%
+  arrange(finalBMD) %>%
+  mutate(ranked_gene = row_number()) %>%
+  ggplot(aes(finalBMD, y = ranked_gene)) + 
+  geom_point(stat = "identity", aes(color = partner), size = 1) + 
+  labs(y = "Accumulation",
+       x = "BMC",
+       title = "BMC accumulation - 24 hours (log2fc)") +
+  scale_color_manual(values = c("blue2", "orange"),
+                     breaks = c("LU", "R-ODAF"),
+                     labels = c("Leiden University", "R-ODAF")) +
+  theme(legend.title = element_blank()) 
+
+
+
+ggsave(plot = sup1b, file.path(plotDir, "sup1b.pdf"), width = 7.5, height = 5.5)
+
+```
+
+
+# Combine to make total suplemental figure 1
+```{r}
+
+sup1 = sup1a + sup1b
+
+ggsave(plot = sup1, file.path(plotDir, "SupplementalFigure1.pdf"), width = 15, height = 5.5)
+
+```
+
+
+

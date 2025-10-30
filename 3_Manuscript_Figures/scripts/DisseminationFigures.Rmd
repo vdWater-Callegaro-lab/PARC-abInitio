@@ -1,0 +1,379 @@
+---
+title: "DisseminationFigures"
+output: html_document
+date: "2025-05-07"
+---
+
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+```
+
+
+
+DISSEMINATION FIGURES
+Here, we will generate figure 2 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify, ComplexUpset)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR, "DisseminationFigures")
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+## Load data
+```{r}
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+```
+
+
+# Plots
+
+## BMCs from normalized counts
+
+### Accumulation plots
+```{r}
+fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "Aristotle University") +
+  theme(plot.title = element_text(color = "firebrick")) +  
+  ylim(c(0, 6300))
+
+fig2a_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI") +
+  theme(plot.title = element_text(color = "gray30")) +
+  ylim(c(0, 6300))
+
+fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "Ghent University") + 
+  theme(plot.title = element_text(color = "gold1")) +
+  ylim(c(0, 6300))
+
+fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue3")) +
+  ylim(c(0, 6300))
+
+fig2a_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+  theme(plot.title = element_text(color = "forestgreen")) +
+  ylim(c(0, 6300))
+
+
+# generate title
+fig2a_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+fig2a_row1 = wrap_elements(fig2a_AU + fig2a_BPI + fig2a_GU + fig2a_LU + fig2a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect"))
+fig2a_row1_total = wrap_elements(fig2a_row1_lab / fig2a_row1 + plot_layout(heights = c(0.25, 4)))
+fig2a_row1_total
+
+ggsave(plot = fig2a_row1_total, file.path(plotDir, "BMCaccumulation_all.pdf"), width = 15, height = 4)
+```
+
+
+### 24 hours
+```{r}
+fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  filter(timepoint == "24hr") %>%
+  group_by(partner) %>%
+  arrange(finalBMD) %>%
+  mutate(ranked_gene = row_number()) %>%
+  ggplot(aes(finalBMD, y = ranked_gene)) +
+  geom_point(stat = "identity", aes(color = partner), size = 1) +
+  labs(y = "Accumulation", 
+       x = "BMC") +
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom")
+
+
+fig2b_norm
+
+
+# generate title
+fig2b_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24 hours (normalized counts)", gp = gpar(fontface = "bold", fontsize = 22)))
+
+
+fig2b_total = wrap_elements(fig2b_lab / fig2b_norm + plot_layout(heights = c(0.5, 6)))
+fig2b_total
+
+ggsave(plot = fig2b_total, file.path(plotDir, "BMCaccumulation_24hr.pdf"), width = 8.5, height = 10)
+
+```
+
+
+### BMC correlations
+```{r}
+
+fig2c_cor = GGally::ggpairs(norm_BMD_combined_wide, aes(color = timepoint),
+                columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
+                lower = list(continuous = GGally::wrap("points", size = 0.05)),
+                diag = list(continuous = GGally::wrap("densityDiag"), mapping = ggplot2::aes(color=timepoint), alpha = 0.5)
+                )
+
+
+fig2c_cor_gg = wrap_elements(full = ggmatrix_gtable(fig2c_cor)) # convert to ggplot
+
+
+# generate title
+fig2c_lab <- wrap_elements(panel = textGrob("BMD correlations (normalized counts)", gp = gpar(fontface = "bold", fontsize = 22)))
+
+
+# combine
+fig2c = wrap_elements(fig2c_lab / fig2c_cor_gg + plot_layout(heights = c(0.5, 7))) 
+
+ggsave(plot = fig2c, file.path(plotDir, "BMCcorrelations_total.pdf"), width = 13, height = 9)
+
+```
+
+
+
+
+## BMCs pathway of choice
+
+### UpSet plot
+Show overlap between p53 pathways
+
+```{r}
+KEGG_p53 = AU_pathway_overview %>% filter(ID == "hsa04115") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol) 
+WP_p53 = gsea_wikipathways_df %>% filter(pathway == "WP_P53_TRANSCRIPTIONAL_GENE_NETWORK") %>% pull(gene_symbol)
+HALLMARK_p53 = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol) 
+module_p53 = LU_pathway_overview_select %>% filter(module == "hRPTECTERT1_35") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol)
+GENOMARKTGxDDI = Sciensano_pathway_overview %>% filter(pathway %in% c("TGxDDI64", "GENOMARK84")) %>% pull(gene_symbol)
+
+p53_geneList = list(
+  KEGG = KEGG_p53,
+  WikiPathways = WP_p53,
+  HALLMARK = HALLMARK_p53,
+  Modules = module_p53,
+  Biomarkers = GENOMARKTGxDDI
+)
+
+membership_df = UpSetR::fromList(p53_geneList) %>%
+  rownames_to_column("Gene") %>%
+  mutate(across(-Gene, as.logical))
+
+
+fig4a_upset = ComplexUpset::upset(
+  membership_df,
+  names(p53_geneList),
+  min_size = 1,
+  matrix = (
+    intersection_matrix(geom = geom_point(shape = 'circle filled', size = 3)) +
+      scale_color_manual(
+        values = c('KEGG' = "firebrick", 'WikiPathways' = "gray30", 'HALLMARK' = "gold1", 'Modules' = "blue2", 'Biomarkers' = "forestgreen"),
+      )
+    ),
+  queries = list(
+    upset_query(set = 'KEGG', fill = "firebrick"),
+    upset_query(set = "WikiPathways", fill = "gray30"),
+    upset_query(set = "HALLMARK", fill = "gold1"),
+    upset_query(set = "Modules", fill = "blue2"),
+    upset_query(set = "Biomarkers", fill = "forestgreen")
+  ))
+
+
+fig4a_upset
+
+fig4a_lab <- wrap_elements(panel = textGrob("Overlap genes in various p53 pathways", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig4a = wrap_elements(fig4a_lab / 
+                        fig4a_upset +
+                        plot_layout(heights = c(0.5, 5))) 
+
+
+fig4a
+
+ggsave(plot = fig4a, file.path(plotDir, "UpSetPlot_p53Pathways.pdf"), width = 15, height = 5)
+```
+
+
+
+### Accumulation plot - highlight p53 pathways
+```{r}
+fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
+                                                 partner = "Aristotle University",
+                                                 pathway_oi = "p53 signaling pathway") +
+  labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
+  theme(plot.title = element_text(color = "firebrick"),
+        plot.subtitle = element_text(color = "red")) + 
+  xlim(0,50)
+
+
+
+fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHWAYS_select,
+                                                 partner = "BPI",
+                                                 pathway_oi = "p53 transcriptional gene network") + 
+  labs(subtitle = "highlight p53 transcriptional gene network (WIKIPATHWAYS)") + 
+  theme(plot.title = element_text(color = "gray30"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+
+fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_select,
+                                                 partner = "Ghent University",
+                                                 pathway_oi = "HALLMARK_P53_PATHWAY") +
+  labs(subtitle = "highlight p53 pathway (HALLMARK)") +
+  theme(plot.title = element_text(color = "gold1"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+
+fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_select,
+                                                 partner = "Leiden University",
+                                                 pathway_oi = "hRPTECTERT1_35") + 
+  labs(subtitle = "highlight p53 WGCNA module (hRPTECTERT1_35)") +
+  theme(plot.title = element_text(color = "blue2"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+fig4b_SC = BMDaccumulationPlot_pathway_highlight(
+  BMDoutput = Sciensano_norm_TXDDI_GENOMARK_select,
+  partner = "Sciensano",
+  pathway_oi = c("TGxDDI64", "GENOMARK84")) + 
+  labs(subtitle = "highlight p53 biomarkers (TGxDDI64 & GENOMARK84)") +
+  theme(plot.title = element_text(color = "forestgreen"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+# generate title
+fig4b_lab <- wrap_elements(panel = textGrob("BMC accumulation pathways from preferred collection", gp = gpar(fontface = "bold", fontsize = 22)))
+
+
+fig4b = wrap_elements(fig4b_AU + fig4b_BPI + fig4b_GU + fig4b_LU + fig4b_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect"))
+
+fig4b_total = wrap_elements(fig4b_lab / fig4b + plot_layout(heights = c(0.4, 5)))
+fig4b_total
+
+ggsave(plot = fig4b_total, file.path(plotDir, "BMCaccumulation_pathwayPreferredCollection.pdf"), width = 24, height = 6)
+```
+
+
+### Boxplots gene BMC p53 pathways
+```{r}
+GENOMARK = Sciensano_pathway_overview %>% filter(pathway == "GENOMARK84") %>% pull(gene_symbol)
+
+fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% KEGG_p53) %>%
+  ggplot(aes(x=timepoint, y=finalBMD)) +
+  geom_violin(color = "firebrick") + 
+  geom_jitter(color = "firebrick") +
+  labs(subtitle = "Genes in p53 signaling pathway (KEGG)",
+       y = "BMC") + 
+  ylim(c(0, 50)) +
+  theme(axis.title.x = element_blank())
+
+
+fig4c_BPI = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% WP_p53) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_violin(color = "gray30") +
+  geom_jitter(color = "gray30") +
+  labs(subtitle = "Genes in p53 transcriptional network (WIKIPATHWAYS)",
+       y = "BMC") +
+  ylim(c(0, 50)) +
+  theme(axis.title.x = element_blank())
+
+
+fig4c_GU = GU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% HALLMARK_p53) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_violin(color = "gold1") +
+  geom_jitter(color = "gold1") +
+  labs(subtitle = "Genes in p53 pathway (HALLMARK)",
+       y = "BMC") +
+  ylim(c(0, 50)) +
+  theme(axis.title.x = element_blank())
+
+
+fig4c_LU = LU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% module_p53) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_violin(color = "blue2") +
+  geom_jitter(color = "blue2") +
+  labs(subtitle = "Genes in p53 WGCNA module (hRPTECTERT1_35)",
+       y = "BMC") +
+  ylim(c(0, 50)) +
+  theme(axis.title.x = element_blank())
+  
+
+
+fig4c_SC = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% GENOMARK) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_violin(color = "forestgreen") +
+  geom_jitter(color = "forestgreen") +
+  labs(subtitle = "p53 biomarkers (GENOMARK84)",
+       y = "BMC") +
+  ylim(c(0, 50)) +
+  theme(axis.title.x = element_blank())
+
+
+
+fig4c = wrap_elements(fig4c_AU + fig4c_BPI + fig4c_GU + fig4c_LU + fig4c_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect"))
+fig4c
+
+# generate title
+fig4c_lab <- wrap_elements(panel = textGrob("BMC distribution genes in p53 pathway", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig4c_total = wrap_elements(fig4c_lab / fig4c + plot_layout(heights = c(0.5, 5)))
+
+
+ggsave(plot = fig4c_total, file.path(plotDir, "BMCdistributionGenesP53Pathways.pdf"), width = 22, height = 6)
+```
+

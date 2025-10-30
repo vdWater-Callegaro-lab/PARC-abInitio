@@ -1,0 +1,272 @@
+---
+title: "ManuscriptFigure2"
+author: "IBBruns"
+date: "2025-04-22"
+output: html_document
+---
+
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+```
+
+
+
+MANUSCRIPT FIGURE 2
+Here, we will generate figure 2 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+```
+
+
+# Generate figure
+
+
+## Figure 2 
+Here we will have:   
+1. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint
+2. A zoom of the accumulation plot per partner (to see the slight differences in the beginning)
+3. A combined accumulationplot of the most sensitive timepoint (24hr)
+
+### Figure 2a
+
+#### Plot first row
+```{r}
+fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "Aristotle University") +
+  theme(plot.title = element_text(color = "firebrick")) +  
+  ylim(c(0, 6300))
+
+fig2a_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI") +
+  theme(plot.title = element_text(color = "gray30")) +
+  ylim(c(0, 6300))
+
+fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "Ghent University") + 
+  theme(plot.title = element_text(color = "gold1")) +
+  ylim(c(0, 6300))
+
+fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue3")) +
+  ylim(c(0, 6300))
+
+fig2a_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+  theme(plot.title = element_text(color = "forestgreen")) +
+  ylim(c(0, 6300))
+
+
+fig2a_row1 = fig2a_AU + fig2a_BPI + fig2a_GU + fig2a_LU + fig2a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2a_row1
+
+ggsave(plot = fig2a_row1, file.path(plotDir, "fig2a_firstrow.pdf"), width = 15, height = 5)
+
+```
+
+
+
+#### Zoom
+Zoom in on first part (250 genes) plot
+
+#### Plot zoom
+```{r}
+fig2a_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "Aristotle Univserity") + 
+  theme(plot.title = element_text(color = "firebrick"))
+
+fig2a_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select, partner = "BPI") + 
+  theme(plot.title = element_text(color = "gray30"))
+
+fig2a_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "Ghent University") + 
+  theme(plot.title = element_text(color = "gold1"))
+
+
+fig2a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "Leiden University") + 
+  theme(plot.title = element_text(color = "blue3"))
+
+
+fig2a_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+  theme(plot.title = element_text(color = "forestgreen"))
+
+
+fig2a_row2 = fig2a_AU_zoom + fig2a_BPI_zoom + fig2a_GU_zoom + fig2a_LU_zoom + fig2a_SC_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2a_row2
+
+
+```
+
+
+# Generate total figure 2a
+```{r}
+# generate title
+fig2a_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+fig2a = wrap_elements(fig2a_row1_lab /
+  fig2a_row1 /
+  fig2a_row2 + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 2.5, 2.5)))
+
+
+fig2a
+ggsave(plot = fig2a, file.path(plotDir, "fig2a_total.pdf"), width = 15, height = 5.5)
+
+
+```
+
+
+
+
+
+### Figure 2b
+Select most sensitive timepoint (now 24hr) and combine accumulation plots of partners
+
+```{r}
+
+fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  filter(timepoint == "24hr") %>%
+  group_by(partner) %>%
+  arrange(finalBMD) %>%
+  mutate(ranked_gene = row_number()) %>%
+  ggplot(aes(finalBMD, y = ranked_gene)) +
+  geom_point(stat = "identity", aes(color = partner), size = 1) +
+  labs(y = "Accumulation", 
+       x = "BMC") +
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  theme(legend.title = element_blank())
+
+fig2b_zoom = fig2b_norm +
+  ylim(c(0, 250)) +
+  xlim(0, 3) 
+
+
+
+# generate title
+fig2b_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24 hours (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+
+# combine
+fig2b = wrap_elements(fig2b_lab / fig2b_norm / fig2b_zoom + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5, 5)))
+fig2b
+
+
+# save figure 2b
+ggsave(plot = fig2b, file.path(plotDir, "fig2b_total.pdf"), width = 5, height = 10.5)
+
+ggsave(plot = fig2b_norm, file.path(plotDir, "fig2b_24hours.pdf"), width=5, height = 3)
+
+```
+
+
+
+
+### Figure 2c
+BMD correlations
+
+```{r}
+fig2c_cor = GGally::ggpairs(norm_BMD_combined_wide, aes(color = timepoint),
+                columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
+                lower = list(continuous = GGally::wrap("points", size = 0.05)),
+                diag = list(continuous = GGally::wrap("densityDiag"), mapping = ggplot2::aes(color=timepoint), alpha = 0.5)
+                )
+
+
+fig2c_cor_gg = wrap_elements(full = ggmatrix_gtable(fig2c_cor)) # convert to ggplot
+
+
+# generate title
+fig2c_lab <- wrap_elements(panel = textGrob("BMD correlations (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+fig2c = wrap_elements(fig2c_lab / fig2c_cor_gg + plot_layout(heights = c(0.5, 10))) 
+
+ggsave(plot = fig2c, file.path(plotDir, "fig2c.pdf"), width = 10, height = 10.5)
+
+```
+
+
+## Create total figure 2
+```{r}
+
+figure2 = fig2a /
+  (fig2b + fig2c) + 
+  plot_layout(guides = "collect", axis = "collect", heights = c(5.5,5.5)) + plot_annotation(tag_levels = "A")
+
+figure2
+
+ggsave(plot = figure2, file.path(plotDir, "Figure2.pdf"), width = 15, height = 16)
+
+
+```
+
+
+
+
