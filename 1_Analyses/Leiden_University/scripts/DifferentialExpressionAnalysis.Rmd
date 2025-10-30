@@ -1,0 +1,328 @@
+---
+title: "DifferentialExpressionAnalyis"
+output: html_document
+date: "2025-05-26"
+---
+
+
+```{r, include=FALSE}
+
+rm(list = ls()); gc()
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# load ggplot
+pacman::p_load(ggplot2)
+
+# set standard plot theme
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# choose project
+studyNR = "EUT046"
+
+```
+
+
+
+
+# Set up analysis {.tabset}
+
+## Load packages
+
+### CRAN
+```{r}
+if(!require(pacman, quietly = TRUE)){
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, data.table, ggfortify, here)
+```
+
+
+### BioManager
+```{r}
+if (!require("BiocManager", quietly = TRUE)){
+    install.packages("BiocManager")
+}
+
+if (!require(DESeq2, quietly = TRUE)){
+  BiocManager::install("DESeq2")
+}
+
+library(DESeq2)
+
+
+```
+
+
+
+## Load functions
+Load manual functions we need in the script.
+```{r}
+source(file.path(here(), "functions.R"), local = knitr::knit_global())
+```
+
+
+
+
+
+## Set color scheme
+```{r}
+
+# color list for plotting
+color25 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown", "forestgreen"
+)   
+
+
+```
+
+
+## Set directories
+```{r}
+# data directory 
+if(!dir.exists(paste0("data/"))){
+  dir.create(path = file.path(here(), "data"))
+}
+dataDir <- file.path(here(), "data", studyNR)
+
+# input directory
+if(!dir.exists(paste0("input/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "input", studyNR))
+}
+inputDir <- file.path(here(), "input", studyNR)
+
+# output directory
+if(!dir.exists(paste0("output/updatedVersion/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "output", "updatedVersion", studyNR))
+}
+outputDir <- file.path(here(), "output", "updatedVersion", studyNR)
+
+# plot directory
+if(!dir.exists(paste0("figures/updatedVersion/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "figures", "updatedVersion", studyNR))
+}
+plotDir <- file.path(here(), "figures", "updatedVersion", studyNR)
+
+
+```
+
+# Differential gene expression {.tabset}
+
+## Generate contrast table
+```{r}
+
+contrast_control <- metadata_libSize_repFilter %>%
+    filter(COMPOUND_ABBR %in% c("MEDIUM", "DMSO", "STARVMEDIUM", "DMEM", "NaCl")) %>%
+    distinct(MEAN_ID, TIME, COMPOUND_ABBR, TREATMENT)
+
+
+contrast_treatment <- metadata_libSize_repFilter %>%
+    filter(!COMPOUND_ABBR %in% c("MEDIUM", "DMSO", "STARVMEDIUM", "DMEM", "NaCl")) %>%
+    distinct(MEAN_ID, TIME, COMPOUND_ABBR, REPLICATE, TREATMENT)
+
+
+
+contrast_table <- left_join(x = contrast_treatment %>% 
+                              select(MEAN_ID_EXPERIMENT = MEAN_ID, TIME, EXPERIMENT = COMPOUND_ABBR, REPLICATE), 
+                            y = contrast_control %>%
+                              select(MEAN_ID_CONTROL = MEAN_ID, TIME, CONTROL=COMPOUND_ABBR), 
+                            by = c("TIME")) %>% 
+  distinct()
+
+
+contrast_table %>%
+    select(MEAN_ID_EXPERIMENT, MEAN_ID_CONTROL) %>%
+    as_tibble() %>%
+    print(n = 1000) 
+
+
+```
+
+
+
+# Run DESEQ
+
+
+## Run DESeq2 function
+#' Run DESeq2 analysis for specified contrasts
+#'
+#' @param contrast A data frame/tibble with columns 'caseCondition', 'controlCondition', and 'main_diagnosis_splitgroups'
+#' @param countdata A data frame with 'gene_symbol' and count columns for each sample.
+#' @param metadata A data frame with 'sample_id', 'tmPathoCondition', and covariates (e.g., PT, EC, FIB).
+#' @param workers Number of parallel workers for DESeq2 computations.
+#'
+#' @return A list containing a tibble of DESeq2 results for each specified contrast.
+
+### Choose settings
+```{r}
+# settings
+# custom_design <- ~ PT + EC + FIB + bxSourcePatho
+custom_design <- ~ MEAN_ID
+shrinkage = FALSE
+shrinkage_type = "normal"
+
+if(shrinkage){
+  contrast_method = paste0(shrinkage_type, "Shrinkage")
+}else{
+  contrast_method = "contrast"
+}
+
+print(contrast_method)
+
+```
+
+
+### Generate dds object
+```{r, warning=FALSE}
+
+start.time = Sys.time()
+
+dds_list <- generate_dds(countdata = rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter %>% 
+                           dplyr::select(gene_symbol_entrez_id, metadata_libSize_repFilter$SAMPLE_ID),
+                    metadata = metadata_libSize_repFilter,
+                    design = custom_design,
+                    contrast = contrast_table)
+
+end.time = Sys.time()
+cat("Generating dds object took", round(end.time - start.time, 2), "hours")
+
+# save dds file for later use
+write_rds(dds_list, file.path(outputDir,"DESeq_output", contrast_method, "dds_list.rds"))
+
+```
+
+
+### Run contrast
+```{r}
+
+# dds_list <- read_rds(file.path(outputDir, "dds_list_groupPatho.rds"))
+
+start.time = Sys.time()
+
+deseq_output <- run_contrast(dds_list = dds_list, contrast = contrast_table, shrinkage = shrinkage, shrinkage_type = shrinkage_type)
+
+end.time = Sys.time()
+cat("Generating contrast took", round(end.time - start.time, 2), "hours")
+
+
+```
+
+
+# Generate TXG-MAPr upload files
+```{r}
+# expression_long
+expression_long = deseq_output %>% 
+  dplyr::select(sample_id = MEAN_ID_experiment,
+                gene_symbol_entrez_id,
+                log2fc = log2FoldChange,
+                pvalue,
+                padj)
+  
+
+
+# expression_wide
+expression_wide = expression_long %>%
+  pivot_wider(names_from = sample_id, names_glue = "{sample_id}__{.value}",
+              values_from = c(log2fc, pvalue, padj))
+
+
+TXG_upload_file = expression_long %>% left_join(metadata_libSize_repFilter %>% dplyr::select("experiment" = "COMPOUND", "time" = "TIME", "conc" = "DOSE", "sample_id" = "MEAN_ID", "REPLICATE"),
+                                                by="sample_id") %>%
+  separate(gene_symbol_entrez_id, into=c("gene_symbol", "entrez_id"), sep="_") %>%
+  dplyr::rename("gene_id" = entrez_id) %>%
+  mutate(experiment = paste0(experiment, REPLICATE)) %>%
+  select(everything(), -"sample_id", -"REPLICATE", -"gene_symbol")
+
+```
+
+
+
+# Save output
+```{r}
+write_rds(deseq_output, file.path(outputDir, "updatedVersion", "DESeq_output", contrast_method, "deseq_output.rds"))
+
+save(contrast_table,
+     deseq_output,
+     dds_list,
+     
+     file = file.path(outputDir, "updatedVersion", "DESeq_output", contrast_method, "DESeq2_output_files.RData")) 
+
+
+data.table::fwrite(TXG_upload_file, file.path(outputDir, "DESeq_output", paste0(studyNR, "_TXG_upload_file_replicates_separate.txt")))
+
+```
+
+
+# Check DEGs
+```{r}
+log2fc_threshold = log2(1.5)
+padj_threshold = 0.01
+
+
+# add timepoint & concentration
+deseq_output %>%
+  separate(
+    MEAN_ID_experiment,
+    into = c("cellType", "experiment", "timepoint", "concentration", "replicate"),
+    sep = "_",
+    remove = FALSE
+  ) %>%
+  mutate(timepoint = factor(timepoint, levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+         concentration = factor(concentration, levels = c("0.1uM", "0.5uM", "1uM", "2.5uM", "5uM", "10uM", "20uM", "30uM", "50uM"))) -> deseq_output_tpconc
+
+
+#  plot
+deseq_output_tpconc %>%
+  filter(padj < padj_threshold & abs(log2FoldChange) >= log2fc_threshold) %>%
+  mutate(direction = if_else(log2FoldChange >= 0, true = "UP", false = "DOWN")) %>%
+  group_by(timepoint, concentration, direction) %>%
+  summarize(n()) %>%
+  ggplot(aes(x=concentration, y=`n()`, fill = direction)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~timepoint) +
+  labs(y = "number of DEGs") +
+  theme(axis.text.x = element_text(angle = 90),
+        legend.title = element_blank()) +
+  scale_fill_manual(values = c("firebrick", "darkblue"),
+                     breaks = c("UP", "DOWN"))
+
+ggsave(file.path(plotDir, "DEGs_per_timepoint_and_concentration.pdf"), width = 10, height = 8)
+
+```
+
+
