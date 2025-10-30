@@ -1,0 +1,1670 @@
+---
+title: "Manuscript figures"
+author: "IBBruns"
+date: "2024-08-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+```
+
+
+
+MANUSCRIPT FIGURES
+Here, we will generate the figures needed for the manuscript
+
+# Settings
+
+## Manual settings
+```{r}
+studyNR = "EUT046"
+
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, ggpubr, fgsea, ggvenn, ActivePathways, GGally)
+```
+
+
+## Load functions
+```{r}
+source("functions.R", local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(getwd(), "input", studyNR)
+outputDir = file.path(getwd(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(getwd(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+
+# BMD normalized counts
+AU_norm_BMD = read.delim(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt"))) %>% 
+  dplyr::rename("finalBMD" = "BMD.zSD") %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")))
+
+GU_norm_BMD = read.delim(file.path(inputDir, "Ghent", "BMD_output_normalized_counts.txt"), sep = " ") %>% 
+  dplyr::rename("finalBMD" = "BMD.zSD") %>%
+  mutate(timepoint = factor(paste0(timepoint, "hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")))
+
+LU_norm_BMD = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_BMD_output.txt"))) %>%
+  dplyr::rename("finalBMD" = "Best.BMD", 
+                "gene_symbol_entrez_id" = "Probe.ID") %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+
+Sciensano_norm_BMD = read.delim2(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts_filtered.txt")) %>%
+  dplyr::rename("finalBMD" = "Best.BMD") %>%
+  mutate(timepoint = factor(paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+         finalBMD = as.numeric(finalBMD),
+         Best.BMDU = as.numeric(Best.BMDU),
+         Best.BMDL = as.numeric(Best.BMDL))
+
+
+BPI_norm_BMD = read.delim(file.path(inputDir, "BPI" , "All_FilteredDRomic.txt")) %>%
+  dplyr::rename("finalBMD" = "BMD.zSD",
+                "gene_symbol_entrez_id" = id) %>% # BPI only has gene symbol, but for the sake of merging now call gene_symbol_entrez_id, might change later
+  mutate(timepoint = factor(paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")))
+
+
+# BMD log2fc
+LU_fc_BMD = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_log2fc_BMD_output.txt"))) %>%
+  dplyr::rename("finalBMD" = Best.BMD, 
+                "gene_symbol_entrez_id" = Probe.ID,
+                "finalBMDL" = Best.BMDL,
+                "finalBMDU" = Best.BMDU) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+
+
+ODAF_fc_BMD = read.delim(file.path(inputDir, "ODAF", paste0(studyNR, "_RODAF_log2fc_BMD_output.txt"))) %>% 
+  dplyr::rename("finalBMD" = "Best.BMD", 
+                "gene_symbol_entrez_id" = "Probe.ID") %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+
+
+# Median BMD biological entity
+
+# AU_norm_HALLMARK = read.delim()
+AU_norm_HALLMARK = read.delim(file.path(inputDir, "Aristotle", paste0(studyNR, "_HALLMARK_Pathway_Medians_BMD_output.txt"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("medianBMD" = Median)
+
+AU_norm_KEGG = read.delim(file.path(inputDir, "Aristotle", paste0(studyNR, "_KEGG_Pathway_Medians_BMD_output.txt"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("medianBMD" = Median)
+
+GU_norm_HALLMARK = read.delim(file.path(inputDir, "Ghent", "medianBMD_pathways_normalized_counts.txt"), sep = " ") %>%
+  mutate(timepoint = factor(paste0(timepoint, "hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  dplyr::rename("medianBMD" = BMD.median)
+
+LU_norm_HALLMARK = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_functionalClas_HALLMARK_output.txt"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("medianBMD" = BMD.Median)
+
+LU_norm_modules = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_functionalClas_output.txt"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("medianBMD" = BMD.Median) %>%
+  filter(Genes.That.Passed.All.Filters >= 3)
+
+Sciensano_norm_HALLMARK = read.delim(file.path(inputDir, "Sciensano", "medianBMD_pathways_normalized_counts_finalfiltered.txt")) %>%
+  mutate(timepoint = factor(paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  filter(!Pathway.Name %in% c("TGxDDI64", "GENOMARK84")) %>%
+  dplyr::rename("medianBMD" = Median)
+
+Sciensano_norm_TXDDI_GENOMARK = read.delim(file.path(inputDir, "Sciensano", "medianBMD_pathways_normalized_counts_finalfiltered.txt")) %>%
+  mutate(timepoint = factor(paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  filter(Pathway.Name %in% c("TGxDDI64", "GENOMARK84")) %>%
+  dplyr::rename("medianBMD" = Median)
+
+BPI_norm_HALLMARK = read.delim(file.path(inputDir, "BPI", "All_HALLOut.txt")) %>%
+  dplyr::rename("medianBMD" = MedianHALL,
+                "timepoint" = Timepoint) %>%
+  mutate(timepoint = factor(paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")))
+  
+BPI_norm_KEGG = read.delim(file.path(inputDir, "BPI", "All_KEGGOut.txt")) %>%
+  dplyr::rename("medianBMD" = MedianKEGG,
+                "timepoint" = Timepoint) %>%
+  mutate(timepoint = factor(paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) 
+
+BPI_norm_REACTOME = read.delim(file.path(inputDir, "BPI", "All_ReactOut.txt")) %>%
+  dplyr::rename("medianBMD" = MedianReact,
+                "timepoint" = Timepoint) %>%
+  mutate(timepoint = factor(paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) 
+
+BPI_norm_WIKIPATHWAYS = read.delim(file.path(inputDir, "BPI", "All_WPOut.txt")) %>%
+  dplyr::rename("medianBMD" = MedianWP,
+                "timepoint" = Timepoint) %>%
+  mutate(timepoint = factor(paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) 
+
+
+# pathway overview
+AU_pathway_overview = read.delim(file.path(inputDir, "Aristotle", paste0(studyNR, "_PathwayIdentifiers.txt"))) %>% select(-"X")
+
+GU_pathway_overview = read.delim(file.path(inputDir, "Ghent", "pathway_overview.txt"), sep = " ")
+
+LU_txgmapr_egs = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_TXGMAPr_module_egs.txt")))
+
+LU_pathway_overview = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_gene_module_overview.txt"))) %>% select(gene_symbol, entrez_id, module) %>%
+  mutate(gene_symbol = gsub("id_", "", gene_symbol),
+         entrez_id = gsub("id_", "", entrez_id)) %>%
+  unite(gene_symbol, entrez_id, col = "gene_symbol_entrez_id") %>%
+  unique()
+
+Sciensano_pathway_overview = read.delim(file.path(inputDir, "Sciensano", "pathway_overview.txt"))
+
+
+#  hallmark pathways
+gmt_file_hallmarks = file.path(getwd(), "input", "gsea_pathways", "hallmarks.v2023.2.Hs.symbols.gmt")
+gmt_file_kegg = file.path(getwd(), "input", "gsea_pathways", "c2.cp.kegg_legacy.v2024.1.Hs.symbols.gmt")
+gmt_file_reactome = file.path(getwd(), "input", "gsea_pathways", "c2.cp.reactome.v2024.1.Hs.symbols.gmt")
+gmt_file_wikipathways = file.path(getwd(), "input", "gsea_pathways", "c2.cp.wikipathways.v2024.1.Hs.symbols.gmt")
+
+
+# BMD on pathway scores
+
+# module eigengene scores
+LU_BMD_pathway = read.delim(file.path(inputDir, "Leiden", paste0(studyNR, "_module_egs_BMD_output.txt"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("finalBMD" = Best.BMD,
+                "finalBMDU" = Best.BMDU,
+                "finalBMDL" = Best.BMDL,
+                "pathway" = Probe.ID) %>%
+    filter(finalBMD >= 0.01*0.01 & finalBMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8)
+
+
+# NES scores
+SC_BMD_pathway = read.delim(file.path(inputDir, "Sciensano", "BMD_output_NES_final.txt")) %>% select(-1) %>%
+  mutate(timepoint = factor(paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  dplyr::rename("finalBMD" = Best.BMD,
+                "finalBMDU" = Best.BMDU,
+                "finalBMDL" = Best.BMDL)  %>%
+  filter(finalBMD <= 50,
+         Best.BMD.BMDL <=20,
+         Best.BMDU.BMDL <=20,
+         Best.fitPValue <= 0.1)
+
+```
+
+
+# Wrangle data
+```{r}
+
+# normalized counts
+AU_norm_BMD_select = AU_norm_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD, "finalBMDU" = BMD.zSD.upper, "finalBMDL" = BMD.zSD.lower) %>% mutate(partner = "AU")
+
+GU_norm_BMD_select = GU_norm_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD, "finalBMDU" = BMD.zSD.upper, "finalBMDL" = BMD.zSD.lower) %>% mutate(partner = "GU")
+
+LU_norm_BMD_select = LU_norm_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD, "finalBMDU" = Best.BMDU, "finalBMDL" = Best.BMDL) %>% mutate(partner = "LU") 
+
+Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD, "finalBMDU" = Best.BMDU, "finalBMDL" = Best.BMDL) %>% mutate(partner = "SC")
+
+BPI_norm_BMD_select = BPI_norm_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD, "finalBMDU" = BMD.zSD.upper, "finalBMDL" = BMD.zSD.lower) %>% mutate(partner = "BPI") # BPI only has gene symbol
+
+df_list = list(AU_norm_BMD_select, GU_norm_BMD_select, LU_norm_BMD_select, Sciensano_norm_BMD_select, BPI_norm_BMD_select)
+
+norm_BMD_combined = bind_rows(df_list) %>% as_tibble()
+
+
+
+# log2fc (need to adjust like above)
+LU_fc_select = LU_fc_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD) %>% mutate(partner = "LU")
+ODAF_fc_select = ODAF_fc_BMD %>% dplyr::select(gene_symbol_entrez_id, timepoint, finalBMD) %>% mutate(partner = "R-ODAF")
+
+df_list = list(LU_fc_select, ODAF_fc_select)
+
+fc_BMD_combined = bind_rows(df_list) %>% as_tibble()
+
+
+
+# median BMD HALLMARK
+AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD, "medianBMDL" = Range_Min, "medianBMDU" = Range_Max) %>% mutate(partner = "AU") %>% unique() %>% drop_na()
+
+GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% dplyr::select(Pathway.Name, timepoint, medianBMD, "medianBMDL" = BMD.firstquartile, "medianBMDU" = BMD.thirdquartile) %>% mutate(partner = "GU") %>% drop_na()
+
+LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% dplyr::select("Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, timepoint, medianBMD, "medianBMDL" = BMDL.Median, "medianBMDU" = BMDU.Median) %>% mutate(partner = "LU") %>% drop_na()
+
+Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% dplyr::select(Pathway.Name, timepoint, medianBMD, "medianBMDL" = BMDL.Median, "medianBMDU" = BMDU.Median) %>% mutate(partner = "SC") %>% drop_na()
+
+BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD) %>% mutate(partner = "BPI") %>% unique() %>% drop_na() # BMDU/BMDL are missing
+
+df_list_HALLMARK = list(AU_norm_HALLMARK_select, GU_norm_HALLMARK_select, LU_norm_HALLMARK_select, Sciensano_norm_HALLMARK_select, BPI_norm_HALLMARK_select)
+
+norm_HALLMARK_combined = bind_rows(df_list_HALLMARK) %>% as_tibble()
+
+df_list_HALLMARK = list(AU_norm_HALLMARK_select %>% select(Pathway.Name, timepoint, "AU_medianBMD" = medianBMD),
+                        GU_norm_HALLMARK_select %>% select(Pathway.Name, timepoint, "GU_medianBMD" = medianBMD), 
+                        LU_norm_HALLMARK_select %>% select(Pathway.Name, timepoint, "LU_medianBMD" = medianBMD),
+                        Sciensano_norm_HALLMARK_select %>% select(Pathway.Name, timepoint, "SC_medianBMD" = medianBMD),
+                        BPI_norm_HALLMARK_select %>% select(Pathway.Name, timepoint, "BPI_medianBMD" = medianBMD))
+
+norm_HALLMARK_combined_wide = df_list_HALLMARK %>% reduce(full_join, by = c("Pathway.Name", "timepoint"))
+
+
+# median BMD pathways of choice
+AU_norm_KEGG_select = AU_norm_KEGG %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD, "medianBMDL" = Range_Min, "medianBMDU" = Range_Max) %>% mutate(partner = "AU") %>% drop_na() %>% unique()
+
+LU_norm_modules_select = LU_norm_modules %>% dplyr::select("Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, timepoint, medianBMD, "medianBMDL" = BMDL.Median, "medianBMDU" = BMDU.Median) %>%
+  mutate(partner = "LU") %>% drop_na()
+
+Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% dplyr::select(Pathway.Name, timepoint, medianBMD, "medianBMDL" = BMDL.Median, "medianBMDU" = BMDU.Median) %>% mutate(partner = "SC") %>% drop_na()
+
+BPI_norm_KEGG_select = BPI_norm_WIKIPATHWAYS %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD) %>% mutate(partner = "BPI") %>% drop_na()
+
+BPI_norm_REACTOME_select = BPI_norm_REACTOME %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD) %>% mutate(partner = "BPI") %>% drop_na()
+
+BPI_norm_WIKIPATHWAYS_select = BPI_norm_WIKIPATHWAYS %>% dplyr::select("Pathway.Name" = Description, timepoint, medianBMD) %>% mutate(partner = "BPI") %>% drop_na()
+
+df_list_pathwaysChoice = list(AU_norm_KEGG_select, GU_norm_HALLMARK_select, LU_norm_modules_select, Sciensano_norm_TXDDI_GENOMARK_select, BPI_norm_KEGG_select, BPI_norm_REACTOME_select, BPI_norm_WIKIPATHWAYS_select)
+
+norm_pathwaysChoice_combined = bind_rows(df_list_pathwaysChoice) %>% as_tibble()
+
+
+
+# gene normalized counts final BMD one table
+gene_BMD_list = list(
+  AU_norm_BMD %>% select(gene_symbol_entrez_id, AU_finalBMD = finalBMD, timepoint),
+  GU_norm_BMD %>% select(gene_symbol_entrez_id, GU_finalBMD = finalBMD, timepoint),
+  LU_norm_BMD %>% select(gene_symbol_entrez_id, LU_finalBMD = finalBMD, timepoint),
+  Sciensano_norm_BMD %>% select(gene_symbol_entrez_id, SC_finalBMD = finalBMD, timepoint),
+  BPI_norm_BMD %>% select(gene_symbol_entrez_id, BPI_finalBMD = finalBMD, timepoint)
+  )
+
+norm_BMD_combined_wide = gene_BMD_list %>% reduce(full_join, by = c("gene_symbol_entrez_id", "timepoint"))
+
+```
+
+
+# Figures
+
+
+## Figure 2 -> accumulation plots
+Here we will have:   
+1. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint
+2. A zoom of the accumulation plot per partner (to see the slight differences in the beginning)
+3. A combined accumulationplot of the most sensitive timepoint
+
+### Figure 2a
+
+#### Plot first row
+```{r}
+fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD, partner = "Aristotle University") +
+    ylim(c(0, 6200))
+timepoint_leg = get_legend(fig2a_AU)
+fig2a_AU = fig2a_AU + theme(legend.position = "none",
+                            plot.title = element_text(color = "firebrick"))
+
+fig2a_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD, partner = "BPI") + theme(legend.position = "none",
+                                                                                   plot.title = element_text(color = "gray30"),
+                                                                                   axis.title.y = element_blank()) +
+  ylim(c(0, 6200))
+
+fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD, partner = "Ghent University") + theme(legend.position = "none",
+                                                                                              plot.title = element_text(color = "gold1"),
+                                                                                              axis.title.y = element_blank()) +
+    ylim(c(0, 6200))
+
+fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD, partner = "Leiden University") + theme(legend.position = "none",
+                                                                                               plot.title = element_text(color = "blue3"),
+                                                                                               axis.title.y = element_blank()) +
+    ylim(c(0, 6200))
+
+fig2a_SC = BMDaccumulationPlot(Sciensano_norm_BMD, partner = "Sciensano") + theme(legend.position = "none",
+                                                                                  plot.title = element_text(color = "forestgreen"),
+                                                                                  axis.title.y = element_blank()) +
+    ylim(c(0, 6200))
+
+
+
+
+
+fig2a_firstrow = ggpubr::ggarrange(fig2a_AU, fig2a_BPI, fig2a_GU, fig2a_LU, fig2a_SC, nrow = 1)
+
+#add title
+fig2a_firstrow_title = annotate_figure(fig2a_firstrow, top = text_grob("BMD accumulation plots (CPM counts)", face = "bold", size = 18))
+fig2a_firstrow_title
+
+ggsave(plot = fig2a_firstrow_title, file.path(plotDir, "fig2a_firstrow.pdf"), width=15, height = 5)
+
+rm(fig2a_AU, fib2a_BPI, fig2a_GU, fig2a_LU, fig2a_SC)
+```
+
+
+
+#### Zoom
+Zoom in on first part (250 genes) plot
+
+
+#### Plot zoom
+```{r}
+fig2a_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD, partner = "Aristotle Univserity") + theme(plot.title = element_text(color = "firebrick"))
+
+fig2a_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD, partner = "BPI") + theme(plot.title = element_text(color = "gray30"),
+                                                                                             axis.title.y = element_blank())
+
+fig2a_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD, partner = "Ghent University") + theme(plot.title = element_text(color = "gold1"),
+                                                                                                        axis.title.y = element_blank())
+
+
+fig2a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD, partner = "Leiden University") + theme(plot.title = element_text(color = "blue3"),
+                                                                                                         axis.title.y = element_blank())
+
+
+fig2a_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD, partner = "Sciensano") + theme(plot.title = element_text(color = "forestgreen"),
+                                                                                            axis.title.y = element_blank())
+
+
+fig2a_zoom_total = ggpubr::ggarrange(fig2a_AU_zoom, fig2a_BPI_zoom, fig2a_GU_zoom, fig2a_LU_zoom, fig2a_SC_zoom, nrow = 1)
+fig2a_zoom_total
+
+ggsave(plot = fig2a_zoom_total, file.path(plotDir, "fig2a_zoom_total.pdf"), width=15, height = 5)
+
+rm(fig2a_AU_zoom, fig2a_BPI_zoom, fig2a_GU_zoom, fig2a_LU_zoom, fig2a_SC_zoom)
+```
+
+
+## Test
+```{r}
+BMDaccumulationPlot_zoom_HL5th(BMDoutput = LU_norm_BMD, HLgene4hr = "SNX4", HLgene8hr = "CEP112", HLgene16hr = "H2AC16", HLgene24hr = "GMDS", HLgene48hr = "PAK1", HLgene72hr = "ZSWIM6")
+```
+
+
+#### Create total figure 2a
+```{r}
+fig2a_total = ggarrange(fig2a_firstrow_title, fig2a_zoom_total, ncol = 1)
+fig2a_total_leg = ggarrange(fig2a_total, timepoint_leg, widths = c(1, 0.1), labels = c("A", ""))
+
+
+ggsave(plot = fig2a_total_leg, file.path(plotDir, "fig2a_total.pdf"), width = 15, height = 5)
+```
+
+
+### Figure 2b
+BMD Accumulation (log2fc)
+
+#### Plot first row
+```{r}
+fig2b_LU =  BMDaccumulationPlot(BMDoutput = LU_fc_BMD, partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue2")) +
+  ylim(c(0, 5300))
+
+timepoint_leg = get_legend(fig2b_LU)
+
+fig2b_LU = fig2b_LU + theme(legend.position = "none") 
+
+fig2b_ODAF = BMDaccumulationPlot(BMDoutput = ODAF_fc_BMD, partner = "R-ODAF") +
+  theme(plot.title = element_text(color = "orange"),
+        axis.title.y = element_blank(),
+        legend.position = "none") +
+  ylim(c(0, 5300))
+
+fig2b_firstrow = ggarrange(fig2b_LU, fig2b_ODAF, nrow = 1)
+fig2b_firstrow_title = annotate_figure(fig2b_firstrow, top = text_grob("BMD accumulation plots (log2fc)", face = "bold", size = 18))
+fig2b_firstrow_title
+```
+
+
+#### Zoom
+```{r}
+fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_fc_BMD)
+fig2b_ODAF_zoom = BMDaccumulationPlot_zoom(BMDoutput = ODAF_fc_BMD) +
+  theme(axis.title.y = element_blank())
+
+fig2b_zoom = ggarrange(fig2b_LU_zoom, fig2b_ODAF_zoom, nrow = 1)
+
+
+```
+
+#### Create total figure 2b
+```{r}
+fig2b_total = ggarrange(fig2b_firstrow_title, fig2b_zoom, ncol = 1)
+fig2b_total_leg = ggarrange(fig2b_total, timepoint_leg, widths = c(1, 0.2), nrow = 1, labels = c("B", ""))
+
+fig2asub_total_leg = ggarrange(fig2b_total, timepoint_leg, widths = c(1, 0.2), nrow = 1, labels = c("A", ""))
+
+ggsave(plot = fig2b_total_leg, file.path(plotDir, "fig2b_total.pdf"), width = 7.5, height =5)
+```
+
+
+### Figure 2c
+Select most sensitive timepoint (now 24hr) and combine accumulation plots of partners
+
+```{r}
+
+fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  filter(timepoint == "24hr") %>%
+  group_by(partner) %>%
+  arrange(finalBMD) %>%
+  mutate(ranked_gene = row_number()) %>%
+  ggplot(aes(finalBMD, y = ranked_gene)) +
+  geom_point(stat = "identity", aes(color = partner), size = 1) +
+  labs(y = "Accumulation", 
+       x = "BMD") +
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  theme(legend.title = element_blank(),
+        axis.title.x = element_blank())
+
+fig2c_leg = get_legend(fig2c_norm)
+
+fig2c_norm = fig2c_norm + theme(legend.position = "none")
+  
+
+fig2c_zoom = fig2c_norm +
+  ylim(c(0, 250)) +
+  xlim(0, 3) +
+  theme(axis.title.y = element_blank(), 
+        axis.title.x = element_blank())
+
+fig2c_total = ggarrange(fig2c_norm, fig2c_zoom, fig2c_leg, widths = c(1, 1, 0.6), nrow = 1, labels = c("C", "", ""))
+
+fig2c_total_title = annotate_figure(fig2c_total, top = text_grob("BMD accumulation - 24 hours (CPM counts)", face = "bold", size = 18))
+
+ggsave(plot = fig2c_total_title, file.path(plotDir, "fig2c_total.pdf"), width = 7.5, height = 2.5)
+
+
+# for plot without log2fc
+fig2c_total_wolog2fc = ggarrange(fig2c_norm, fig2c_zoom, fig2c_leg, widths = c(1, 1, 0.6), nrow = 1, labels = c("B", "", ""))
+fig2c_total_title_wolog2fc = annotate_figure(fig2c_total_wolog2fc, top = text_grob("BMD accumulation - 24 hours (CPM counts)", face = "bold", size = 18))
+fig2c_total_title_wolog2fc
+
+rm(fig2c_norm, fig2c_leg, fig2c_zoom)
+
+```
+
+
+### Figure 2d
+```{r}
+fig2d_fc = fc_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  filter(timepoint == "24hr") %>%
+  group_by(partner) %>%
+  arrange(finalBMD) %>%
+  mutate(ranked_gene = row_number()) %>%
+  ggplot(aes(finalBMD, y = ranked_gene)) +
+  geom_point(stat = "identity", aes(color = partner), size = 1) +
+  labs(y = "Accumulation", 
+       x = "BMD") +
+  scale_color_manual(values = c("blue2", "orange"),
+                     breaks = c("LU", "R-ODAF"),
+                     labels = c("Leiden University", "R-ODAF")) +
+  theme(legend.title = element_blank())
+
+fig2d_leg = get_legend(fig2d_fc)
+
+fig2d_fc = fig2d_fc + theme(legend.position = "none")
+  
+
+fig2d_zoom = fig2d_fc +
+  ylim(c(0, 250)) +
+  xlim(0, 3) +
+  theme(axis.title.y = element_blank())
+
+fig2d_total = ggarrange(fig2d_fc, fig2d_zoom, fig2d_leg, widths = c(1, 1, 0.6), nrow = 1, labels = c("D", "", ""))
+fig2d_total_title = annotate_figure(fig2d_total, text_grob("BMD accumulation - 24 hours (log2fc)", face = "bold", size = 18)) 
+
+ggsave(plot = fig2c_total_title, file.path(plotDir, "fig2d_total.pdf"), width = 7.5, height = 2.5)
+
+
+fig2bsub_total = ggarrange(fig2d_fc, fig2d_zoom, fig2d_leg, widths = c(1, 1, 0.6), nrow = 1, labels = c("B", "", ""))
+fig2bsub_total_title = annotate_figure(fig2bsub_total, text_grob("BMD accumulation - 24 hours (log2fc)", face = "bold", size = 18)) 
+
+rm(fig2d_fc, fig2d_leg, fig2d_zoom)
+
+
+```
+
+### Create total figure 2
+```{r}
+fig2cd = ggarrange(fig2c_total_title, fig2d_total_title, ncol = 1)
+fig2bcd = ggarrange(fig2b_total_leg, fig2cd, nrow = 1)
+
+figure2 = ggarrange(fig2a_total_leg, fig2bcd, ncol = 1)
+
+ggsave(plot = figure2, file.path(plotDir, "Figure2.pdf"), width = 15, height = 10)
+```
+
+
+### Create total figure 2without log2fc
+```{r}
+figure2_wolog2fc = ggarrange(fig2a_total_leg, fig2c_total_title_wolog2fc, ncol = 1)
+ggsave(plot = figure2_wolog2fc, file.path(plotDir, "Figure2_wolog2fc.pdf"), width = 15, height = 10)
+
+```
+
+
+
+
+
+
+## Figure 2 supplement
+Same figure but then LU log2fc vs RODAF log2fc
+
+### Figure 2 supplement
+```{r}
+figure2sub = ggarrange(fig2asub_total_leg, fig2bsub_total_title, ncol = 1, heights = c(2, 1))
+ggsave(plot = figure2sub, file.path(plotDir, "Figure2_supplement.pdf"), width = 7.5, height = 7.5)
+
+
+```
+
+
+## Correlation of BMDs
+This does not work because we don't have gene_symbol_entrez_id for BPI; first discuss if they want to change it? Or we change gene_symbol_entrez_id to gene symbol
+
+```{r warning = FALSE}
+# AU vs all
+ggplot(norm_BMD_combined_wide, aes(x=AU_finalBMD, y=BPI_finalBMD)) + 
+  geom_point(size = 0.5) +
+  facet_wrap(~timepoint, scales = "free")
+
+ggplot(norm_BMD_combined_wide, aes(x=AU_finalBMD, y = GU_finalBMD)) +
+  geom_point(size = 0.5) +
+  facet_wrap(~timepoint, scales = "free")
+
+ggplot(norm_BMD_combined_wide, aes(x=AU_finalBMD, y = LU_finalBMD)) +
+  geom_point(size = 0.5) +
+  facet_wrap(~timepoint, scales = "free")
+
+
+ggplot(norm_BMD_combined_wide, aes(x=AU_finalBMD, y  = SC_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+
+# BPI vs all -AU
+ggplot(norm_BMD_combined_wide, aes(x=BPI_finalBMD, y = GU_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+ggplot(norm_BMD_combined_wide, aes(x=BPI_finalBMD, y = LU_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+ggplot(norm_BMD_combined_wide, aes(x=BPI_finalBMD, y = SC_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+
+# GU vs all -AU/-BPI
+ggplot(norm_BMD_combined_wide, aes(x=GU_finalBMD, y = LU_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+
+ggplot(norm_BMD_combined_wide, aes(x=GU_finalBMD, y = SC_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+
+# LU vs all -AU/-BPI/-GU
+ggplot(norm_BMD_combined_wide, aes(x=LU_finalBMD, y = SC_finalBMD)) +
+  geom_point(size = 0.5) + 
+  facet_wrap(~timepoint, scales = "free")
+
+
+BMD_corplot = function(timepoint_oi){
+  GGally::ggpairs(norm_BMD_combined_wide %>% filter(timepoint == timepoint_oi),
+          columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"))
+}
+
+BMD_corplot(timepoint_oi = "4hr")
+BMD_corplot(timepoint_oi = "8hr")
+BMD_corplot(timepoint_oi = "16hr")
+BMD_corplot(timepoint_oi = "24hr")
+BMD_corplot(timepoint_oi = "48hr")
+BMD_corplot(timepoint_oi = "72hr")
+
+GGally::ggpairs(norm_BMD_combined_wide, aes(color = timepoint),
+                columns = c("AU_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
+                lower = list(continuous = wrap("points", size = 0.1)),
+                diag = list(continuous = wrap("densityDiag"), mapping = ggplot2::aes(color=timepoint), alpha = 0.5)
+                )
+
+ggsave(file.path(plotDir, "BMDnormcounts_correlation.pdf"), width = 10, height = 8)
+
+```
+
+
+
+
+# Figure 3
+Comparison of BMDs at the biological entitiy level 
+* Accumulation plots (median BMD), only with Hallmark gene sets? 
+* Sensitivity plots for top n sets that are enriched
+
+
+## Fig 3a
+Median BMD accumulation from HALLMARK pathways
+```{r}
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, partner = "Aristotle University") + theme(legend.position = "none",
+                                                                                                               plot.title = element_text(color = "firebrick"))
+
+fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, partner = "BPI") + theme(legend.position = "none",
+                                                                                                       plot.title = element_text(color = "gray30"))
+
+fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK, partner = "Ghent University")
+
+timepoint_leg = get_legend(fig3a_GU)
+
+fig3a_GU = fig3a_GU + theme(legend.position = "none",
+                            plot.title = element_text(color = "gold1")) # +
+  # ylim(c(0,1300))
+
+
+fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput = LU_norm_HALLMARK, partner = "Leiden University") + theme(legend.position = "none",
+                                                                                                            plot.title = element_text(color = "blue2")) #+
+  # ylim(c(0,1300))
+
+
+fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK, partner = "Sciensano") + theme(legend.position = "none",
+                                                                                                    plot.title = element_text(color = "forestgreen")) #+
+  # ylim(c(0,1300))
+
+
+fig3a_firstrow = ggpubr::ggarrange(fig3a_AU, fig3a_BPI, fig3a_GU, fig3a_LU, fig3a_SC, timepoint_leg, nrow = 1, widths = c(1,1,1,1,1,0.3), labels = c("A"))
+
+# add title 
+fig3a_firstrow_title = annotate_figure(fig3a_firstrow, top = text_grob("Median BMD accumulation HALLMARK pathways (CPM counts)", face = "bold", size = 18))
+fig3a_firstrow_title
+
+ggsave(plot = fig3a_firstrow_title, file.path(plotDir, "fig3a_firstrow.pdf"), width = 20, height = 5)
+
+
+```
+
+
+## Figure 3b
+Select most sensitive timepoint (let's say 48 hours)
+
+```{r}
+# fig3b = norm_HALLMARK_combined %>% filter(timepoint == "24hr") %>% 
+#   mutate(Pathway.Name = gsub("HALLMARK_", "", Pathway.Name)) %>%
+#   ggplot(aes(x=medianBMD, y = reorder(Pathway.Name, medianBMD, FUN = mean), group = partner, color = partner)) +
+#   geom_point(size = 3) +
+#   scale_color_manual(values = c("gold1", "blue2", "forestgreen"),
+#                      breaks = c("GU", "LU", "SC"),
+#                      labels = c("Ghent University", "Leiden University", "Sciensano")) +
+#   labs(y = "HALLMARK pathway",
+#        x = "median BMD") +
+#   theme(legend.title = element_blank(),
+#         legend.position = "none")
+# 
+# fig3b_title = annotate_figure(fig3b, top = text_grob("Median BMD HALLMARK pathways - 24hr", size = 18, face = "bold"))
+# 
+# ggsave(plot = fig3b_title, file.path(plotDir, "fig3b.pdf"), width = 5, height = 10)
+
+```
+
+
+## Figure 3c
+```{r}
+
+# # 24 hr
+# fig3c_24hr = norm_HALLMARK_combined %>% filter(timepoint == "24hr") %>%
+#   group_by(partner) %>%
+#   arrange(medianBMD) %>%
+#   mutate(cumulative_BMD = cumsum(medianBMD)) %>%
+#   ggplot(aes(medianBMD, y = cumulative_BMD)) + 
+#   geom_point(stat = "identity", aes(color = partner), size = 1.5) + 
+#   labs(y = "Cumulative median BMD",
+#        x = "median BMD") +
+#   scale_color_manual(values = c("gold1", "blue2", "forestgreen"),
+#                      breaks = c("GU", "LU", "SC"),
+#                      labels = c("Ghent University", "Leiden University", "Sciensano")) + 
+#   theme(legend.title = element_blank())
+# 
+# fig3c_24hr_title = annotate_figure(fig3c_24hr, top = text_grob("Cumulative BMD HALLMARK pathways - 24hr", face = "bold", size = 18))
+# 
+# ggsave(plot = fig3c_24hr_title, filename = file.path(plotDir, "fig3c_24hr.pdf"), height = 5, width = 10)
+# 
+# 
+# # 48 hr
+# fig3c_48hr = norm_HALLMARK_combined %>% filter(timepoint == "48hr") %>%
+#   group_by(partner) %>%
+#   arrange(medianBMD) %>%
+#   mutate(cumulative_BMD = cumsum(medianBMD)) %>%
+#   ggplot(aes(medianBMD, y = cumulative_BMD)) + 
+#   geom_point(stat = "identity", aes(color = partner), size = 1.5) + 
+#   labs(y = "Cumulative median BMD",
+#        x = "median BMD") +
+#   scale_color_manual(values = c("gold1", "blue2", "forestgreen"),
+#                      breaks = c("GU", "LU", "SC"),
+#                      labels = c("Ghent University", "Leiden University", "Sciensano")) + 
+#   theme(legend.title = element_blank())
+# 
+# fig3c_48hr_title = annotate_figure(fig3c_48hr, top = text_grob("Cumulative BMD HALLMARK pathways - 24hr", face = "bold", size = 18))
+# 
+# ggsave(plot = fig3c_48hr_title, filename = file.path(plotDir, "fig3c_48hr.pdf"), height = 5, width = 10)
+
+
+
+fig3c_24hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24hr", pathway_oi = "HALLMARK_P53_PATHWAY")
+partner_leg = get_legend(fig3c_24hr)
+fig3c_24hr = fig3c_24hr + theme(legend.position = "none")
+
+fig3c_48hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48hr", pathway_oi = "HALLMARK_P53_PATHWAY") + 
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+
+fig3c_combined = ggarrange(fig3c_24hr, fig3c_48hr, partner_leg, widths = c(1,1,0.4), nrow = 1, labels = c("B"))
+
+fig3c_combined_title = annotate_figure(fig3c_combined, top = text_grob("BMD accumulation HALLMARK pathways", size = 18, face = "bold"))
+fig3c_combined_title
+
+
+ggsave(plot = fig3c_combined_title, filename = file.path(plotDir, "fig3c_combined.pdf"), width = 15, height = 5)
+```
+
+     
+## Figure 3d
+
+### Plot BMD/BMDU/BMDL of all genes in pathway of interest
+
+#### Load hallmark gmt file
+Load and select background genes from 48 hours (now Ghent, Leiden & Sciensano), need hallmark pw information from Thessaloniki
+
+```{r}
+# load gmt file hallmark pathways
+gsea_hallmark = read.GMT(gmt_file_hallmarks)
+gsea_hallmark_df = map_df(gsea_hallmark, ~as.data.frame(.x)) %>% dplyr::rename("pathway" = id, "gene_symbol" = genes)
+
+```
+
+
+
+```{r}
+# plotList = NULL
+# 
+# # P53 pathway
+# GU_plotlist_hallmark = plot_BMD_genes_pathwayoi(time_oi = "48hr", pathways_oi = c("HALLMARK_P53_PATHWAY"), BMDoutput_genes = GU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into=c("gene_symbol", "entrez_id"), sep = "_"), medianBMD_pathways = GU_norm_HALLMARK_select, pathway_overview = gsea_hallmark_df) 
+# GU_plotlist_hallmark$HALLMARK_P53_PATHWAY = GU_plotlist_hallmark$HALLMARK_P53_PATHWAY + labs(title = "Ghent University") + theme(plot.title = element_text(color = "gold1"))
+# 
+# 
+# LU_plotlist_hallmark = plot_BMD_genes_pathwayoi(time_oi = "48hr", pathways_oi = c("HALLMARK_P53_PATHWAY"), BMDoutput_genes = LU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into=c("gene_symbol", "entrez_id"), sep = "_"), medianBMD_pathways = LU_norm_HALLMARK_select, pathway_overview = gsea_hallmark_df)
+# LU_plotlist_hallmark$HALLMARK_P53_PATHWAY = LU_plotlist_hallmark$HALLMARK_P53_PATHWAY + theme(axis.title.y = element_blank()) + labs(title = "Leiden University") + theme(plot.title = element_text(color = "blue2"))
+# 
+# 
+# Sciensano_plotlist_hallmark = plot_BMD_genes_pathwayoi(time_oi = "48hr", pathways_oi = c("HALLMARK_P53_PATHWAY"), BMDoutput_genes = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into=c("gene_symbol", "entrez_id"), sep = "_"), medianBMD_pathways = Sciensano_norm_HALLMARK_select, pathway_overview = gsea_hallmark_df)
+# Sciensano_plotlist_hallmark$HALLMARK_P53_PATHWAY = Sciensano_plotlist_hallmark$HALLMARK_P53_PATHWAY + theme(axis.title.y = element_blank()) + labs(title = "Sciensano") + theme(plot.title = element_text(color = "forestgreen"))
+# 
+# 
+# fig3d_GU = ggarrange(plotlist = GU_plotlist_hallmark, ncol = 1)
+# fig3d_LU = ggarrange(plotlist = LU_plotlist_hallmark, ncol = 1)
+# fig3d_SC = ggarrange(plotlist = Sciensano_plotlist_hallmark, ncol = 1)
+# 
+# fig3d_combined = ggarrange(fig3d_GU, fig3d_LU, fig3d_SC, nrow = 1)
+# fig3d_combined_title = annotate_figure(fig3d_combined, top = text_grob("BMD genes in P53 PATHWAY - 48hr", face = "bold", size = 18))
+# 
+# ggsave(plot = fig3d_combined_title, filename = file.path(plotDir, "fig3d_combined.pdf"), height = 5, width = 10)
+
+```
+
+
+### Same but with all partners in the same plot
+Select both 24hr and 48hr (24 most sensitive on gene level, 48 most sensitive on pathway level)
+
+```{r}
+genes_in_HALLMARKp53 = gsea_hallmark_df %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% pull(gene_symbol) %>% unique()
+norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% genes_in_HALLMARKp53) -> norm_BMD_combined_HALLMARKp53
+
+# 24 hr
+fig3d_option2_geneBMD_HALLMARK24h = norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24hr") %>% 
+  ggplot(aes(x=finalBMD, y = reorder(gene_symbol, finalBMD, FUN = mean), group = partner, color = partner)) +
+  geom_point(size = 3) + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(y = "gene symbol",
+       x = "BMD",
+       subtitle = "24hr") +
+  theme(legend.title = element_blank(),
+        axis.text.y = element_text(size = 5.5))
+
+partner_leg = get_legend(fig3d_option2_geneBMD_HALLMARK24h)
+
+fig3d_option2_geneBMD_HALLMARK24h = fig3d_option2_geneBMD_HALLMARK24h + theme(legend.position = "none")
+
+
+# 48 hr
+fig3d_option2_geneBMD_HALLMARK48h = norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48hr") %>% 
+  ggplot(aes(x=finalBMD, y = reorder(gene_symbol, finalBMD, FUN = mean), group = partner, color = partner)) +
+  geom_point(size = 3) + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(y = "gene symbol",
+       x = "BMD", 
+       subtitle = "48hr") +
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 5.5))
+
+
+fig3d_combined = ggarrange(fig3d_option2_geneBMD_HALLMARK24h, fig3d_option2_geneBMD_HALLMARK48h, partner_leg, widths = c(1,1,0.3), labels = c("C"), nrow =1)
+
+fig3d_combined_title = annotate_figure(fig3d_combined, top = text_grob("BMD genes in P53 PATHWAY (HALLMARK)", face = "bold", size = 18))
+fig3d_combined_title
+
+ggsave(plot = fig3d_combined_title, filename = file.path(plotDir, "figure3d_combined.pdf"), width = 15, height = 10)
+
+```
+
+## Figure 3e
+Boxplot of distibutions BMD
+```{r}
+fig3e_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24hr"), aes(x=finalBMD, y=partner, color = partner)) +
+  geom_boxplot() +
+  geom_jitter() + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "24hr",
+       x = "BMD") +
+  theme(axis.title.y = element_blank(),
+        legend.title = element_blank())
+
+partner_leg = get_legend(fig3e_24h)
+
+fig3e_24h = fig3e_24h + theme(legend.position = "none")
+
+
+fig3e_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48hr"), aes(x=finalBMD, y=partner, color = partner)) +
+  geom_boxplot() +
+  geom_jitter() + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "48hr",
+       x = "BMD") +
+  theme(axis.title.y = element_blank(),
+        legend.position = "none")
+
+
+fig3e_combined = ggarrange(fig3e_24h, fig3e_48h, partner_leg, nrow = 1, widths = c(1,1,0.3), labels = c("D"))
+
+fig3e_combined_title = annotate_figure(fig3e_combined, top = text_grob("BMD distribution genes in HALLMARK P53 PATHWAY", size = 18, face = "bold"))
+fig3e_combined_title
+
+ggsave(plot = fig3e_combined_title, filename = file.path(plotDir, "fig3e_total.pdf"), width = 15, height = 5)
+
+
+
+```
+
+
+## Figure 3e
+Boxplot of distibutions BMD
+```{r}
+fig3e_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24hr"), aes(x=partner, y=finalBMD, color = partner)) +
+  geom_boxplot() +
+  geom_jitter() + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "24hr",
+       x = "BMD") +
+  theme(axis.title.y = element_blank(),
+        legend.title = element_blank())
+
+partner_leg = get_legend(fig3e_24h)
+
+fig3e_24h = fig3e_24h + theme(legend.position = "none")
+
+
+fig3e_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48hr"), aes(x=partner, y=finalBMD, color = partner)) +
+  geom_boxplot() +
+  geom_jitter() + 
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+  labs(subtitle = "48hr",
+       x = "BMD") +
+  theme(axis.title.y = element_blank(),
+        legend.position = "none")
+
+
+fig3e_combined = ggarrange(fig3e_24h, fig3e_48h, ncol = 1, labels = c("D"))
+
+fig3e_combined_title = annotate_figure(fig3e_combined, top = text_grob("BMD distribution genes in HALLMARK P53 PATHWAY", size = 18, face = "bold"))
+fig3e_combined_title
+
+ggsave(plot = fig3e_combined_title, filename = file.path(plotDir, "fig3e_total_new.pdf"), width = 7, height = 10)
+
+
+
+```
+
+
+
+
+
+## Combine total figure 3
+```{r}
+# fig3_secondrow_secondcolumn = ggarrange(fig3c_title, fig3d_combined_title, ncol = 1, labels = c("C", "D"))
+# fig3_secondrow = ggarrange(fig3b_title, fig3_secondrow_secondcolumn, nrow = 1, widths = c(1, 1.5), labels = c("B", ""))
+# 
+# figure3 = ggarrange(fig3a_firstrow_title, fig3_secondrow, ncol = 1, heights = c(1, 1.5))
+# 
+# ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 15, height = 15)
+```
+
+
+## Combine total figure 3 (new) 
+```{r}
+ggarrange(fig3a_firstrow_title, fig3c_combined_title, fig3d_combined_title, fig3e_combined_title, ncol = 1, heights = c(1,1,3,1))
+
+ggsave(file.path(plotDir, "Figure3_newversion.pdf"), width = 15, height = 25)
+```
+
+
+## Correlation BMD hallmark pathways
+```{r}
+# AU vs all
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=AU_medianBMD, y=BPI_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=AU_medianBMD, y=GU_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=AU_medianBMD, y=LU_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=AU_medianBMD, y=SC_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+# BPI vs all -AU
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=BPI_medianBMD, y=GU_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=BPI_medianBMD, y=LU_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=BPI_medianBMD, y=SC_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+# GU vs all -AU/-BPI
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=GU_medianBMD, y=LU_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=GU_medianBMD, y=SC_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+# LU vs all -AU/-BPI/-GU
+norm_HALLMARK_combined_wide %>%
+  ggplot(aes(x=LU_medianBMD, y=SC_medianBMD)) +
+  geom_point() +
+  facet_wrap(~timepoint, scales = "free")
+
+
+GGally::ggpairs(norm_HALLMARK_combined_wide, aes(color = timepoint),
+                columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"))
+
+ggsave(file.path(plotDir, "HALLMARK_BMD_correlation.pdf"), width = 10, height = 8)
+
+
+```
+
+
+
+# Figure 4
+Focus on chosen pathway for each patner
+* AU - KEGG pathways
+* BPI - KEGG/Reactome/Wikipathways
+* GU - HALLMARK pathways
+* LU - Modules
+* SC - GENOMARK/TGxDDI biomarkers
+
+
+For now use for BPI wikipathways. Can always add/remove others as well
+
+## Load gene/pathway overview for BPI
+Use from msigdb
+
+```{r}
+# load gmt file hallmark pathways
+gsea_wikipathways = read.GMT(gmt_file_wikipathways)
+gsea_wikipathways_df = map_df(gsea_wikipathways, ~as.data.frame(.x)) %>% dplyr::rename("pathway" = id, "gene_symbol" = genes)
+
+```
+
+
+
+## Find pathways with lowest BMD for each parnter
+```{r}
+timepoints = norm_BMD_combined %>% pull(timepoint) %>% unique()
+
+for(i in timepoints){
+  print(i)
+  AU_norm_KEGG_select %>% filter(timepoint == i) %>% arrange(medianBMD) %>% select(Pathway.Name, medianBMD) %>% slice(1:4) %>% print()
+}
+
+
+for(i in timepoints){
+  print(i)
+  Sciensano_norm_TXDDI_GENOMARK_select %>% filter(timepoint == i) %>% arrange(medianBMD) %>% select(Pathway.Name, medianBMD) %>% slice(1:4) %>% print()
+}
+
+
+
+```
+
+
+## Venn diagram of genes overlapping
+This doesn't work if BPI has no gene_symbol_entrez_id, need to adjust to gene_symbol if we decide to keep it like this
+
+```{r}
+AU_KEGG_p53 = AU_pathway_overview %>% filter(ID == "hsa04115")
+BPI_norm_WIKIPATHWAYS_p53 = gsea_wikipathways_df %>% filter(pathway == "WP_P53_TRANSCRIPTIONAL_GENE_NETWORK")
+GU_HALLMARK_p53 = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY")
+LU_hRPTEC_35 = LU_pathway_overview %>% filter(module == "hRPTECTERT1_35")
+Sciensano_TGxDDI65 = Sciensano_pathway_overview %>% filter(pathway == "TGxDDI64")
+Sciensano_GENOMARK84 = Sciensano_pathway_overview %>% filter(pathway == "GENOMARK84")
+
+p53_geneOverview_list = list(
+ AU = AU_KEGG_p53 %>% pull(gene_symbol_entrez_id),
+ GU = GU_HALLMARK_p53 %>% pull(gene_symbol_entrez_id),
+ LU = LU_hRPTEC_35 %>% pull(gene_symbol_entrez_id),
+ SC = c(Sciensano_TGxDDI65 %>% pull(gene_symbol_entrez_id), Sciensano_GENOMARK84 %>% pull(gene_symbol_entrez_id))
+)
+
+
+fig4a = ggvenn(p53_geneOverview_list, fill_color = c("firebrick", "gold1", "blue2", "forestgreen"))
+
+fig4a_title = annotate_figure(fig4a, top = text_grob("p53 signaling pathways - overlapping genes", size = 18, face = "bold"))
+
+ggsave(fig4a_title, file = file.path(plotDir, "fig4a.pdf"))
+
+```
+
+
+## Get overlapping genes
+```{r}
+p53_overlappingGenes = p53_geneOverview_list %>% reduce(intersect)
+# p53_overlappingGenes = sub("_.*", "", p53_overlappingGenes)
+
+```
+
+
+## Combined BMD accumulation plot
+```{r}
+leg_timepoint = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_KEGG_select, partner = "Aristotle University") %>% get_legend() # get legend with gray scales
+
+# highlight p53 pathways
+fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
+                                                 partner = "Aristotle University",
+                                                 pathway_oi = "p53 signaling pathway") + 
+  labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
+  theme(plot.title = element_text(color = "firebrick"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHWAYS_select,
+                                                 partner = "BPI",
+                                                 pathway_oi = "p53 transcriptional gene network") + 
+  labs(subtitle = "highlight p53 transcriptional gene network (WIKIPATHWAYS)") + 
+  theme(plot.title = element_text(color = "gray30"),
+        plot.subtitle = element_text(color = "red")) +
+  xlim(c(0,50))
+
+
+
+fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_select,
+                                                 partner = "Ghent University",
+                                                 pathway_oi = "HALLMARK_P53_PATHWAY") + 
+  labs(subtitle = "highlight p53 pathway (HALLMARK)") +
+  theme(plot.title = element_text(color = "gold1"),
+        plot.subtitle = element_text(color = "red"),
+        axis.title.y = element_blank()) +
+  xlim(c(0,50))
+
+
+fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_select,
+                                                 partner = "Leiden University",
+                                                 pathway_oi = "hRPTECTERT1_35") + 
+  labs(subtitle = "highlight p53 WGCNA module (hRPTECTERT1_35)") +
+  theme(plot.title = element_text(color = "blue2"),
+        plot.subtitle = element_text(color = "red"),
+        axis.title.y = element_blank()) +
+  xlim(c(0,50))
+
+
+fig4b_SC = BMDaccumulationPlot_pathway_highlight(
+  BMDoutput = Sciensano_norm_TXDDI_GENOMARK,
+  partner = "Sciensano",
+  pathway_oi = c("TGxDDI64", "GENOMARK84")) + 
+  labs(subtitle = "highlight p53 biomarkers (TGxDDI64 & GENOMARK84)") +
+  theme(plot.title = element_text(color = "forestgreen"),
+        plot.subtitle = element_text(color = "red"),
+        axis.title.y = element_blank()) +
+  xlim(c(0,50))
+
+
+# BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_TXDDI_GENOMARK_select, partner = "Sciensano") + theme(plot.title = element_text(color = "forestgreen"),
+#                                                                                                              legend.position = "none")
+
+
+fig4b_total = ggarrange(
+  fig4b_AU,
+  fig4b_BPI,
+  fig4b_GU,
+  fig4b_LU,
+  fig4b_SC,
+  leg_timepoint,
+  nrow = 1,
+  widths = c(1, 1, 1, 1, 1, 0.3)
+)
+
+ggsave(plot = fig4b_total, filename = file.path(plotDir, "fig4b_total.pdf"), width = 25, height = 5)
+
+```
+
+
+
+## Fig 4c
+### 24 hours
+This doesn't work for BPI if we don't have BMDL/BMDU
+
+```{r}
+
+# Genes in KEGG p53 signaling pathway (AU)
+KEGGp53_genes = AU_pathway_overview %>% filter(ID == "hsa04115") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% pull(gene_symbol)
+
+KEGGp53_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = KEGGp53_genes, medianBMD_pathways = AU_norm_KEGG_select, BMDoutput_genes = AU_norm_BMD_select, pathway_oi = "p53 signaling pathway", time_oi = "24hr") +
+  labs(subtitle = "p53 signaling pathway (KEGG)")
+
+
+# Genes in Wikipathways p53 transcriptional gene network
+# WIKIPWp53_genes = gsea_wikipathways_df %>% filter(pathway == "WP_P53_TRANSCRIPTIONAL_GENE_NETWORK") %>% pull(gene_symbol)
+# 
+# WIKIPWp53_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = WIKIPWp53_genes, medianBMD_pathways = BPI_norm_WIKIPATHWAYS_select, BMDoutput_genes = BPI_norm_BMD_select, pathway_oi = "p53 transcriptional gene network", time_oi = "24hr") +
+#   labs(subtitle = "p53 transcriptional gene network (WIKIPATHWAYS)")
+
+
+# Genes in HALLMARK P53 PATHWAY (GU)
+HALLMARKp53_genes = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% pull(gene_symbol)
+
+HALLMARKp53_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = HALLMARKp53_genes, medianBMD_pathways = GU_norm_HALLMARK_select, BMDoutput_genes = GU_norm_BMD_select, pathway_oi = "HALLMARK_P53_PATHWAY", time_oi = "24hr") +
+  labs(subtitle = "P53 pathway (HALLMARK)") +
+  theme(axis.title.y = element_blank()) 
+
+
+# Genes in hRPTECTER1_35 pathway (LU)
+modulep53_genes = LU_pathway_overview %>% filter(module == "hRPTECTERT1_35") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% pull(gene_symbol)
+
+modulep53_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = modulep53_genes, medianBMD_pathways = LU_norm_modules_select, BMDoutput_genes = LU_norm_BMD_select, pathway_oi = "hRPTECTERT1_35", time_oi = "24hr") +
+  labs(subtitle = "p53 WGCNA module (hRPTECTERT1_35)") +
+  theme(axis.title.y = element_blank())
+
+
+# Genes in TGxDDI & GENOMARK (SC)
+GENOMARK_genes = Sciensano_pathway_overview %>% filter(pathway %in% c("GENOMARK84")) %>% pull(gene_symbol)
+
+GENOMARK_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = GENOMARK_genes, medianBMD_pathways = Sciensano_norm_TXDDI_GENOMARK_select, BMDoutput_genes = Sciensano_norm_BMD_select, pathway_oi = "GENOMARK84", time_oi = "24hr") +
+  labs(subtitle = "p53 biomarkers (GENOMARK84)") +
+  theme(axis.title.y = element_blank())
+
+
+fig4c_24h_combined = ggarrange(KEGGp53_genes_plot_24h, HALLMARKp53_genes_plot_24h, modulep53_genes_plot_24h, GENOMARK_genes_plot_24h, nrow = 1)
+
+fig4c_24h_combined_title = annotate_figure(fig4c_24h_combined, top = text_grob("BMD genes in p53 pathways - 24hr", face = "bold", size = 18))
+
+fig4c_24h_combined_title
+
+ggsave(plot = fig4c_24h_combined_title, filename = file.path(plotDir, "fig4c_24h_combined.pdf"), width = 20, height = 7.5)
+
+```
+
+
+
+#### redo with only overlapping genes
+```{r}
+# KEGGp53_genes_plot_24h = plot_BMD_genes_pathwayoi(genes_in_pathway = p53_overlappingGenes, medianBMD_pathways = AU_norm_KEGG_select, BMDoutput_genes = AU_norm_BMD_select, pathway_oi = "p53 signaling pathway", time_oi = "24hr") +
+#   labs(subtitle = "p53 signaling pathway (KEGG)")
+
+norm_BMD_combined %>% filter(gene_symbol_entrez_id %in% p53_overlappingGenes) %>% separate(
+  gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_", remove = FALSE
+) %>% mutate(
+  partner_geneSymbol = paste(partner, gene_symbol, sep = "_"),
+  partner_geneSymbol = factor(partner_geneSymbol, levels = c("AU_DDB2", "GU_DDB2", "LU_DDB2", "SC_DDB2",
+                                                             "AU_MDM2", "GU_MDM2", "LU_MDM2", "SC_MDM2",
+                                                             "AU_PPM1D", "GU_PPM1D", "LU_PPM1D", "SC_PPM1D"
+                                                             ))) %>%
+  
+  ggplot(aes(x=finalBMD, y = partner_geneSymbol, color = timepoint)) +
+  geom_point()
+
+
+norm_BMD_combined %>% filter(gene_symbol_entrez_id %in% p53_overlappingGenes) %>% separate(
+  gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_", remove = FALSE
+) %>% filter(timepoint == "24hr") %>%
+  ggplot(aes(x=finalBMD, y = reorder(gene_symbol, finalBMD, fun = mean()), color = partner)) +
+  geom_point(size = 5, alpha = 0.5) +
+  scale_color_manual(values = c("firebrick", "gold1", "blue2", "forestgreen")) +
+  labs(x="Gene Symbol", 
+       y = "final BMD",
+       title = "BMD of genes overlapping in p53 pathways of choice",
+       subtitle = "24hr")
+
+ggsave(file.path(plotDir, "BMDgenesOverlappingP53PathwayOfChoice_24hr.pdf"), width = 10, height = 7)
+
+
+norm_BMD_combined %>% filter(gene_symbol_entrez_id %in% p53_overlappingGenes) %>% separate(
+  gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_", remove = FALSE
+) %>% filter(timepoint == "48hr") %>%
+  ggplot(aes(x=finalBMD, y = reorder(gene_symbol, finalBMD, fun = mean()), color = partner)) +
+  geom_point(size = 5, alpha = 0.5) +
+  scale_color_manual(values = c("firebrick", "gold1", "blue2", "forestgreen")) +
+  labs(x="Gene Symbol", 
+       y = "final BMD",
+       title = "BMD of genes overlapping in p53 pathways of choice",
+       subtitle = "48hr")
+
+ggsave(file.path(plotDir, "BMDgenesOverlappingP53PathwayOfChoice_48hr.pdf"), width = 10, height = 7)
+
+
+
+```
+
+
+### 48 hours
+```{r}
+
+# Genes in KEGG p53 signaling pathway (AU)
+KEGGp53_genes_plot_48h = plot_BMD_genes_pathwayoi(genes_in_pathway = KEGGp53_genes, medianBMD_pathways = AU_norm_KEGG_select, BMDoutput_genes = AU_norm_BMD_select, pathway_oi = "p53 signaling pathway", time_oi = "48hr") +
+  labs(subtitle = "p53 signaling pathway (KEGG)")
+
+
+# Genes in HALLMARK P53 PATHWAY (GU)
+# WIKIPWp53_genes_plot_48h = plot_BMD_genes_pathwayoi(genes_in_pathway = WIKIPWp53_genes, medianBMD_pathways = BPI_norm_WIKIPATHWAYS_select, BMDoutput_genes = BPI_norm_BMD_select, pathway_oi = "p53 transcriptional gene network", time_oi = "48hr") +
+#   labs(subtitle = "p53 transcriptional gene network (WIKIPATHWAYS)")
+
+
+# Genes in HALLMARK P53 PATHWAY (GU)
+HALLMARKp53_genes_plot_48h = plot_BMD_genes_pathwayoi(genes_in_pathway = HALLMARKp53_genes, medianBMD_pathways = GU_norm_HALLMARK_select, BMDoutput_genes = GU_norm_BMD_select, pathway_oi = "HALLMARK_P53_PATHWAY", time_oi = "48hr") +
+  labs(subtitle = "p53 pathway (HALLMARK)") +
+  theme(axis.title.y = element_blank())
+
+
+# Genes in hRPTECTER1_35 pathway (LU)
+modulep53_genes_plot_48h = plot_BMD_genes_pathwayoi(genes_in_pathway = modulep53_genes, medianBMD_pathways = LU_norm_modules_select, BMDoutput_genes = LU_norm_BMD_select, pathway_oi = "hRPTECTERT1_35", time_oi = "48hr") +
+  labs(subtitle = "p53 WGCNA module (hRPTECTERT1_35)") +
+  theme(axis.title.y = element_blank())
+
+
+# Genes in TGxDDI & GENOMARK (SC)
+GENOMARK_genes_plot_48h = plot_BMD_genes_pathwayoi(genes_in_pathway = GENOMARK_genes, medianBMD_pathways = Sciensano_norm_TXDDI_GENOMARK_select, BMDoutput_genes = Sciensano_norm_BMD_select, pathway_oi = "GENOMARK84", time_oi = "48hr") +
+  labs(subtitle = "p53 biomarkers (GENOMARK84)") +
+  theme(axis.title.y = element_blank())
+
+
+fig4c_48h_combined = ggarrange(KEGGp53_genes_plot_48h, HALLMARKp53_genes_plot_48h, modulep53_genes_plot_48h, GENOMARK_genes_plot_48h, nrow = 1)
+
+fig4c_48h_combined_title = annotate_figure(fig4c_48h_combined, top = text_grob("BMD genes in p53 pathways - 48hr", face = "bold", size = 18))
+
+fig4c_48h_combined_title
+
+ggsave(plot = fig4c_48h_combined_title, filename = file.path(plotDir, "fig4c_48h_combined.pdf"), width = 20, height = 7.5)
+
+```
+
+
+## Combine total 4c
+```{r}
+fig4c = ggarrange(fig4c_24h_combined_title, fig4c_48h_combined_title, ncol = 1)
+fig4c
+
+ggsave(plot = fig4c, filename = file.path(plotDir, "fig4c_total.pdf"), width = 20, height = 15)
+```
+
+
+# Figure 4d
+Boxplots from BMD distribution from genes in pathway
+
+```{r}
+
+# p53ownPW_combined = bind_rows(
+#   AU_norm_BMD_select %>% separate(
+#     gene_symbol_entrez_id,
+#     into = c("gene_symbol", "entrez_id"),
+#     sep = "_"
+#   ) %>% filter(gene_symbol %in% KEGGp53_genes),
+#   GU_norm_BMD_select %>% separate(
+#     gene_symbol_entrez_id,
+#     into = c("gene_symbol", "entrez_id"),
+#     sep = "_"
+#   ) %>% filter(gene_symbol %in% HALLMARKp53_genes),
+#   LU_norm_BMD_select %>% separate(
+#     gene_symbol_entrez_id,
+#     into = c("gene_symbol", "entrez_id"),
+#     sep = "_"
+#   ) %>% filter(gene_symbol %in% modulep53_genes),
+#   Sciensano_norm_BMD_select %>% separate(
+#     gene_symbol_entrez_id,
+#     into = c("gene_symbol", "entrez_id"),
+#     sep = "_"
+#   ) %>% filter(gene_symbol %in% GENOMARK_genes)
+# )
+# 
+# 
+# ggplot(p53ownPW_combined, aes(x=timepoint, y=finalBMD, group = timepoint, color = partner)) +
+#   geom_boxplot() +
+#   geom_jitter() + 
+#   facet_wrap(~partner, nrow = 1) +
+#   scale_color_manual(values = c("firebrick", "gold1", "blue2", "forestgreen"),
+#                      breaks = c("AU", "GU", "LU", "SC"),
+#                      labels = c("Aristotle University", "Ghent University", "Leiden University", "Sciensano"))
+
+
+AU_p53OwnPw_boxplot = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% KEGGp53_genes) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_boxplot(color = "firebrick") +
+  geom_jitter(color = "firebrick") +
+  labs(subtitle = "Genes in p53 signaling pathway (KEGG)",
+       y = "BMD") +
+  ylim(c(0, 50))
+
+
+BPI_p53OwnPw_boxplot = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% WIKIPWp53_genes) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_boxplot(color = "gray30") +
+  geom_jitter(color = "gray30") +
+  labs(subtitle = "Genes in p53 transcriptional network (WIKIPATHWAYS)",
+       y = "BMD") +
+  ylim(c(0, 50))
+
+
+GU_p53OwnPw_boxplot = GU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% HALLMARKp53_genes) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_boxplot(color = "gold1") +
+  geom_jitter(color = "gold1") +
+  labs(subtitle = "Genes in p53 pathway (HALLMARK)") +
+  theme(axis.title.y = element_blank()) +
+  ylim(c(0, 50))
+
+
+LU_p53OwnPw_boxplot = LU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% modulep53_genes) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_boxplot(color = "blue2") +
+  geom_jitter(color = "blue2") +
+  labs(subtitle = "Genes in p53 WGCNA module (hRPTECTERT1_35)") +
+  theme(axis.title.y = element_blank()) +
+  ylim(c(0, 50))
+  
+
+
+SC_p53OwnPw_boxplot = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% GENOMARK_genes) %>%
+  ggplot(aes(x=timepoint, y = finalBMD)) +
+  geom_boxplot(color = "forestgreen") +
+  geom_jitter(color = "forestgreen") +
+  labs(subtitle = "p53 biomarkers (GENOMARK84)") +
+  theme(axis.title.y = element_blank()) +
+  ylim(c(0, 50))
+
+
+fig4d_combined = ggarrange(AU_p53OwnPw_boxplot, BPI_p53OwnPw_boxplot, GU_p53OwnPw_boxplot, LU_p53OwnPw_boxplot, SC_p53OwnPw_boxplot, nrow = 1)
+
+fig4d_combined_title = annotate_figure(fig4d_combined, top = text_grob("BMD genes in p53 pathway over time", face = "bold", size = 18))
+
+ggsave(plot = fig4d_combined_title, filename = file.path(plotDir, "fig4d_combined.pdf"), width = 20, height = 5)
+```
+
+
+
+## Figure 4 total
+```{r}
+Figure4 = ggarrange(fig4a_title,fig4b_total, fig4d_combined_title, fig4c, ncol = 1, heights = c(1,1,1,3), labels = c("A", "B", "C", "D"))
+
+ggsave(plot = Figure4, filename = file.path(plotDir, "Figure4.pdf"), width = 20, height = 25)
+```
+
+
+
+# Figure 5
+Running BMD on eigengene scores directly 
+
+## Fig 5a
+```{r}
+# on module eigengene scores
+
+fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway, HLpw = "hRPTECTERT1_35", partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue2"))
+
+
+timepoint_leg = get_legend(fig5a_LU)
+
+fig5a_LU = fig5a_LU + theme(legend.position = "none")
+
+
+fig5a_LU_zoom = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway, HLpw = "hRPTECTERT1_35", partner = "Leiden University") +
+  theme(plot.title = element_text(color = "blue2")) + 
+  ylim(0,50) +
+  xlim(0, 5)
+
+
+# on HALLMARK NES scores
+fig5a_SC = BMDaccumulationPlot_pwscores_highlight(BMDoutput = SC_BMD_pathway, HLpw = "HALLMARK_P53_PATHWAY", partner = "Sciensano") +
+  theme(plot.title = element_text(color = "forestgreen"))
+
+
+fig5a_SC_zoom = BMDaccumulationPlot_pwscores_highlight(BMDoutput = SC_BMD_pathway, HLpw = "HALLMARK_P53_PATHWAY", partner = "Sciensano") +
+  theme(plot.title = element_text(color = "forestgreen")) +
+  ylim(0,50) +
+  xlim(0, 5)
+
+
+# arrange
+fig5a_firstrow = ggarrange(fig5a_LU, fig5a_SC, ncol = 2)
+fig5a_zoom = ggarrange(fig5a_LU_zoom, fig5a_SC_zoom, ncol = 2)
+
+fig5a_firstcol = ggarrange(fig5a_firstrow, fig5a_zoom, ncol = 1)
+
+fig5a_firstcol_leg = ggarrange(fig5a_firstcol, timepoint_leg, widths = c(1, 0.1))
+
+fig5a_firstcol_leg_title = annotate_figure(fig5a_firstcol_leg, top = text_grob("BMD accumulation plot", face = "bold", size = 18))
+fig5a_firstcol_leg_title
+
+ggsave(plot = fig5a_firstcol_leg_title, filename = file.path(plotDir, "fig5a_firstcol.pdf"), width = 10, height = 10)
+
+
+
+
+
+
+```
+
+
+## Fig 5b
+
+```{r}
+LU_BMD_pathway %>%
+  filter(timepoint == "48hr") %>%
+    arrange((finalBMD)) %>%  
+    slice(1:5) %>%
+  select(pathway, finalBMD)
+
+fig5b_88 = BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_88", txgmapr_egs = LU_txgmapr_egs)
+
+replicate_leg = get_legend(fig5b_88)
+
+fig5b_88 = fig5b_88 + theme(legend.position = "none")
+
+fig5b_35 = BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_35", txgmapr_egs = LU_txgmapr_egs) + theme(legend.position = "none")
+fig5b_5 = BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_5", txgmapr_egs = LU_txgmapr_egs) + theme(legend.position = "none")
+fig5b_176 = BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_176", txgmapr_egs = LU_txgmapr_egs) + theme(legend.position = "none")
+
+fig5b_firstrow = ggarrange(fig5b_88, fig5b_35, nrow = 1)
+fig5b_secondrow = ggarrange(fig5b_5, fig5b_176, nrow = 1)
+
+fig5b_combined = ggarrange(fig5b_firstrow, fig5b_secondrow, ncol = 1)
+
+fig5b_combined_leg = ggarrange(fig5b_combined, replicate_leg, widths = c(1, 0.1))
+
+# ggarrange(BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_88", txgmapr_egs = LU_txgmapr_egs),
+#           BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_35", txgmapr_egs = LU_txgmapr_egs),
+#           BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_5", txgmapr_egs = LU_txgmapr_egs),
+#           BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_230", txgmapr_egs = LU_txgmapr_egs),
+#           BMD_output_plots_modules(BMDoutput = LU_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "hRPTECTERT1_176", txgmapr_egs = LU_txgmapr_egs))
+
+fig5b_combined_leg_title = annotate_figure(fig5b_combined_leg, top = text_grob("Dose responses - modules with lowest BMD", face = "bold", size = 18))
+fig5b_combined_leg_title
+
+
+ggsave(plot = fig5b_combined_leg_title, filename = file.path(plotDir, "fig5b_combined.pdf"), width = 15, height = 5)
+
+
+
+SC_BMD_pathway %>%
+  filter(timepoint == "48hr") %>%
+  arrange(finalBMD) %>%
+  slice(1:5) %>%
+  select(pathway, finalBMD)
+
+
+fig5b_HMp53 = BMD_output_plots_modules(BMDoutput = SC_BMD_pathway, time_oi = "48hr", BMD_modules_oi = "")
+
+
+```
+
+
+
+## Fig 5c
+```{r}
+BMDgenes_88 = plot_BMD_genes_moduleBMD(BMDmodules = LU_BMD_pathway, time_oi = "48hr", module_oi = "hRPTECTERT1_88", BMDoutput_genes = LU_fc_BMD, pathway_overview = LU_pathway_overview)
+
+BMDgenes_35 = plot_BMD_genes_moduleBMD(BMDmodules = LU_BMD_pathway, time_oi = "48hr", module_oi = "hRPTECTERT1_35", BMDoutput_genes = LU_fc_BMD, pathway_overview = LU_pathway_overview)
+
+BMDgenes_5 = plot_BMD_genes_moduleBMD(BMDmodules = LU_BMD_pathway, time_oi = "48hr", module_oi = "hRPTECTERT1_5", BMDoutput_genes = LU_fc_BMD, pathway_overview = LU_pathway_overview)
+
+BMDgenes_176 = plot_BMD_genes_moduleBMD(BMDmodules = LU_BMD_pathway, time_oi = "48hr", module_oi = "hRPTECTERT1_176", BMDoutput_genes = LU_fc_BMD, pathway_overview = LU_pathway_overview)
+
+
+fig5c_firstcol = ggarrange(BMDgenes_88, BMDgenes_35, ncol = 1)
+fig5c_complete = ggarrange(fig5c_firstcol, BMDgenes_5, nrow = 1)
+
+fig5c_complete_title = annotate_figure(fig5c_complete, text_grob("BMD genes in modules with lowest BMD", face = "bold", size = 18))
+
+ggsave(plot = fig5c_complete_title, filename = file.path(plotDir, "fig5c_combined.pdf"), width = 15, height = 10)
+```
+
+
+## Figure 5 total
+```{r}
+fig5_firstrow = ggarrange(fig5a_firstcol_leg_title, fig5b_combined_leg_title, labels = c("A", "B"), nrow = 1, widths = c(1,2))
+fig5_complete = ggarrange(fig5_firstrow, fig5c_complete_title, labels = c("", "C"), ncol = 1, heights = c(1, 1.5))
+
+fig5_complete
+
+ggsave(plot = fig5_complete, filename = file.path(plotDir, "Figure5.pdf"), width = 15, height = 20)
+```
+
+
+
+
+Table with modules lowest BMD per timepoint
+```{r}
+timepoints = LU_BMD_pathway$timepoint %>% unique()
+pathways_oi_pertp = NULL
+
+for(time in timepoints){
+  pathways_oi_pertp[[time]] = LU_BMD_pathway %>%
+    filter(timepoint == time) %>%
+    arrange(finalBMD) %>%
+    dplyr::slice(1:5) %>% 
+    pull(module)
+}
+
+
+DTlowestBMD = do.call("bind_cols", pathways_oi_pertp)
+
+knitr::kable(DTlowestBMD, caption = c("Top 5 most sensitive modules to cisplatin exposure per timepoint"))
+
+```
+
+
+
+
+```{r}
+BMDaccumulationPlot_pathway(BMDoutput = LU_norm_HALLMARK_select, partner = "LU") +
+  scale_color_manual(values = c("blue", "red", "green", "yellow", "purple", "orange")) +
+  labs(x = "BMD")
+```
+
