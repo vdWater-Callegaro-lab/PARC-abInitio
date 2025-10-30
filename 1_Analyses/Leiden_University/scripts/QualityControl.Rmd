@@ -878,5 +878,9 @@ save(
   
 )
 
+
+fwrite(metadata_libSize_repFilter, file.path(outputDir, "updatedVersion", "sample_metadata.txt"))
+fwrite(log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter, file.path(outputDir, "updatedVersion", "normalized_counts.txt"))
+
 ```
 
