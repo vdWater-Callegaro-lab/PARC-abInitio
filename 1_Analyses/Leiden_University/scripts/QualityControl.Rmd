@@ -1,0 +1,882 @@
+---
+title: "Quality Control"
+subtitle: "EUT046 - Version 2"
+date: "2025-05-23"
+author: 
+  Imke Bruns (0000-0001-9681-6693)
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    theme: cosmo
+    highlight: tango
+    df_print: paged
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 4
+---
+
+```{r, include=FALSE}
+
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# load ggplot
+pacman::p_load(ggplot2)
+
+# set standard plot theme
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# choose project
+studyNR = "EUT046"
+
+```
+
+
+
+
+# Set up analysis {.tabset}
+
+## Load packages
+
+### CRAN
+Install and load CRAN packages.
+```{r warning=FALSE, message=FALSE}
+# if(!require(pacman, quietly = TRUE)){
+#   install.packages("pacman")
+# }
+
+pacman::p_load(tidyverse, data.table, ggfortify, here)
+```
+
+
+### BioManager
+Install and load Bioconductor packages.
+```{r warning=FALSE, message=FALSE}
+# if (!require("BiocManager", quietly = TRUE)){
+#     install.packages("BiocManager")
+# }
+# 
+# if (!require(DESeq2, quietly = TRUE)){
+#   BiocManager::install("DESeq2")
+# }
+
+library(DESeq2)
+
+```
+
+
+## Load functions
+Load manual functions we need in the script.
+```{r}
+source(file.path(here(), "functions_new.R"), local = knitr::knit_global())
+```
+
+
+
+## Set color scheme
+Set standard color scheme for plots.
+```{r}
+
+# color list for plotting
+color25 <- c(
+  "dodgerblue2", "#E31A1C", # red
+  "green4",
+  "#6A3D9A", # purple
+  "#FF7F00", # orange
+  "black", "gold1",
+  "skyblue2", "#FB9A99", # lt pink
+  "palegreen2",
+  "#CAB2D6", # lt purple
+  "#FDBF6F", # lt orange
+  "gray70", "khaki2",
+  "maroon", "orchid1", "deeppink1", "blue1", "steelblue4",
+  "darkturquoise", "green1", "yellow4", "yellow3",
+  "darkorange4", "brown", "forestgreen"
+)   
+
+
+```
+
+
+## Set directories
+Set directories.
+```{r}
+# data directory 
+if(!dir.exists(paste0("data/"))){
+  dir.create(path = file.path(here(), "data"))
+}
+dataDir <- file.path(here(), "data", studyNR)
+
+# input directory
+if(!dir.exists(paste0("input/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "input", studyNR))
+}
+inputDir <- file.path(here(), "input", studyNR)
+
+# output directory
+if(!dir.exists(paste0("output/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "output", studyNR))
+}
+outputDir <- file.path(here(), "output", studyNR)
+
+# plot directory
+if(!dir.exists(paste0("figures/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "figures", studyNR))
+}
+plotDir <- file.path(here(), "figures", studyNR)
+
+
+```
+
+
+## Thresholds for library size
+Here, we set the threshold for the library size filter. We set this to be 20% of the expected read depth which is in this case 3 000 000.
+```{r}
+expectedReadDepth = 3000000
+libSizeFilter = 0.2*expectedReadDepth
+
+```
+
+
+## Import data
+Import needed data files.
+```{r}
+# raw counts
+rawcounts = read.csv(file.path(inputDir, paste0(studyNR, "_counts_per_gene_per_sample.csv"))) %>%
+    dplyr::rename("probe_id" = Column1)
+
+
+# metadata
+metadata = read.csv(file.path(inputDir, paste0(studyNR, "_metadata.csv"))) %>%
+  mutate(
+    TREATMENT_ID = gsub(" ", "", TREATMENT_ID),
+    MEAN_ID = if_else(COMPOUND %in% c("DMEM", "DMSO", "NaCl"), true = TREATMENT_ID, false = paste0(TREATMENT_ID, "_R", REPLICATE))) %>%
+  mutate(
+    CONCENTRATION = factor(CONCENTRATION, levels = c("0uM", "0.1uM", "0.5uM", "1uM", "2.5uM", "5uM", "10uM", "20uM", "30uM", "50uM")),
+    TIMEPOINT = factor(TIMEPOINT, levels = c("0hr", "4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+    DOSE = as.numeric(gsub("uM", "", CONCENTRATION))
+  ) 
+
+# manifest
+manifest = read.delim(file.path(dirname(dataDir), "Manifests", "Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt"))
+
+```
+
+
+# Quality control 
+
+## Probe QC {.tabset}
+We start with the quality control for the probes.
+
+### STEP 1: Probe alignment
+Here, we align the probes with the manifest.
+```{r}
+rawcounts_entrezid = rawcounts %>% left_join(manifest %>% select(Probe_ID, gene_symbol_entrez_id),
+                                             by = c("probe_id" = "Probe_ID")) %>% select(probe_id, gene_symbol_entrez_id, everything())
+
+```
+
+
+### STEP 2: Relevance filter
+Apply relevance filter adapted from the R-ODAF pipeline (see: https://doi.org/10.1016/j.yrtph.2022.105143)
+```{r warnings = FALSE}
+relevance_summary = relevance_filter(
+  countdata = apply(
+    rawcounts_entrezid %>% column_to_rownames("probe_id") %>% select(-gene_symbol_entrez_id),
+    2,
+    cpm_normalization
+  ) %>% as.data.frame(),
+  metadata = metadata
+  )
+
+
+rawcounts_entrezid_relevanceFilter = rawcounts_entrezid %>%
+  filter(probe_id %in% (relevance_summary %>%
+                          filter(keep == TRUE) %>%
+                          pull(probe_id))) 
+# %>%
+#   select(-probe_id)
+
+
+cat("The relevance filter removed", nrow(rawcounts_entrezid) - nrow(rawcounts_entrezid_relevanceFilter), "probes.", nrow(rawcounts_entrezid_relevanceFilter), "are left for further analysis.")
+
+```
+
+### STEP 3: Spurious spikes
+Group replicate groups + probe_id, calculate the ratio between the maximum of probeX and the sum of probeX for each replicate group. If this ratio exceeds 1.4*number of replicates^-0.66, flag. The flagged genes are in the `spike_summary` table.
+
+```{r}
+
+log2cpmcounts_entrezid_relevanceFilter_long = log2(apply(
+  rawcounts_entrezid_relevanceFilter %>% column_to_rownames("probe_id") %>% select(-gene_symbol_entrez_id),
+  2,
+  cpm_normalization
+) + 1) %>%
+  as.data.frame() %>%
+  rownames_to_column("probe_id") %>%
+  mutate(gene_symbol_entrez_id = rawcounts_entrezid_relevanceFilter$gene_symbol_entrez_id) %>%
+  pivot_longer(-c(gene_symbol_entrez_id, probe_id),
+               names_to = "SAMPLE_ID",
+               values_to = "log2cpm") %>% 
+  left_join(metadata %>% select(SAMPLE_ID, TREATMENT_ID), by = "SAMPLE_ID")
+
+
+
+# calculate spike ratios and thresholds per gene group
+spike_check = log2cpmcounts_entrezid_relevanceFilter_long %>%
+  group_by(probe_id, TREATMENT_ID) %>%
+  summarize(
+    max_count = max(log2cpm),
+    sum_count = sum(log2cpm),
+    n_samples = n(),
+    ratio = if_else(sum_count == 0, true = 0, false = max_count / sum_count),
+    threshold = 1.4*(n_samples^-0.66),
+    spike = ratio >= threshold,
+    .groups = "drop"
+  )
+
+
+# count how many groups have spikes per gene
+spike_summary = spike_check %>%
+  group_by(probe_id) %>%
+  summarize(
+    groups_with_spikes = sum(spike),
+    pass_spike_filter = groups_with_spikes <= 1,
+    .groups = "drop"
+  )
+
+head(spike_summary)
+
+table(spike_summary$pass_spike_filter)
+
+spike_flag = spike_summary %>% filter(pass_spike_filter == FALSE) %>% 
+  left_join(log2cpmcounts_entrezid_relevanceFilter_long %>% select(probe_id, gene_symbol_entrez_id), by = "probe_id") %>%
+  pull(gene_symbol_entrez_id) %>% unique()
+
+cat("The spurious spike filter flagged", length(spike_flag), "genes.")
+
+
+fwrite(spike_summary, file.path(outputDir, "updatedVersion", "spikeSummary.txt"))
+
+```
+
+
+### STEP 4: Sum probes
+We sum the probes targeting the same gene.
+```{r}
+# count isomeric probes
+cat(
+  "Before sum counts isomeric probes, there are",
+  length(
+    rawcounts_entrezid_relevanceFilter$gene_symbol_entrez_id %>% duplicated() %>% which()
+  ),
+  "duplicated gene symbols \n"
+)
+
+rawcounts_entrezid_relevanceFilter_sumProbes = aggregate(
+  rawcounts_entrezid_relevanceFilter %>% select(where(is.numeric)),
+  by = list(gene_symbol_entrez_id = rawcounts_entrezid_relevanceFilter$gene_symbol_entrez_id),
+  FUN = sum
+)
+
+cat("After all probe QC steps, there are", nrow(rawcounts_entrezid_relevanceFilter_sumProbes), "unique genes left")
+```
+
+
+### Probe QC output
+Generate output files after the probe QC.
+```{r}
+# cpm counts
+cpmcounts_entrezid_relevancefilter_sumProbes = apply(rawcounts_entrezid_relevanceFilter_sumProbes %>% column_to_rownames("gene_symbol_entrez_id"), 2, cpm_normalization) %>% as.data.frame() %>% rownames_to_column("gene_symbol_entrez_id")
+
+# log2cpm counts
+log2cpmcounts_entrezid_relevanceFilter_sumProbes = log2(cpmcounts_entrezid_relevancefilter_sumProbes %>% column_to_rownames("gene_symbol_entrez_id") + 1) %>% rownames_to_column("gene_symbol_entrez_id")
+
+```
+
+
+### Visualize in PCA 
+
+Show low QC genes in PCA scale
+```{r}
+pcaData_beforeProbeFilter = log2(apply(
+  rawcounts %>% column_to_rownames("probe_id"),
+  2,
+  cpm_normalization
+) + 1) %>%
+  as.data.frame() %>%
+  rownames_to_column("probe_id") %>%
+  mutate(
+    removed_probeQC = if_else(
+      probe_id %in% (relevance_summary %>%
+                       filter(keep == TRUE) %>%
+                       pull(probe_id)),
+      true = "passed",
+      false = "notPassed"
+    ),
+    flagged_probeQC = if_else(
+      probe_id %in% (
+        spike_summary %>%
+          filter(pass_spike_filter == TRUE) %>%
+          pull(probe_id)
+      ),
+      true = "passed",
+      false = "spike_flagged"
+    ),
+    flagged_probeQC_10per = if_else(
+      probe_id %in% (
+        spike_summary %>%
+          filter(groups_with_spikes <= 54*0.1) %>%
+          pull(probe_id)
+      ),
+      true = "passed",
+      false = "spike_flagged"
+    )
+  )
+  
+
+pcaOutput_beforeProbeFilter = prcomp(pcaData_beforeProbeFilter %>% select(where(is.numeric)))
+
+autoplot(
+  pcaOutput_beforeProbeFilter,
+  data = pcaData_beforeProbeFilter,
+  color = "removed_probeQC",
+  size = 1
+) +
+  labs(title = "PCA gene expression (log2CPM)",
+       subtitle = "Probes") +
+  scale_color_manual(values = c("firebrick", "forestgreen"),
+                     breaks = c("notPassed", "passed"))
+
+```
+
+
+Show flagged genes in PCA scale
+```{r}
+autoplot(
+  pcaOutput_beforeProbeFilter,
+  data = pcaData_beforeProbeFilter,
+  color = "flagged_probeQC",
+  size = 1
+) +
+  labs(title = "PCA gene expression (log2CPM)",
+       subtitle = "Probes") +
+  scale_color_manual(values = c("orange", "black"),
+                     breaks = c("spike_flagged", "passed"))
+
+```
+
+Show flagged genes in PCA scale (now flagged probes are probes with a spike in >= 20% of the groups)
+```{r}
+autoplot(
+  pcaOutput_beforeProbeFilter,
+  data = pcaData_beforeProbeFilter,
+  color = "flagged_probeQC_10per",
+  size = 1
+) +
+  labs(title = "PCA gene expression (log2CPM)",
+       subtitle = "Probes") +
+  scale_color_manual(values = c("orange", "black"),
+                     breaks = c("spike_flagged", "passed"))
+
+```
+
+
+### Save output
+```{r}
+save(
+  # metadata
+  metadata,
+  # raw counts
+  rawcounts_entrezid_relevanceFilter_sumProbes,
+  # cpm counts
+  cpmcounts_entrezid_relevancefilter_sumProbes,
+  # log2cpm counts
+  log2cpmcounts_entrezid_relevanceFilter_sumProbes,
+  
+  file = file.path(outputDir, "updatedVersion", paste0(studyNR, "_dataAfterProbeQC.RData"))
+)
+```
+
+
+
+## Sample QC {.tabset}
+Now we perform the quality control for the samples.
+
+### STEP 5: Library size filter (NMR)
+Remove samples if library size is < 20% of the intended read depth. The filter has been set on the top of the script.
+
+#### Add library size to metadata
+```{r}
+metadata %>%
+  mutate(
+    LIBRARY_SIZE = colSums(rawcounts_entrezid_relevanceFilter_sumProbes %>% select(where(is.numeric))),
+    LIBRARY_SIZE_PURE = colSums(rawcounts %>% select(where(is.numeric)))) -> metadata
+
+```
+
+
+#### Plot library size
+Also compare pure library size obtained form raw counts with library size after probe QC
+```{r}
+# compare pure library size (from raw counts) with library size after probe QC
+p1 = ggplot(metadata, aes(x=LIBRARY_SIZE_PURE, y=LIBRARY_SIZE)) +
+  geom_point() +
+  geom_abline()
+
+p1
+
+# show differences in table
+metadata %>% 
+  select(LIBRARY_SIZE, LIBRARY_SIZE_PURE) %>%
+  head(10)
+
+
+# plot library size per concentration/timepoint
+p2 = ggplot(metadata, aes(x=CONCENTRATION, y=LIBRARY_SIZE, color = LIBRARY_SIZE > libSizeFilter, size = LIBRARY_SIZE > libSizeFilter)) + 
+  geom_point() +
+  facet_wrap(~TIMEPOINT) + 
+  geom_hline(yintercept=libSizeFilter, lty=2, color="firebrick", linewidth=0.8) +
+  scale_color_manual(values = c("firebrick", "black"),
+                     breaks = c(FALSE, TRUE)) +
+  scale_size_manual(values = c(1, 2.5),
+                    breaks = c(TRUE, FALSE)) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90)) +
+  labs(title = "Library size per concentration/timepoint")
+
+p2
+
+```
+
+#### Remove samples
+
+From metadata
+```{r}
+cat("We filter all samples with a library size of <", libSizeFilter, "\n")
+
+metadata_libSize = metadata %>%
+  filter(LIBRARY_SIZE >= libSizeFilter)
+
+cat("The following samples have been removed due to low library size:\n",
+    paste(metadata %>% filter(LIBRARY_SIZE < libSizeFilter) %>% pull(SAMPLE_ID), collapse = ", "))
+
+```
+
+From counts
+```{r}
+# raw counts
+rawcounts_entrezid_relevanceFilter_sumProbes_libSize = rawcounts_entrezid_relevanceFilter_sumProbes %>% select(gene_symbol_entrez_id, all_of(metadata_libSize$SAMPLE_ID))
+
+# cpm counts
+cpmcounts_entrezid_relevancefilter_sumProbes_libSize = cpmcounts_entrezid_relevancefilter_sumProbes %>% select(gene_symbol_entrez_id, all_of(metadata_libSize$SAMPLE_ID))
+
+# log2cpm counts
+log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize = log2cpmcounts_entrezid_relevanceFilter_sumProbes %>% select(gene_symbol_entrez_id, all_of(metadata_libSize$SAMPLE_ID))
+
+```
+
+
+
+### STEP 6: Replicate correlation (rCOR)
+We perform replicate correlation on the log2cpm counts, to minimize the effect of outliers.
+
+
+#### Pairwise
+Calculate replicate correlation for each pair combination
+
+```{r}
+replicateFilterOutput <- data.frame()
+
+for(i in unique(metadata_libSize$TREATMENT_ID)){
+  metaDataReps <- metadata_libSize %>% 
+    filter(TREATMENT_ID == i)
+  
+  if(nrow(metaDataReps) > 1) {
+    log2cpmDataReps <- log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize[, metaDataReps$SAMPLE_ID] 
+    
+    colnames(log2cpmDataReps)
+    
+    for(j in 1:ncol(log2cpmDataReps)){
+      for(k in 1:ncol(log2cpmDataReps)){
+        sample_A <- colnames(log2cpmDataReps)[j]
+        sample_B <- colnames(log2cpmDataReps)[k]
+        
+        if(sample_A != sample_B){
+        
+        paste0("Looking at ", sample_A, " vs. ", sample_B)
+        
+        r2 <- cor(log2cpmDataReps[,j], log2cpmDataReps[,k])
+        
+        replicateFilterOutput <- rbind(replicateFilterOutput, 
+                        data.frame(TREATMENT_ID = i, 
+                                   sample_A = sample_A,
+                                   sample_B = sample_B,
+                                   comp = paste0(sample_A, " v. ", sample_B),
+                                   r2 = r2))
+        }
+      }
+    }
+  }
+}
+
+replicateFilterOutput <- replicateFilterOutput %>% arrange(TREATMENT_ID)
+
+head(replicateFilterOutput)
+
+```
+
+Calculate the highest replicate correlation for each sample
+```{r}
+
+replicateFilterOutput <- replicateFilterOutput %>% 
+  separate(TREATMENT_ID, into = c("cell_line", "compound", "time", "concentration"), sep = "_", remove = FALSE) %>%
+  group_by(sample_A) %>% 
+  mutate(max_r2 = max(r2, na.rm=T),
+         factor_conc = as.numeric(gsub("uM", "", concentration)),
+             concentration = factor(concentration, levels = c("0uM","0.1uM", "0.5uM", "1uM", "2.5uM", "5uM", "10uM", "20uM", "30uM", "50uM")),
+            time = factor(time, levels = c("0hr", "4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>% 
+  ungroup()
+
+loop <- unique(replicateFilterOutput$time)
+loop
+
+```
+Look at each timepoint
+```{r}
+
+for(i in loop){
+  print(
+    replicateFilterOutput %>% 
+      filter(time %in% i) %>% 
+      ggplot(aes(x=reorder(sample_A, factor_conc), y=r2)) +
+      geom_boxplot(color='grey90') +
+      geom_point(color='grey60') +
+      geom_point(aes(y=max_r2, fill=concentration), color='grey60', shape=21, size=3) +
+      ylab('') + xlab('Sample ID') + ggtitle(i) +
+      theme_bw() +
+      theme(axis.text.x = element_blank(),
+            legend.position = 'none',
+            plot.title = element_text(hjust = 0.5, face = "bold", size = 18)) +
+      facet_wrap(~time+concentration, scales='free_x', nrow = 1)
+  )
+}
+
+
+```
+
+Look at the distribution of maximum pairwise correlations
+```{r}
+replicateFilterMax <- replicateFilterOutput %>% 
+  select(time, max_r2) %>%
+  distinct()
+
+replicateFilterMax %>% 
+  group_by(time) %>% 
+  ungroup() %>% 
+  ggplot(aes(y=time, x=max_r2)) +
+  geom_boxplot() + ylab('')
+
+```
+
+Some timepoints have less variation in max r2 than others, but we want to capture acceptable variability. 
+
+Make an IQR for each compound and then remove max r2 that are more than 3 IQR from the best. Flag samples as an outlier if their highest obtained replicate correlation is further beneath the experimental medi than the best performing replicate correlation. 
+
+```{r}
+
+replicateFilterDetect <- replicateFilterOutput %>% 
+  select(TREATMENT_ID, r2, max_r2) %>% 
+  distinct() %>% 
+  mutate(testsystem_IQR = 3*IQR(r2)) %>% 
+  group_by(TREATMENT_ID) %>% 
+  mutate(experimental_max = max(max_r2),
+         experimental_threshold = experimental_max - testsystem_IQR) %>% 
+  ungroup() %>% 
+  select(-r2, -max_r2) %>% 
+  distinct()
+
+replicateFilterNew <- left_join(replicateFilterOutput, replicateFilterDetect, by="TREATMENT_ID") %>% distinct()
+
+replicateFilterNew <- replicateFilterNew %>% 
+  mutate(keep_replicate = ifelse(max_r2 < experimental_threshold, "No", "Yes"))
+
+for(i in loop){
+print(replicateFilterNew %>% 
+  filter(time == i) %>% 
+  ggplot(aes(x=reorder(sample_A, -factor_conc))) +
+  geom_boxplot(aes(y=r2), color='grey80') +
+    geom_hline(aes(yintercept = experimental_max), color='grey70') +
+    geom_hline(aes(yintercept = experimental_threshold), color='grey70', linetype='dashed') +
+  geom_point(aes(y=r2), color='grey80') +
+  geom_point(aes(y=max_r2, color=keep_replicate)) +
+      scale_color_manual(values = c("Yes" = "#6DACBC", "No" = "#CF7976")) +
+    ggtitle(i) + xlab('Sample') + ylab('') +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5)) +
+  facet_wrap(~time+concentration, scales="free_x", nrow=1))
+}
+
+cat("The replicate filter removes", replicateFilterNew %>% filter(keep_replicate == "No") %>% pull(sample_A) %>% unique() %>% length(), "samples.")
+
+
+```
+#### Remove samples
+
+From metadata
+```{r}
+keepSamples = replicateFilterNew %>%
+           filter(keep_replicate == "Yes") %>% 
+           pull(sample_A) %>% unique()
+
+metadata_libSize_repFilter = metadata_libSize %>%
+  filter(SAMPLE_ID %in% keepSamples)
+
+cat("The following samples have been removed due to low replicate correlation:\n",
+    paste(metadata_libSize %>% filter(!SAMPLE_ID %in% keepSamples) %>% pull(SAMPLE_ID), collapse = ", "))
+
+```
+
+From counts
+```{r}
+# raw counts
+rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter = rawcounts_entrezid_relevanceFilter_sumProbes_libSize %>% select(gene_symbol_entrez_id, metadata_libSize_repFilter$SAMPLE_ID)
+
+# cpm counts
+cpmcounts_entrezid_relevancefilter_sumProbes_libSize_repFilter = cpmcounts_entrezid_relevancefilter_sumProbes_libSize %>% select(gene_symbol_entrez_id, metadata_libSize_repFilter$SAMPLE_ID)
+
+# log2cpm counts
+log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter = log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize %>% select(gene_symbol_entrez_id, metadata_libSize_repFilter$SAMPLE_ID)
+
+```
+
+
+### STEP 7: Viable Cells (FrVC)
+Flag samples with < 70% viable cells. For this dataset, this information is not available.
+
+
+### STEP 8: Fraction uniquely mapped reads (FMR)
+Reject samples if percentage mapped is < 70%. For this dataset, this information is not available.
+
+
+### STEP 9: Number of genes with >= 5 uniquely mapped reads (Ncov 5)
+Flag samples if less than 5000 genes have >= 5 uniquely mapped reads.
+
+```{r}
+
+# create long df
+rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter_long = rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter %>%
+  pivot_longer(-gene_symbol_entrez_id, names_to = "SAMPLE_ID", values_to = "counts") 
+
+Ncov5_summary = rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter_long %>%
+  group_by(SAMPLE_ID) %>%
+  summarize(
+    genesAbove5 = sum(counts > 5),
+    lowQuality = genesAbove5 < 5000,
+    .groups = "drop"
+  )
+
+head(Ncov5_summary)
+
+table(Ncov5_summary$lowQuality)
+
+Ncov5_flag = Ncov5_summary %>%
+  filter(lowQuality == TRUE) %>%
+  pull(SAMPLE_ID)
+
+```
+
+
+
+### STEP 10: Number of probes capture top 80% of signal in sample (Nsig 80)
+Flag samples if < 1000 genes capture the top 80% of the signal in a sample.
+
+```{r}
+
+Nsig80_summary = rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter_long %>%
+  group_by(SAMPLE_ID) %>%
+  arrange(SAMPLE_ID, desc(counts)) %>%
+  mutate(
+    cum_sum = cumsum(counts),
+    total = sum(counts),
+    cum_frac = cum_sum / total,
+    gene_rank = row_number()
+  ) %>%
+  filter(cum_frac >= 0.8) %>%
+  summarize(
+    Nsig80 = min(gene_rank),
+    lowComplexity = Nsig80 < 1000,
+    .groups = "drop"
+  )
+
+
+head(Nsig80_summary)
+
+table(Nsig80_summary$lowComplexity)
+
+Nsig80_flag = Nsig80_summary %>%
+  filter(lowComplexity == TRUE) %>% 
+  pull(SAMPLE_ID)
+
+```
+
+
+### Add sample flags to metadata
+```{r}
+metadata_libSize_repFilter %>%
+  mutate(flagged_sampleQC = case_when(
+    SAMPLE_ID %in% Ncov5_flag ~ "Ncov5_flag",
+    SAMPLE_ID %in% Nsig80_flag ~ "Nsig80_flag",
+    .default = "passed"
+  )) -> metadata_libSize_repFilter
+
+```
+
+
+### Check filters in PCA 
+Check the removed samples in PCA, do we see additional outliers, are these removed if we increase the libsize filter/adjust the replicate correlation? 
+
+Before the low quality samples have been removed
+```{r}
+pcaData_beforeSampFilter = log2cpmcounts_entrezid_relevanceFilter_sumProbes %>% column_to_rownames("gene_symbol_entrez_id") %>% t() %>% as.data.frame() %>% rownames_to_column("SAMPLE_ID") %>% left_join(metadata, by = "SAMPLE_ID") %>%
+  mutate(removed_sampleQC = if_else(SAMPLE_ID %in% metadata_libSize_repFilter$SAMPLE_ID, true = "passed", false = "notPassed"),
+         Ncov5_flag = if_else(SAMPLE_ID %in% Ncov5_flag, true = "flag", false = "passed"),
+         Nsig80_flag = if_else(SAMPLE_ID %in% Nsig80_flag, true = "flag", false = "passed"))
+
+pcaOutput_beforeSampFilter = prcomp(pcaData_beforeSampFilter %>% column_to_rownames("SAMPLE_ID") %>% select(log2cpmcounts_entrezid_relevanceFilter_sumProbes$gene_symbol_entrez_id))
+
+autoplot(
+  pcaOutput_beforeSampFilter,
+  data = pcaData_beforeSampFilter,
+  color = "CONCENTRATION",
+  shape = "TIMEPOINT",
+  size = 2
+) + # change to 3
+  labs(title = "PCA gene expression (log2CPM)") +
+  scale_shape_manual(values = c(15, 16, 17, 18, 7, 8, 13)) +
+  scale_color_manual(values = color25)
+
+```
+
+Color removed samples
+```{r}
+autoplot(
+  pcaOutput_beforeSampFilter,
+  data = pcaData_beforeSampFilter,
+  color = "removed_sampleQC",
+  shape = "TIMEPOINT",
+  size = 2
+) + # change to 3
+  labs(title = "PCA gene expression (log2CPM)") +
+  scale_shape_manual(values = c(15, 16, 17, 18, 7, 8, 13)) +
+  scale_color_manual(values = c("firebrick", "forestgreen"),
+                     breaks = c("notPassed", "passed"))
+
+```
+
+Check flagged samples
+```{r}
+
+autoplot(
+  pcaOutput_beforeSampFilter,
+  data = pcaData_beforeSampFilter,
+  color = "Nsig80_flag",
+  shape = "TIMEPOINT",
+  size = 2
+) + # change to 3
+  labs(title = "PCA gene expression (log2CPM)") +
+  scale_shape_manual(values = c(15, 16, 17, 18, 7, 8, 13)) +
+  scale_color_manual(values = c("firebrick", "forestgreen"),
+                     breaks = c("flag", "passed"))
+
+
+```
+
+
+
+After the low quality samples have been removed
+```{r}
+pcaData_afterSampleFilter = log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter %>% column_to_rownames("gene_symbol_entrez_id") %>% t() %>% as.data.frame() %>% rownames_to_column("SAMPLE_ID") %>% left_join(metadata_libSize_repFilter, by = "SAMPLE_ID")
+
+pcaOutput_afterSampleFilter = prcomp(pcaData_afterSampleFilter %>% column_to_rownames("SAMPLE_ID") %>% select(log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter$gene_symbol_entrez_id))
+
+autoplot(
+  pcaOutput_afterSampleFilter,
+  data = pcaData_afterSampleFilter,
+  color = "CONCENTRATION",
+  shape = "TIMEPOINT",
+  size = 2
+) + # change to 3
+  labs(title = "PCA gene expression (log2CPM)") +
+  scale_shape_manual(values = c(15, 16, 17, 18, 7, 8, 13)) +
+  scale_color_manual(values = color25)
+
+```
+
+
+Color flagged samples after filter
+```{r}
+autoplot(
+  pcaOutput_afterSampleFilter,
+  data = pcaData_afterSampleFilter,
+  color = "flagged_sampleQC",
+  shape = "TIMEPOINT",
+  size = 2
+) + # change to 3
+  labs(title = "PCA gene expression (log2CPM)") +
+  scale_shape_manual(values = c(15, 16, 17, 18, 7, 8, 13)) +
+  scale_color_manual(values = c("black", "orange", "purple"),
+                     breaks = c("passed", "Nsig80_flag", "Ncov5_flag"))
+
+```
+The flagged samples are nicely clustered with their replicate, so for now I decided to keep them in.
+
+
+### Save data
+```{r}
+save(
+  # metadata
+  metadata_libSize_repFilter,
+  
+  # raw counts
+  rawcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter,
+  
+  # cpm counts
+  cpmcounts_entrezid_relevancefilter_sumProbes_libSize_repFilter,
+  
+  # log2cpm counts
+  log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter,
+  
+  file = file.path(outputDir, "updatedVersion", paste0(studyNR, "_dataAfterSampleQC_3IQR_repfilter.RData"))
+  
+)
+
+```
+

@@ -1,0 +1,349 @@
+---
+title: "Generate BMD Express files"
+output: html_document
+date: "2025-05-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+studyNR = "EUT046"
+RODAF = FALSE
+
+```
+
+# Set up analysis {.tabset}
+
+## Load packages
+
+### CRAN
+```{r}
+pacman::p_load(tidyverse, data.table, here)
+```
+
+
+## Load functions
+```{r}
+source(here("functions_new.R"), local = knitr::knit_global())
+```
+
+
+
+## Set directories
+```{r}
+# data directory 
+if(!dir.exists(paste0("data/"))){
+  dir.create(path = file.path(here(), "data"))
+}
+dataDir <- file.path(here(), "data", studyNR)
+
+# input directory
+if(!dir.exists(paste0("input/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "input", studyNR))
+}
+inputDir <- file.path(here(), "input", studyNR)
+
+# output directory
+if(!dir.exists(paste0("output/updatedVersion/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "output", "updatedVersion", studyNR))
+}
+outputDir <- file.path(here(), "output", "updatedVersion", studyNR)
+
+# plot directory
+if(!dir.exists(paste0("figures/updatedVersion/", studyNR, "/"))){
+  dir.create(path = file.path(here(), "figures", "updatedVersion", studyNR))
+}
+plotDir <- file.path(here(), "figures", "updatedVersion", studyNR)
+
+
+```
+
+
+
+## Import data
+```{r}
+
+if(RODAF == TRUE) {
+  load(file.path(outputDir, "R-ODAF_DESeq2_output_files.RData"))
+
+  module_egs = read.delim(file.path(
+    getwd(),
+    "TXGMAPr_files",
+    studyNR,
+    paste0(studyNR, "_R-ODAF_TXGMAPr_module_egs.txt")
+
+  ))
+
+  metadata = DESeqDesign
+
+} else {
+  # processed counts
+  load(file.path(outputDir, paste0(studyNR, "_dataAfterSampleQC_3IQR_repfilter.RData")))
+
+  # DESeq output (log2fc values)
+  load(file.path(outputDir, "DESeq_output", "contrast", "DESeq2_output_files.RData"))
+
+  # TXG-MAPr eigengene scores
+  module_egs = read.delim(file.path(
+    here(),
+    "TXGMAPr_files",
+    studyNR,
+    "updatedVersion",
+    paste0(studyNR, "_TXGMAPr_module_egs.txt")
+  ))
+
+  metadata = metadata_libSize_repFilter
+
+}
+
+
+```
+
+
+# Create BMDExpress upload files
+
+## Adjust metadata
+```{r}
+metadata_libSize_repFilter %>%
+  mutate(COMPOUND_TIME = paste0(COMPOUND_ABBR,"_",TIME),
+         DOSE = gsub(",", ".", CONCENTRATION),
+         DOSE = as.numeric(gsub("uM", "", DOSE))) -> metadata
+
+
+if(studyNR %in% c("EUT082", "SP0173a_csa", "SP0173b_csa")){
+  compound = c("DMSO","CSA", "NaCl")
+} else if(studyNR %in% c("EUT046", "SP0173a_cis", "SP0173b_cis")){
+  compound = c("DMEM", "CSP")
+}
+
+
+time <- metadata %>%
+  filter(COMPOUND_ABBR %in% compound) %>%
+  pull(TIME) %>% 
+  unique()
+  
+
+```
+
+
+## log2cpm counts
+This part can for now be skipped for the R-ODAF part
+```{r, eval=!RODAF}
+
+if(RODAF) {
+  cat("Execution stopped because we don't have log2cpm counts for RODAF")
+} else {
+  ## Wrangle CPM countdata for BMD analysis
+  genes = log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter %>% pull(gene_symbol_entrez_id)
+  
+  
+  for (i in time) {
+    metadata_subset <- metadata_libSize_repFilter %>%
+      filter(TIME == i)
+    
+    countdata_subset = log2cpmcounts_entrezid_relevanceFilter_sumProbes_libSize_repFilter %>%
+      select(gene_symbol_entrez_id, metadata_subset$SAMPLE_ID) %>%
+      column_to_rownames("gene_symbol_entrez_id") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("SAMPLE_ID") %>%
+      left_join(
+        metadata_subset %>% dplyr::select(SAMPLE_ID, COMPOUND_ABBR, DOSE, DOSE_LEVEL, REPLICATE),
+        by = "SAMPLE_ID"
+      ) %>%
+      arrange(DOSE_LEVEL, REPLICATE) %>%
+      dplyr::select(SAMPLE_ID, DOSE, all_of(genes)) %>%
+      column_to_rownames("SAMPLE_ID") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("gene_symbol_entrez_id")
+    
+    fwrite(
+      countdata_subset,
+      file.path(
+        here(),
+        "BMD_input",
+        "updatedVersion",
+        studyNR,
+        "log2cpm_3IQR_repfilter",
+        paste0("BMD_input_", i, "hr_log2cpmcounts.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+    
+  }
+}
+
+```
+
+
+
+## log2fc values
+```{r}
+
+if(RODAF) {
+  expression_wide_log2fc = expression_wide %>% select("Probe_ID", ends_with("__log2fc"))
+  colnames(expression_wide_log2fc) = gsub(" ", "", colnames(expression_wide_log2fc))
+  colnames(expression_wide_log2fc) = gsub("__log2fc", "", colnames(expression_wide_log2fc))
+  
+  metadata_nocontrol = metadata %>% filter(!COMPOUND_ABBR %in% c("DMSO", "DMEM", "NaCl"))
+  
+  genes = expression_wide_log2fc %>% pull("Probe_ID")
+  
+  
+  for (i in time) {
+    metadata_subset <- metadata_nocontrol %>%
+      filter(TIME == i)
+    
+    countdata_subset = expression_wide_log2fc %>%
+      select(Probe_ID, metadata_subset$MEAN_ID) %>%
+      column_to_rownames("Probe_ID") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("MEAN_ID") %>%
+      left_join(
+        metadata_subset %>% dplyr::select(MEAN_ID, COMPOUND_ABBR, DOSE, DOSE_LEVEL, REPLICATE),
+        by = "MEAN_ID"
+      ) %>%
+      arrange(DOSE_LEVEL, REPLICATE) %>%
+      dplyr::select(MEAN_ID, DOSE, all_of(genes)) %>%
+      column_to_rownames("MEAN_ID") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("gene_symbol") %>%
+      tidyr::drop_na()
+    
+    fwrite(
+      countdata_subset,
+      file.path(
+        here(),
+        "BMD_input",
+        "updatedVersion", 
+        studyNR,
+        "log2fc",
+        "RODAF",
+        paste0("BMD_input_RODAF_", i, "hr_log2fc.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+  }
+} else {
+  expression_wide_log2fc = expression_wide %>% select("gene_symbol_entrez_id", ends_with("__log2fc"))
+  colnames(expression_wide_log2fc) = gsub(" ", "", colnames(expression_wide_log2fc))
+  colnames(expression_wide_log2fc) = gsub("__log2fc", "", colnames(expression_wide_log2fc))
+  
+  metadata_nocontrol = metadata %>% filter(!COMPOUND_ABBR %in% c("DMSO", "DMEM", "NaCl"))
+  
+  genes = expression_wide_log2fc %>% pull("gene_symbol_entrez_id")
+  
+  
+  for (i in time) {
+    metadata_subset <- metadata_nocontrol %>%
+      filter(TIME == i)
+    
+    countdata_subset = expression_wide_log2fc %>%
+      select(gene_symbol_entrez_id, metadata_subset$MEAN_ID) %>%
+      column_to_rownames("gene_symbol_entrez_id") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("MEAN_ID") %>%
+      left_join(
+        metadata_subset %>% dplyr::select(MEAN_ID, COMPOUND_ABBR, DOSE, DOSE_LEVEL, REPLICATE),
+        by = "MEAN_ID"
+      ) %>%
+      arrange(DOSE_LEVEL, REPLICATE) %>%
+      dplyr::select(MEAN_ID, DOSE, all_of(genes)) %>%
+      column_to_rownames("MEAN_ID") %>%
+      t() %>%
+      as.data.frame() %>%
+      rownames_to_column("gene_symbol") %>%
+      tidyr::drop_na()
+    
+    fwrite(
+      countdata_subset,
+      file.path(
+        here(),
+        "BMD_input",
+        "updatedVersion",
+        studyNR,
+        "log2fc",
+        paste0("BMD_input_", i, "hr_log2fc.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+  }
+}
+
+```
+
+
+## eigengene scores
+```{r}
+
+modules = module_egs %>% pull(module) %>% unique()
+
+
+module_egs %>% separate(
+  sample_id,
+  into = c("UPLOAD", "EXPOSURE_TYPE", "REPLICATE", "TIME", "DOSE"),
+  sep = "_",
+  remove = FALSE
+) %>% pivot_wider(
+  id_cols = c(sample_id, TIME, conc_level, DOSE, REPLICATE),
+  names_from = module,
+  values_from = eg_score
+) %>% dplyr::rename("DOSE_LEVEL" = conc_level,
+                    "SAMPLE_ID" = sample_id) %>%
+  mutate(TIME = as.numeric(TIME),
+         DOSE = as.numeric(DOSE)) -> module_egs_wide
+
+
+for (i in time) {
+  countdata_subset <- module_egs_wide %>%
+    filter(TIME == i) %>%
+    arrange(DOSE_LEVEL, REPLICATE) %>%
+    dplyr::select(SAMPLE_ID, DOSE, all_of(modules)) %>%
+    column_to_rownames("SAMPLE_ID") %>%
+    t() %>%
+    as.data.frame() %>%
+    rownames_to_column("module")
+  
+  if (RODAF) {
+    fwrite(
+      countdata_subset,
+      file.path(
+        here(),
+        "BMD_input",
+        "updatedVersion",
+        studyNR,
+        "module_egs",
+        "RODAF",
+        paste0("BMD_input_RODAF_", i, "hr_module_egs.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+  } else {
+    fwrite(
+      countdata_subset,
+      file.path(
+        here(),
+        "BMD_input",
+        "updatedVersion",
+        studyNR,
+        "module_egs",
+        paste0("BMD_input_", i, "hr_module_egs.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+  }
+  
+}
+
+  
+  
+```

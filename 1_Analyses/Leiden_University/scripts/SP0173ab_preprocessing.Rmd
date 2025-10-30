@@ -1,0 +1,108 @@
+---
+title: "SP0173ab preprocessing"
+author: "IBBruns"
+date: "2024-05-27"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+rm(list = ls()); gc()
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# choose project
+studyNR = "SP0173ab"
+
+```
+
+
+
+# Set up analysis {.tabset}
+
+## Load packages
+
+### CRAN
+```{r}
+pacman::p_load(tidyverse)
+```
+
+
+## Set directories
+```{r}
+# data directory 
+if(!dir.exists(paste0("data/"))){
+  dir.create(path = file.path(getwd(), "data"))
+}
+dataDir <- file.path(getwd(), "data")
+
+# input directory
+if(!dir.exists(paste0("input/"))){
+  dir.create(path = file.path(getwd(), "input"))
+}
+inputDir <- file.path(getwd(), "input")
+
+```
+
+
+## Import data
+```{r}
+# rawcounts
+SP0173a_rawcounts = read.csv(file.path(dataDir, studyNR, "SP0173a_counts_per_gene_per_sample_raw.csv")) %>% dplyr::rename("probe_id" = X)
+SP0173b_rawcounts = read.csv(file.path(dataDir, studyNR, "SP0173b_counts_per_gene_per_sample_raw.csv")) %>% dplyr::rename("probe_id" = X)
+
+# metadata
+SP0173ab_metadata = readxl::read_xlsx(file.path(dataDir, studyNR, "SP0173ab_metadata.xlsx")) %>%
+  mutate(SAMPLE_ID = gsub("-", ".", SAMPLE_ID))
+```
+
+
+# Separate data {.tabset}
+
+## Metadata
+
+```{r}
+# rat PTEC
+SP0173a_cis_metadata = SP0173ab_metadata %>% filter(EXP_ID == "SP0173a" & TREATMENT == "CSP")
+SP0173a_csa_metadata = SP0173ab_metadata %>% filter(EXP_ID == "SP0173a" & TREATMENT == "CSA")
+
+# human PTEC
+SP0173b_cis_metadata = SP0173ab_metadata %>% filter(EXP_ID == "SP0173b" & TREATMENT == "CSP")
+SP0173b_csa_metadata = SP0173ab_metadata %>% filter(EXP_ID == "SP0173b" & TREATMENT == "CSA")
+
+```
+
+## Counts
+```{r}
+# rat PTEC
+SP0173a_cis_rawcounts = SP0173a_rawcounts %>% dplyr::select("probe_id", SP0173a_cis_metadata$SAMPLE_ID)
+SP0173a_csa_rawcounts = SP0173a_rawcounts %>% dplyr::select("probe_id", SP0173a_csa_metadata$SAMPLE_ID)
+
+# human PTEC
+SP0173b_cis_rawcounts = SP0173b_rawcounts %>% dplyr::select("probe_id", SP0173b_cis_metadata$SAMPLE_ID)
+SP0173b_csa_rawcounts = SP0173b_rawcounts %>% dplyr::select("probe_id", SP0173b_csa_metadata$SAMPLE_ID)
+
+```
+
+
+# Save
+```{r}
+# rat PTEC
+## metadata
+write.csv(SP0173a_cis_metadata, file.path(inputDir, "SP0173a_cis", "SP0173a_cis_metadata.csv"), row.names = F)
+write.csv(SP0173a_csa_metadata, file.path(inputDir, "SP0173a_csa", "SP0173a_csa_metadata.csv"), row.names = F)
+## rawcounts
+write.csv(SP0173a_cis_rawcounts, file.path(inputDir, "SP0173a_cis", "SP0173a_cis_counts_per_gene_per_sample.csv"), row.names = F)
+write.csv(SP0173a_csa_rawcounts, file.path(inputDir, "SP0173a_csa", "SP0173a_csa_counts_per_gene_per_sample.csv"), row.names = F)
+
+
+# human PTEC
+## metadata
+write.csv(SP0173b_cis_metadata, file.path(inputDir, "SP0173b_cis", "SP0173b_cis_metadata.csv"), row.names = F)
+write.csv(SP0173b_csa_metadata, file.path(inputDir, "SP0173b_csa", "SP0173b_csa_metadata.csv"), row.names = F)
+## rawcounts
+write.csv(SP0173b_cis_rawcounts, file.path(inputDir, "SP0173b_cis", "SP0173b_cis_counts_per_gene_per_sample.csv"), row.names = F)
+write.csv(SP0173b_csa_rawcounts, file.path(inputDir, "SP0173b_csa", "SP0173b_csa_counts_per_gene_per_sample.csv"), row.names = F)
+
+
+```
+
