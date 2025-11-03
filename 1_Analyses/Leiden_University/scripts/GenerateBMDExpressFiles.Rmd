@@ -44,17 +44,16 @@ if(!dir.exists(paste0("input/", studyNR, "/"))){
 inputDir <- file.path(here(), "input", studyNR)
 
 # output directory
-if(!dir.exists(paste0("output/updatedVersion/", studyNR, "/"))){
-  dir.create(path = file.path(here(), "output", "updatedVersion", studyNR))
+if(!dir.exists(paste0("output/", studyNR, "/updatedVersion/"))){
+  dir.create(path = file.path(here(), "output", studyNR, "updatedVersion"))
 }
-outputDir <- file.path(here(), "output", "updatedVersion", studyNR)
+outputDir <- file.path(here(), "output", studyNR, "updatedVersion")
 
 # plot directory
-if(!dir.exists(paste0("figures/updatedVersion/", studyNR, "/"))){
-  dir.create(path = file.path(here(), "figures", "updatedVersion", studyNR))
+if(!dir.exists(paste0("figures/", studyNR, "/updatedVersion/"))){
+  dir.create(path = file.path(here(), "figures", studyNR, "updatedVersion"))
 }
-plotDir <- file.path(here(), "figures", "updatedVersion", studyNR)
-
+plotDir <- file.path(here(), "figures", studyNR, "updatedVersion")
 
 ```
 
@@ -162,9 +161,10 @@ if(RODAF) {
       countdata_subset,
       file.path(
         here(),
-        "BMD_input",
-        "updatedVersion",
+        "BMD_analysis",
         studyNR,
+        "updatedVersion",
+        "input",
         "log2cpm_3IQR_repfilter",
         paste0("BMD_input_", i, "hr_log2cpmcounts.txt")
       ),
@@ -218,9 +218,10 @@ if(RODAF) {
       countdata_subset,
       file.path(
         here(),
-        "BMD_input",
-        "updatedVersion", 
+        "BMD_analysis", 
         studyNR,
+        "updatedVersion",
+        "input",
         "log2fc",
         "RODAF",
         paste0("BMD_input_RODAF_", i, "hr_log2fc.txt")
@@ -265,9 +266,10 @@ if(RODAF) {
       countdata_subset,
       file.path(
         here(),
-        "BMD_input",
-        "updatedVersion",
+        "BMD_analysis",
         studyNR,
+        "updatedVersion",
+        "input",
         "log2fc",
         paste0("BMD_input_", i, "hr_log2fc.txt")
       ),
@@ -316,9 +318,10 @@ for (i in time) {
       countdata_subset,
       file.path(
         here(),
-        "BMD_input",
-        "updatedVersion",
+        "BMD_analysis",
         studyNR,
+        "updatedVersion",
+        "input",
         "module_egs",
         "RODAF",
         paste0("BMD_input_RODAF_", i, "hr_module_egs.txt")
@@ -331,9 +334,10 @@ for (i in time) {
       countdata_subset,
       file.path(
         here(),
-        "BMD_input",
-        "updatedVersion",
+        "BMD_analysis",
         studyNR,
+        "updatedVersion",
+        "input",
         "module_egs",
         paste0("BMD_input_", i, "hr_module_egs.txt")
       ),
