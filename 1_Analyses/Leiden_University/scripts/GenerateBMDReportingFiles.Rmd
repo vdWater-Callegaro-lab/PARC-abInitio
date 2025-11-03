@@ -1,0 +1,201 @@
+---
+title: "Generate Reporting Framework Input"
+output: html_document
+date: "2025-10-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Generate Input Reporting Framework
+
+We need filtered BMD output data with timepoint indication. Change probe_ID column to gene_symbol_entrez_id
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, data.table)
+```
+
+
+## Set directories
+```{r}
+BMDoutput_dir = file.path(here(), "BMD_analysis", studyNR, "updatedVersion", "output")
+
+```
+
+
+
+## Load data
+```{r}
+
+# WTT output
+WTT_log2cpm = fread(file.path(BMDoutput_dir, "WTT_log2cpm.txt"), check.names = TRUE)
+WTT_log2fc = fread(file.path(BMDoutput_dir, "WTT_log2fc.txt"), check.names = TRUE)
+WTT_egs = fread(file.path(BMDoutput_dir, "WTT_egs.txt"), check.names = TRUE)
+
+
+# BMD output
+BMD_log2cpm = fread(file.path(BMDoutput_dir, "BMD_log2cpm.txt"), check.names = TRUE)
+BMD_log2fc = fread(file.path(BMDoutput_dir, "BMD_log2fc.txt"), check.names = TRUE)
+BMD_egs = fread(file.path(BMDoutput_dir, "BMD_egs.txt"), check.names = TRUE)
+
+
+# functional classification
+funClas_modules_log2cpm = fread(file.path(BMDoutput_dir, "FunctionalClass_modules_log2cpm.txt"), check.names = TRUE)
+funClas_modules_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_modules_log2fc.txt"), check.names = TRUE)
+
+funClas_HALLMARK_log2cpm = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2cpm.txt"), check.names = TRUE)
+funClas_HALLMARK_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2fc.txt"), check.names = TRUE)
+
+```
+
+
+## Adjust
+Filter output & adjust
+
+### WTT
+```{r}
+WTT_log2cpm %>%
+  dplyr::rename("gene_symbol_entrez_id" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) %>%
+  select(-Gene.ID, -Gene.Symbol) -> WTT_log2cpm_a
+
+
+WTT_log2fc %>%
+  dplyr::rename("gene_symbol_entrez_id" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) %>%
+  select(-Gene.ID, -Gene.Symbol) -> WTT_log2fc_a
+
+
+
+WTT_egs %>%
+  dplyr::rename("module" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) %>%
+  select(-Gene.ID, -Gene.Symbol) -> WTT_egs_a
+
+
+
+```
+
+
+### BMD
+```{r}
+BMD_log2cpm %>%
+  filter(Best.BMD > 0.1 * 0.1 & Best.BMD < 50) %>%
+  filter(Best.BMD.BMDL < 20) %>%
+  filter(Best.BMDU.BMD < 20) %>%
+  filter(Best.RSquared > 0.8) %>%
+  dplyr::rename("gene_symbol_entrez_id" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> BMD_log2cpm_f
+
+
+BMD_log2fc %>%
+  filter(Best.BMD > 0.1*0.1 & Best.BMD < 50) %>%
+  filter(Best.BMD.BMDL < 20) %>%
+  filter(Best.BMDU.BMD < 20) %>%
+  filter(Best.RSquared > 0.8) %>%
+  dplyr::rename("gene_symbol_entrez_id" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> BMD_log2fc_f
+
+BMD_egs %>%
+  filter(Best.BMD > 0.1*0.1 & Best.BMD < 50) %>%
+  filter(Best.BMD.BMDL < 20) %>%
+  filter(Best.BMDU.BMD < 20) %>%
+  filter(Best.RSquared > 0.8) %>%
+  dplyr::rename("module" = Probe.ID) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> BMD_egs_f
+
+```
+
+
+### Functional Classification
+```{r}
+  
+
+funClas_modules_log2cpm %>%
+  filter(Genes.That.Passed.All.Filters >= 3) %>%
+  filter(Percentage >= 5) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> funClas_modules_log2cpm_f
+
+
+funClas_modules_log2fc %>%
+  filter(Genes.That.Passed.All.Filters >= 3) %>%
+  filter(Percentage >= 5) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> funClas_modules_log2fc_f
+
+
+
+funClas_HALLMARK_log2cpm %>%
+  filter(Genes.That.Passed.All.Filters >= 3) %>%
+  filter(Percentage >= 5) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> funClas_HALLMARK_log2cpm_f
+
+funClas_HALLMARK_log2fc %>%
+  filter(Genes.That.Passed.All.Filters >= 3) %>%
+  filter(Percentage >= 5) %>%
+  mutate(timepoint = factor(
+    str_extract(Analysis, "\\d{1,2}hr"),
+    levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  )) -> funClas_HALLMARK_log2fc_f
+
+```
+
+
+
+## Save files
+```{r}
+
+fwrite(WTT_log2cpm_a, file.path(BMDoutput_dir, "adjusted", "WTT_log2cpm_a.txt"), sep = "\t")
+fwrite(WTT_log2fc_a, file.path(BMDoutput_dir, "adjusted", "WTT_log2fc_a.txt"), sep = "\t")
+fwrite(WTT_egs_a, file.path(BMDoutput_dir, "adjusted", "WTT_egs_a.txt"), sep = "\t")
+
+
+fwrite(BMD_log2cpm_f, file.path(BMDoutput_dir, "filtered", "BMD_log2cpm_f.txt"), sep = "\t")
+fwrite(BMD_log2fc_f, file.path(BMDoutput_dir, "filtered", "BMD_log2fc_f.txt"), sep = "\t")
+fwrite(BMD_egs_f, file.path(BMDoutput_dir, "filtered", "BMD_egs_f.txt"), sep = "\t")
+
+
+fwrite(funClas_modules_log2cpm_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_modules_log2cpm_f.txt"), sep = "\t")
+fwrite(funClas_modules_log2fc_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_modules_log2f_f.txt"), sep = "\t")
+
+fwrite(funClas_HALLMARK_log2cpm_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2cpm_f.txt"), sep = "\t")
+fwrite(funClas_HALLMARK_log2fc_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2fc_f.txt"), sep = "\t")
+
+
+```
+
