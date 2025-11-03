@@ -4,11 +4,17 @@ author: "Your Lab / Team"
 date: "`r format(Sys.Date())`"
 output:
   html_document:
+    code_download: true
     code_folding: hide
-    toc: true
-    toc_depth: 4
-    toc_float: true
+    theme: cosmo
+    highlight: tango
+    df_print: paged
     number_sections: true
+    toc: true
+    toc_float: 
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 4
 
 params:
   study_id: "EUT046"
@@ -328,6 +334,13 @@ source("R/table_lowest_median_pathways.R")
 top_pathways_per_timepoint(df = medianBMD_pathways_from_genes)
 
 ```
+
+
+Plot BMDL / BMD / BMDL of genes in top 5 pathways:
+```{r}
+
+```
+
 
 
 
