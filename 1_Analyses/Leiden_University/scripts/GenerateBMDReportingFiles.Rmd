@@ -21,7 +21,13 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, here, data.table)
+# CRAN
+pacman::p_load(tidyverse, here, data.table, ActivePathways)
+
+# BioManager
+BiocManager::install("org.Hs.eg.db")
+
+library(org.Hs.eg.db)
 ```
 
 
@@ -55,7 +61,9 @@ funClas_modules_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_modules
 funClas_HALLMARK_log2cpm = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2cpm.txt"), check.names = TRUE)
 funClas_HALLMARK_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2fc.txt"), check.names = TRUE)
 
-pathway_overview = fread(file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "geneTable.txt"))
+pathway_overview_modules = fread(file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "geneTable.txt"))
+pathway_overview_hallmarks = read.GMT(file.path(getwd(), "data", "gsea_pathways", "hallmarks.v2023.2.Hs.symbols.gmt")) %>% 
+  map_df(~as.data.frame(.x)) %>% dplyr::rename("pathway" = id, "gene_symbol" = genes) %>% dplyr::select(pathway, gene_symbol)
 
 ```
 
@@ -180,11 +188,21 @@ funClas_HALLMARK_log2fc %>%
 
 ### Pathway overview
 ```{r}
-pathway_overview = pathway_overview %>% mutate(
+pathway_overview_modules = pathway_overview %>% mutate(
   gene_symbol = str_remove(gene_symbol, "id_"),
   entrez_id = str_remove(entrez_id, "id_"),
   gene_symbol_entrez_id = paste(gene_symbol, entrez_id, sep = "_")
 ) %>% select(gene_symbol_entrez_id, module) %>% distinct()
+
+
+pathway_overview_hallmarks %>% 
+  mutate(entrez_id = mapIds(org.Hs.eg.db,
+                            keys = gene_symbol,
+                            column = "ENTREZID", 
+                            keytype = "SYMBOL",
+                            multiVals = "first")) %>%
+  unite(gene_symbol, entrez_id, col = "gene_symbol_entrez_id", remove = TRUE) -> pathway_overview_hallmarks_entrezid
+  
   
 ```
 
@@ -210,6 +228,7 @@ fwrite(funClas_modules_log2fc_f, file.path(BMDoutput_dir, "filtered", "Functiona
 fwrite(funClas_HALLMARK_log2cpm_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2cpm_f.txt"), sep = "\t")
 fwrite(funClas_HALLMARK_log2fc_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2fc_f.txt"), sep = "\t")
 
-fwrite(pathway_overview, file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "pathway_overview.txt"))
+fwrite(pathway_overview_modules, file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "pathway_overview_modules.txt"))
+fwrite(pathway_overview_hallmarks_entrezid, file.path(getwd(), "data", "gsea_pathways", "pathway_overview_hallmarks.txt"), sep = "\t")
 ```
 
