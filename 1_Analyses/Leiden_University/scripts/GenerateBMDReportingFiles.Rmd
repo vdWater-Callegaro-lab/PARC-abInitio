@@ -55,6 +55,8 @@ funClas_modules_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_modules
 funClas_HALLMARK_log2cpm = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2cpm.txt"), check.names = TRUE)
 funClas_HALLMARK_log2fc = fread(file.path(BMDoutput_dir, "FunctionalClass_HALLMARK_log2fc.txt"), check.names = TRUE)
 
+pathway_overview = fread(file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "geneTable.txt"))
+
 ```
 
 
@@ -176,6 +178,18 @@ funClas_HALLMARK_log2fc %>%
 ```
 
 
+### Pathway overview
+```{r}
+pathway_overview = pathway_overview %>% mutate(
+  gene_symbol = str_remove(gene_symbol, "id_"),
+  entrez_id = str_remove(entrez_id, "id_"),
+  gene_symbol_entrez_id = paste(gene_symbol, entrez_id, sep = "_")
+) %>% select(gene_symbol_entrez_id, module) %>% distinct()
+  
+```
+
+
+
 
 ## Save files
 ```{r}
@@ -196,6 +210,6 @@ fwrite(funClas_modules_log2fc_f, file.path(BMDoutput_dir, "filtered", "Functiona
 fwrite(funClas_HALLMARK_log2cpm_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2cpm_f.txt"), sep = "\t")
 fwrite(funClas_HALLMARK_log2fc_f, file.path(BMDoutput_dir, "filtered", "FunctionalClass_HALLMARK_log2fc_f.txt"), sep = "\t")
 
-
+fwrite(pathway_overview, file.path(getwd(), "TXGMAPr_files", studyNR, "updatedVersion", "pathway_overview.txt"))
 ```
 
