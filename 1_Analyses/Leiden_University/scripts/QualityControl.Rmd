@@ -605,9 +605,9 @@ replicateFilterMax %>%
 
 ```
 
-Some timepoints have less variation in max r2 than others, but we want to capture acceptable variability. 
+Some compounds have less variation in max r2 than others, but we want to capture acceptable variability. 
 
-Make an IQR for each compound and then remove max r2 that are more than 3 IQR from the best. Flag samples as an outlier if their highest obtained replicate correlation is further beneath the experimental medi than the best performing replicate correlation. 
+Make an IQR for the test system (RPTEC-TERT1) and then remove max r2 that are more than 3 IQR from the best. Flag samples as an outlier if their highest obtained replicate correlation is further beneath the experimental medi than the best performing replicate correlation. 
 
 ```{r}
 
