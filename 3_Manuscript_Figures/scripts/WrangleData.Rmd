@@ -69,8 +69,8 @@ LU_norm_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_BMD_
 Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>%
   filter(Best.BMD <= 50,
          Best.BMD.BMDL <= 20,
-         Best.BMDU.BMDL <= 20,
-         Best.fitPValue >= 0.1) # for Sciensano filter needs te be applied; copied from OECD reporting table
+         Best.BMDU.BMDL <= 40,
+         Best.RSquared >= 0.8) # for Sciensano filter needs te be applied; copied from OECD reporting table
 
 BPI_norm_BMD = fread(file.path(inputDir, "BPI" , "All_FilteredDRomicV3.txt"), check.names = TRUE) 
 
@@ -180,8 +180,8 @@ Sciensano_BMD_pathway = fread(file.path(inputDir, "Sciensano", "BMD_output_NES_f
 
 # normalized counts
 AU_norm_BMD_select = AU_norm_BMD %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}hr"),
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ),
 partner = "AU") %>% dplyr::select(
   gene_symbol_entrez_id,
@@ -194,8 +194,8 @@ partner = "AU") %>% dplyr::select(
 
 
 GU_norm_BMD_select = GU_norm_BMD %>% mutate(timepoint = factor(
-  paste0(timepoint, "hr"),
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  paste0(timepoint, "h"),
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ), partner = "GU") %>% dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
@@ -208,8 +208,8 @@ GU_norm_BMD_select = GU_norm_BMD %>% mutate(timepoint = factor(
 
 
 LU_norm_BMD_select = LU_norm_BMD %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}hr"), 
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
   ),
   partner = "LU") %>% dplyr::select(
     "gene_symbol_entrez_id" = Probe.ID, 
@@ -223,8 +223,8 @@ LU_norm_BMD_select = LU_norm_BMD %>% mutate(timepoint = factor(
   
 
 Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
-  paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), 
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
   ),
   partner = "SC") %>% dplyr::select(
     gene_symbol_entrez_id,
@@ -238,8 +238,7 @@ Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
 
 
 BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
-  paste0(timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
-  ),
+  timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "BPI"
 ) %>% dplyr::select(
   gene_symbol_entrez_id,
@@ -255,7 +254,7 @@ BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
 
 # log2fc (need to adjust like above)
 LU_fc_select = LU_fc_BMD %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "LU"
 ) %>% dplyr::select(
   "gene_symbol_entrez_id" = Probe.ID, 
@@ -268,7 +267,7 @@ LU_fc_select = LU_fc_BMD %>% mutate(
 
 
 ODAF_fc_select = ODAF_fc_BMD %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "R-ODAF"
   ) %>% dplyr::select(
     "gene_symbol_entrez_id" = Probe.ID,
@@ -288,7 +287,7 @@ ODAF_fc_select = ODAF_fc_BMD %>% mutate(timepoint = factor(
 
 # median BMD HALLMARK
 AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "AU") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
@@ -300,7 +299,7 @@ AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
 
 
 GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% mutate(
-  timepoint = factor(paste0(timepoint, "hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "GU") %>% dplyr::select(
     Pathway.Name,
     timepoint,
@@ -313,7 +312,7 @@ GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% mutate(
 
 
 LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "LU"
 ) %>% dplyr::select(
   "Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, 
@@ -328,8 +327,8 @@ LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% mutate(
 
 
 Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% mutate(timepoint = factor(
-  paste0(str_extract(Analysis, "\\d{1,2}h"), "r"),
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ), partner = "SC") %>%
   dplyr::select(
     Pathway.Name,
@@ -343,7 +342,7 @@ Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% mutate(timepoint = 
 
 
 BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% mutate(
-  timepoint = factor(paste0(Timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(Timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "BPI"
 ) %>% dplyr::select(
   "Pathway.Name" = Description,
@@ -364,7 +363,7 @@ BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% mutate(
 
 # median BMD pathways of choice
 AU_norm_KEGG_select = AU_norm_KEGG %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "AU") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
@@ -378,7 +377,7 @@ AU_norm_KEGG_select = AU_norm_KEGG %>% mutate(
 
 
 LU_norm_modules_select = LU_norm_modules %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "LU"
 ) %>% dplyr::select(
   "Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, 
@@ -392,8 +391,8 @@ LU_norm_modules_select = LU_norm_modules %>% mutate(
 
 
 Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% mutate(timepoint = factor(
-  paste0(str_extract(Analysis, "\\d{1,2}h"), "r"),
-  levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ), partner = "SC") %>%
   dplyr::select(
     Pathway.Name,
@@ -406,7 +405,7 @@ Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% mutate(
 
 
 BPI_norm_WIKIPATHWAYS_select = BPI_norm_WIKIPATHWAYS %>% mutate(
-  timepoint = factor(paste0(Timepoint, "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")),
+  timepoint = factor(Timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "BPI"
 ) %>% dplyr::select(
   "Pathway.Name" = Description,
@@ -459,7 +458,7 @@ BPI_norm_WIKIPATHWAYS_select = BPI_norm_WIKIPATHWAYS %>% mutate(
 ```{r}
 # module eigengene scores
 LU_BMD_pathway_select = LU_BMD_pathway %>%
-  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}hr"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h"))) %>%
   dplyr::rename("finalBMD" = Best.BMD,
                 "finalBMDU" = Best.BMDU,
                 "finalBMDL" = Best.BMDL,
@@ -468,7 +467,7 @@ LU_BMD_pathway_select = LU_BMD_pathway %>%
 
 # NES scores
 Sciensano_BMD_pathway_select = Sciensano_BMD_pathway %>%
-  mutate(timepoint = factor(paste0(str_extract(Analysis, "\\d{1,2}h"), "r"), levels = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))) %>%
+  mutate(timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h"))) %>%
   dplyr::rename("finalBMD" = Best.BMD,
                 "finalBMDU" = Best.BMDU,
                 "finalBMDL" = Best.BMDL) 
