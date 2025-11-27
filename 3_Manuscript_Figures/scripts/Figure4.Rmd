@@ -33,6 +33,17 @@ standard_plotTheme <- theme_minimal() +
 
 
 theme_set(standard_plotTheme)
+
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue (replacing teal)
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
 ```
 
 
@@ -50,7 +61,10 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, patchwork, here, ComplexUpset, UpSetR, purrr, pheatmap, ggplotify, grid, ComplexHeatmap)
+pacman::p_load(tidyverse, patchwork, here, ComplexUpset, UpSetR, purrr, pheatmap, ggplotify, grid)
+
+# biomanager
+library(ComplexHeatmap)
 ```
 
 
@@ -93,13 +107,14 @@ load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 UpSet plot to show overlap between different p53 pathways
 
 ```{r}
+
 KEGG_p53 = AU_pathway_overview %>% filter(ID == "hsa04115") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol) %>% unique()
 WP_p53 = gsea_wikipathways_df %>% filter(pathway == "WP_P53_TRANSCRIPTIONAL_GENE_NETWORK") %>% pull(gene_symbol) %>% unique()
 HALLMARK_p53 = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol) %>% unique()
 module_p53 = LU_pathway_overview_select %>% filter(module == "hRPTECTERT1_35") %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>% pull(gene_symbol) %>% unique()
 # GENOMARKTGxDDI = Sciensano_pathway_overview %>% filter(pathway %in% c("TGxDDI64", "GENOMARK84")) %>% pull(gene_symbol)
-GENOMARK = Sciensano_pathway_overview %>% filter(pathway %in% "GENOMARK84") %>% pull(gene_symbol) %>% unique()
-TGxDDI = Sciensano_pathway_overview %>% filter(pathway %in% "TGxDDI64") %>% pull(gene_symbol) %>% unique()
+GENOMARK = Sciensano_pathway_overview %>% filter(pathway %in% "GENOMARK84" & gene_symbol != "") %>% pull(gene_symbol) %>% unique()
+TGxDDI = Sciensano_pathway_overview %>% filter(pathway %in% "TGxDDI64" & gene_symbol != "") %>% pull(gene_symbol) %>% unique()
 
 p53_geneList = list(
   KEGG = KEGG_p53,
@@ -111,9 +126,6 @@ p53_geneList = list(
   TGxDDI64 = TGxDDI
 )
 
-# membership_df = UpSetR::fromList(p53_geneList) %>% 
-#   rownames_to_column("Gene") %>%
-#   mutate(across(-Gene, as.logical))
 
 all_genes <- sort(p53_geneList %>% unlist(use.names = FALSE) %>% unique())
 
@@ -145,7 +157,7 @@ fig4a_upset = ComplexUpset::upset(
 
 fig4a_upset
 
-fig4a_lab <- wrap_elements(panel = textGrob("Overlap genes in various p53 pathways", gp = gpar(fontface = "bold", fontsize = 18)))
+fig4a_lab <- wrap_elements(panel = textGrob("Overlap Genes in P53 Pathways from Different Sources", gp = gpar(fontface = "bold", fontsize = 18)))
 
 fig4a = wrap_elements(fig4a_lab / 
                         fig4a_upset +
@@ -155,6 +167,7 @@ fig4a = wrap_elements(fig4a_lab /
 fig4a
 
 ggsave(plot = fig4a, file.path(plotDir, "fig4a.pdf"), width = 15, height = 5.5)
+
 
 
 ```
@@ -167,7 +180,7 @@ Accumulation plot median BMD of choice, highlight p53 pathway
 ```{r}
 
 fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
-                                                 partner = "Aristotle University",
+                                                 partner = "AristotleU",
                                                  pathway_oi = "p53 signaling pathway") +
   labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
   theme(plot.title = element_text(color = "firebrick"),
@@ -187,7 +200,7 @@ fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHW
 
 
 fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_select,
-                                                 partner = "Ghent University",
+                                                 partner = "GhentU",
                                                  pathway_oi = "HALLMARK_P53_PATHWAY") +
   labs(subtitle = "highlight p53 pathway (HALLMARK)") +
   theme(plot.title = element_text(color = "gold1"),
@@ -197,7 +210,7 @@ fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_se
 
 
 fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_select,
-                                                 partner = "Leiden University",
+                                                 partner = "LeidenU",
                                                  pathway_oi = "hRPTECTERT1_35") + 
   labs(subtitle = "highlight p53 WGCNA module (hRPTECTERT1_35)") +
   theme(plot.title = element_text(color = "blue2"),
@@ -222,7 +235,17 @@ fig4b = fig4b_AU + fig4b_BPI + fig4b_GU + fig4b_LU +
   plot_layout(nrow = 1, guides = "collect", axis = "collect")
 fig4b
 
-ggsave(plot = fig4b, file.path(plotDir, "fig4b.pdf"), width = 24, height = 5)
+# generate title 
+fig4b_lab = wrap_elements(panel = textGrob("Median BMC Accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig4b_total = wrap_elements(fig4b_lab / fig4b + plot_layout(heights = c(0.5, 5)))
+
+fig4b_total
+
+
+
+
+ggsave(plot = fig4b_total, file.path(plotDir, "fig4b_total.pdf"), width = 24, height = 5)
 
 ```
 
@@ -238,7 +261,7 @@ fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene
   geom_jitter(color = "firebrick") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "KEGG",
-       y = "BMC") + 
+       y = "Median BMC") + 
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
 
@@ -249,7 +272,7 @@ fig4c_BPI = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("ge
   geom_jitter(color = "gray30") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "WikiPathways",
-       y = "BMC") +
+       y = "Median BMC") +
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
 
@@ -260,7 +283,7 @@ fig4c_GU = GU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene
   geom_jitter(color = "gold1") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "HALLMARK",
-       y = "BMC") +
+       y = "Median BMC") +
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
 
@@ -271,7 +294,7 @@ fig4c_LU = LU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene
   geom_jitter(color = "blue2") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "WGCNA modules",
-       y = "BMC") +
+       y = "Median BMC") +
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
   
@@ -283,7 +306,7 @@ fig4c_SC_gm = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into
   geom_jitter(color = "forestgreen") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "GENOMARK84",
-       y = "BMC") +
+       y = "Median BMC") +
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
 
@@ -294,7 +317,7 @@ fig4c_SC_td = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into
   geom_jitter(color = "forestgreen") +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
   labs(subtitle = "TGxDDI64",
-       y = "BMC") +
+       y = "Median BMC") +
   ylim(c(0, 50)) +
   theme(axis.title.x = element_blank())
 
@@ -303,18 +326,25 @@ fig4c_SC_td = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into
 fig4c = fig4c_AU + fig4c_BPI + fig4c_GU + fig4c_LU + fig4c_SC_gm + fig4c_SC_td + plot_layout(nrow = 1, guides = "collect", axis = "collect")
 fig4c
 
-ggsave(plot = fig4c, file.path(plotDir, "fig4c.pdf"), width = 24, height = 5)
+
+# generate title 
+fig4c_lab = wrap_elements(panel = textGrob("BMC Genes in P53 Pathways", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig4c_total = wrap_elements(fig4c_lab / fig4c + plot_layout(heights = c(0.5, 5)))
+
+fig4c_total
+
+
+ggsave(plot = fig4c_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, height = 5)
 
 ```
 
 
 
 ## Figure 4d
-Heatmap of genes that overlap in at 4/5 pathways
+Heatmap of genes that overlap in at 3/5 pathways
 
 ```{r}
-# membership_df %>% 
-#   mutate(Gene = unlist(p53_geneList) %>% unique()) -> membership_df
 
 pathway_cols <- colnames(membership_df %>% column_to_rownames("Gene"))
 
@@ -324,58 +354,10 @@ core_genes = membership_df %>%
   pull(Gene)
 
 
-plotMat = norm_BMD_combined_wide %>%
-  separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>%
-  filter(timepoint == "24hr" & gene_symbol %in% core_genes) %>%
-  select(-entrez_id, -timepoint) %>% 
-  group_by(gene_symbol) %>%
-  summarize(
-    across(
-      where(is.numeric),
-      ~first(na.omit(.x)),
-      .names = "{.col}"
-    ),
-    .groups = "drop"
-  ) %>% column_to_rownames("gene_symbol")
-  
-
-max_val = max(plotMat, na.rm = TRUE)
-n_col = 100
-
-
-cols <- colorRampPalette(c("#B2182B",   # deep red
-                           "#FEE08B",   # light yellow
-                           "#2166AC"))(n_col)  # steel-blue
-
-
-
-breaks <- c(
-  seq(0, 5, length.out = n_col/2 + 1),          # ends with 5
-  seq(5, max_val, length.out = n_col/2 + 1)[-1] # start 5 → drop it ([-1])
-)
-
-
-
-fig4d_heatmap = pheatmap(
-  plotMat,
-  cluster_cols = F,
-  cluster_rows = F,
-  color = cols,
-  breaks = breaks
-)
-
-
-fig4d_heatmap_gg = wrap_elements(full = fig4d_heatmap$gtable)
-
-```
-
-
-```{r}
-
 # build matrix
 plotMat <- norm_BMD_combined_wide %>%
   separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>%
-  filter(timepoint == "24hr", gene_symbol %in% core_genes) %>%
+  filter(timepoint == "24h", gene_symbol %in% core_genes) %>%
   select(-entrez_id, -timepoint) %>%
   group_by(gene_symbol) %>%
   summarize(across(where(is.numeric), ~ first(na.omit(.x))), .groups = "drop") %>%
@@ -414,15 +396,15 @@ row_anno <- rowAnnotation(
 raw_cols <- colnames(plotMat)
 friendly_labels <- raw_cols %>%
   sub("_finalBMD$", "", .) %>%            
-  dplyr::recode(AU = "Aristotle University",
-                GU = "Ghent University",
-                LU = "Leiden University",
+  dplyr::recode(AU = "AristotleU",
+                GU = "GhentU",
+                LU = "LeidenU",
                 SC = "Sciensano")
 
 partner_cols = c("BPI" = "gray30", 
-                "Ghent University" = "gold1",
-                "Leiden University" = "blue2",
-                "Aristotle University" = "firebrick",
+                "GhentU" = "gold1",
+                "LeidenU" = "blue2",
+                "AristotleU" = "firebrick",
                 "Sciensano" = "forestgreen")
 
 colnames(plotMat) <- friendly_labels
@@ -445,7 +427,7 @@ ht <- row_anno + Heatmap(
   ),
   cell_fun = function(j, i, x, y, w, h, fill) {
     val <- plotMat[i, j]
-    if (!is.na(val)) grid::grid.text(sprintf("%.1f", val), x, y, gp = gpar(fontsize = 10))
+    if (!is.na(val)) grid::grid.text(sprintf("%.1f", val), x, y, gp = gpar(fontsize = 14))
   }
 )
 
@@ -464,6 +446,18 @@ ht_grob = grid::grid.grabExpr(
 
 fig4d_heatmap_gg = wrap_elements(ht_grob)
 
+
+# generate title 
+fig4d_lab = wrap_elements(panel = textGrob("BMC Genes Overlapping in 3 or more P53 Pathways", gp = gpar(fontface = "bold", fontsize = 18)))
+
+fig4d_total = wrap_elements(fig4d_lab / fig4d_heatmap_gg + plot_layout(heights = c(0.5, 8)))
+
+fig4d_total
+
+ggsave(plot = fig4d_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, height = 10)
+
+
+
 ```
 
 
@@ -471,14 +465,14 @@ fig4d_heatmap_gg = wrap_elements(ht_grob)
 # Arrange total figure 4
 ```{r}
 figure4 = fig4a /
-  fig4b /
-  fig4c /
-  fig4d_heatmap_gg +
-  plot_layout(heights = c(5.5, 5, 5, 13))
+  fig4b_total /
+  fig4c_total /
+  fig4d_total +
+  plot_layout(heights = c(7.5, 5, 4, 12))
 
 figure4
 
-ggsave(plot = figure4, file.path(plotDir, "Figure4_v2.pdf"), width = 19, height = 22)
+ggsave(plot = figure4, file.path(plotDir, "Figure4_v3.pdf"), width = 19, height = 24)
 
 ```
 

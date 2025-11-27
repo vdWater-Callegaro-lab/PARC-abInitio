@@ -34,6 +34,17 @@ standard_plotTheme <- theme_minimal() +
 
 
 theme_set(standard_plotTheme)
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue (replacing teal)
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
 ```
 
 
@@ -84,6 +95,8 @@ if(!dir.exists(plotDir)){
 ```{r}
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 
+
+
 ```
 
 # Wrangle data
@@ -96,7 +109,8 @@ LU_pwScore_medianScore = tibble(
   left_join(LU_norm_modules_select %>%
               select("module" = Pathway.Name,
                      medianBMD,
-                     timepoint), by = c("module", "timepoint"))
+                     timepoint,
+                     n_genes_used), by = c("module", "timepoint"))
 
 Sciensano_pwScore_medianScore = tibble(
   HALLMARKpw = Sciensano_BMD_pathway_select$pathway,
@@ -106,7 +120,8 @@ Sciensano_pwScore_medianScore = tibble(
   left_join(Sciensano_norm_HALLMARK_select %>%
               select("HALLMARKpw" = Pathway.Name,
                      medianBMD,
-                     timepoint), by = c("HALLMARKpw", "timepoint")) 
+                     timepoint,
+                     n_genes_used), by = c("HALLMARKpw", "timepoint")) 
 ```
 
 
@@ -116,7 +131,7 @@ Sciensano_pwScore_medianScore = tibble(
 Show BMD accumulation module EGs and HALLMARK NES scores
 
 ```{r}
-fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, partner = "Leiden University", HLpw = "hRPTECTERT1_35") +
+fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, partner = "LeidenU", HLpw = "hRPTECTERT1_35") +
   labs(subtitle = "Eigengene scores (co-expression modules)") +
   theme(plot.title = element_text(color = "blue2")) 
 
@@ -127,7 +142,7 @@ fig5a_SC = BMDaccumulationPlot_pwscores_highlight(BMDoutput = Sciensano_BMD_path
 
 
 # generate title
-fig5a_lab <- wrap_elements(panel = textGrob("Obtain BMCs on pathway scores", gp = gpar(fontface = "bold", fontsize = 18)))
+fig5a_lab <- wrap_elements(panel = textGrob("BMC Accumulation Pathway Scores", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 fig5a = fig5a_lab / fig5a_LU / fig5a_SC + plot_layout(axis = "collect", heights = c(0.5, 5, 5))
@@ -185,22 +200,6 @@ fig5b = fig5b_lab / fig5b_LU / fig5b_SC + plot_layout(axis = "collect", guides =
 fig5b
 
 ggsave(plot = fig5b, file.path(plotDir, "fig5b.pdf"), width = 7.5, height = 10.5)
-
-
-
-
- highlight_data = plot_data %>% filter(Pathway.Name %in% pathway_oi)
-
-    ggplot(plot_data, aes(x= medianBMD, y = ranked_pathway)) +
-    geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
-    geom_point(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, shape = timepoint), color = "red", size = 3) +
-    # geom_text(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, label = Pathway.Name), vjust = -1, hjust = 1, color = "red") +
-    labs(title = partner,
-         y = "Accumulation",
-         x = "BMC") +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
-    
-    
     
 
 ```
@@ -208,65 +207,324 @@ ggsave(plot = fig5b, file.path(plotDir, "fig5b.pdf"), width = 7.5, height = 10.5
 
 
 ## Figure 5c
-Violin plots to show the distribution of the BMCs
+Violin plots to show the distribution of the BMCs > change
 
 ```{r}
 
 
-fig5c_LU = LU_pwScore_medianScore %>%
-  pivot_longer(cols = -c(module, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
-  ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
-  geom_violin() +
-  geom_jitter(size = 0.8) +
-  facet_wrap(~timepoint, nrow = 1) +
-  labs(title = "Leiden University",
-       subtitle = "Eigengene scores (co-expression modules)") +
-  theme(plot.title = element_text(color = "blue2"),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank()) +
-  scale_color_manual(values = c("red", "gray45"),
-                     breaks = c("pwScore_BMD", "medianBMD"),
-                     labels = c("Pathway Score BMC", "Median Pathway BMC"))
+# fig5c_LU = LU_pwScore_medianScore %>%
+#   pivot_longer(cols = -c(module, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
+#   ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
+#   geom_violin() +
+#   geom_jitter(size = 0.8) +
+#   facet_wrap(~timepoint, nrow = 1) +
+#   labs(title = "Leiden University",
+#        subtitle = "Eigengene scores (co-expression modules)") +
+#   theme(plot.title = element_text(color = "blue2"),
+#         axis.text.x = element_blank(),
+#         axis.title.x = element_blank()) +
+#   scale_color_manual(values = c("red", "gray45"),
+#                      breaks = c("pwScore_BMD", "medianBMD"),
+#                      labels = c("Pathway Score BMC", "Median Pathway BMC"))
+# 
+# 
+# 
+# fig5c_SC = Sciensano_pwScore_medianScore %>%
+#   pivot_longer(cols = -c(HALLMARKpw, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
+#   ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
+#   geom_violin() +
+#   geom_jitter(size = 0.8) +
+#   facet_wrap(~timepoint, nrow = 1) +
+#   labs(title = "Sciensano",
+#        subtitle = "HALLMARK NES scores") +
+#   theme(plot.title = element_text(color = "forestgreen"),
+#        axis.text.x = element_blank(),
+#        axis.title.x = element_blank()) +
+#   scale_color_manual(values = c("red", "gray45"),
+#                      breaks = c("pwScore_BMD", "medianBMD"),
+#                      labels = c("Pathway Score BMC", "Median Pathway BMC"))
+# 
+# 
+# # generate title
+# fig5c_lab <- wrap_elements(panel = textGrob("Compare distribution BMCs from Pathway Scores & Median BMCs", gp = gpar(fontface = "bold", fontsize = 18)))
+# 
+# 
+# fig5c = fig5c_lab / fig5c_LU / fig5c_SC + plot_layout(axis = "collect", guides = "collect", heights = c(0.5, 3, 3))
+# fig5c
+# 
+# ggsave(plot = fig5c, file.path(plotDir, "fig5c.pdf"), width = 15, height = 6.5)
+
+```
+
+
+## Figure 5c
+Generate Bland-Altman plot
+```{r}
+
+plot_bland_altman <- function(df,
+                              score_col        = "pwScore_BMD",
+                              median_col       = "medianBMD",
+                              time_col         = "timepoint",
+                              partner,
+                              pathwaySource,
+                              pathway_col      = "pathway",
+                              highlight_pathway = NULL) {
+  
+  # 1) Define all timepoints (to force empty facets)
+  all_tps <- c("4h", "8h", "16h", "24h", "48h", "72h")
+  df[[time_col]] <- factor(df[[time_col]], levels = all_tps)
+  
+  # 2) Prepare data
+  ba_df <- df %>%
+    dplyr::filter(!is.na(.data[[score_col]]),
+                  !is.na(.data[[median_col]])) %>%
+    dplyr::mutate(
+      mean_bmd = (.data[[score_col]] + .data[[median_col]]) / 2,
+      diff_bmd = .data[[score_col]] - .data[[median_col]],
+      is_highlight = ifelse(.data[[pathway_col]] == highlight_pathway, TRUE, FALSE)
+    )
+  
+  # 3) Calculate stats per timepoint
+  stats_df <- ba_df %>%
+    dplyr::group_by(.data[[time_col]]) %>%
+    dplyr::summarise(
+      mean_diff = mean(diff_bmd, na.rm = TRUE),
+      sd_diff   = sd(diff_bmd, na.rm = TRUE),
+      upper     = mean_diff + 1.96 * sd_diff,
+      lower     = mean_diff - 1.96 * sd_diff,
+      .groups   = "drop"
+    )
+  
+  # 4) Join stats
+  ba_df <- ba_df %>% dplyr::left_join(stats_df, by = time_col)
+  
+  # Split normal and highlighted data
+  df_normal <- ba_df %>% dplyr::filter(!is_highlight)
+  df_high   <- ba_df %>% dplyr::filter(is_highlight)
+  
+  # 5) Plot
+  ggplot() +
+    # regular points
+    geom_point(
+      data = df_normal,
+      aes(x = mean_bmd, y = diff_bmd),
+      size = 1.8,
+      color = "black"
+    ) +
+    # highlight overlay point (red + bigger)
+    geom_point(
+      data = df_high,
+      aes(x = mean_bmd, y = diff_bmd),
+      size = 4,
+      color = "red"
+    ) +
+    # BA lines
+    geom_hline(aes(yintercept = mean_diff), data = stats_df,
+               color = "blue", linewidth = 1, na.rm = TRUE) +
+    geom_hline(aes(yintercept = upper), data = stats_df,
+               color = "red", linetype = "dashed", na.rm = TRUE) +
+    geom_hline(aes(yintercept = lower), data = stats_df,
+               color = "red", linetype = "dashed", na.rm = TRUE) +
+    
+    # facets
+    facet_wrap(
+      as.formula(paste("~", time_col)),
+      scales = "free",
+      nrow = 2,
+      drop = FALSE
+    ) +
+    
+    labs(
+      x = "Mean BMC (BMC Pathway Score & Median Pathway BMC)",
+      y = "Difference (BMC Pathway Score − Median Pathway BMC)",
+      title = partner,
+      subtitle = pathwaySource
+    ) 
+}
 
 
 
-fig5c_SC = Sciensano_pwScore_medianScore %>%
-  pivot_longer(cols = -c(HALLMARKpw, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
-  ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
-  geom_violin() +
-  geom_jitter(size = 0.8) +
-  facet_wrap(~timepoint, nrow = 1) +
-  labs(title = "Sciensano",
-       subtitle = "HALLMARK NES scores") +
-  theme(plot.title = element_text(color = "forestgreen"),
-       axis.text.x = element_blank(),
-       axis.title.x = element_blank()) +
-  scale_color_manual(values = c("red", "gray45"),
-                     breaks = c("pwScore_BMD", "medianBMD"),
-                     labels = c("Pathway Score BMC", "Median Pathway BMC"))
+# plot LU
+LU_BAplot = plot_bland_altman(LU_pwScore_medianScore %>% dplyr::rename("pathway" = module), partner = "LeidenU", pathwaySource = "WGCNA Modules", highlight_pathway = "hRPTECTERT1_35") +
+  theme(plot.title = element_text(color = "blue2"))
+
+SC_BAplot = plot_bland_altman(Sciensano_pwScore_medianScore %>% dplyr::rename("pathway" = HALLMARKpw), partner = "Sciensano", pathwaySource = "HALLMARK Pathways", highlight_pathway = "HALLMARK_P53_PATHWAY") +
+  theme(plot.title = element_text(color = "forestgreen"))
+
+
+fig5c = LU_BAplot + SC_BAplot + plot_layout(nrow = 2, axis_titles = "collect")
+fig5c
 
 
 # generate title
-fig5c_lab <- wrap_elements(panel = textGrob("Compare distribution BMCs from Pathway Scores & Median BMCs", gp = gpar(fontface = "bold", fontsize = 18)))
+fig5c_lab <- wrap_elements(panel = textGrob("Bland–Altman Plot Across Timepoints", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
-fig5c = fig5c_lab / fig5c_LU / fig5c_SC + plot_layout(axis = "collect", guides = "collect", heights = c(0.5, 3, 3))
-fig5c
+fig5c_total = fig5c_lab / fig5c + plot_layout(heights = c(0.5, 7))
+fig5c_total
 
-ggsave(plot = fig5c, file.path(plotDir, "fig5c.pdf"), width = 15, height = 6.5)
+ggsave(plot = fig5c_total, file.path(plotDir, "fig5c.pdf"), width = 7.5, height = 10.5)
+
+
 
 ```
 
 
 
+## Figure 5d
+BMD distribution plot
+
+```{r}
+LU_pwScore_medianScore %>%
+  ggplot() +
+  geom_density(aes(x=medianBMD), alpha = 0.8) +
+  geom_density(aes(x=pwScore_BMD), alpha = 0.8) +
+  facet_wrap(~timepoint, nrow = 1) +
+  labs(title = "LeidenU",
+       subtitle = "WGCNA Modules",
+       x = "BMC") +
+  scale_fill_manual(values = c("lightgreen", "orchid1"),
+                    breaks = c("medianBMD", "pwScore_BMD"),
+                    labels = c("Median Pathway BMC", "BMC Pathway Score"))
+
+
+
+LU_BMC_distr = LU_pwScore_medianScore %>%
+  pivot_longer(cols = c(medianBMD, pwScore_BMD),
+               names_to = "type",
+               values_to = "BMD") %>%
+  ggplot(aes(x = BMD, fill = type)) +
+  geom_density(alpha = 0.8) +
+  facet_wrap(~timepoint, nrow = 1) +
+  scale_fill_manual(values = c("lightgreen", "orchid1"),
+                    breaks = c("medianBMD", "pwScore_BMD"),
+                    labels = c("Median Pathway BMC", "BMC Pathway Score")) +
+  labs(title = "LeidenU",
+       subtitle = "WGCNA Modules",
+       x = "BMC") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(color = "blue2"))
+
+
+SC_BMC_distr = Sciensano_pwScore_medianScore %>%
+  pivot_longer(cols = c(medianBMD, pwScore_BMD),
+               names_to = "type",
+               values_to = "BMD") %>%
+  ggplot(aes(x = BMD, fill = type)) +
+  geom_density(alpha = 0.8) +
+  facet_wrap(~timepoint, nrow = 1) +
+  scale_fill_manual(values = c("lightgreen", "orchid1"),
+                    breaks = c("medianBMD", "pwScore_BMD"),
+                    labels = c("Median Pathway BMC", "BMC Pathway Score")) +
+  labs(title = "Sciensano",
+       subtitle = "HALLMARK Pathways",
+       x = "BMC") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(color = "forestgreen"))
+
+
+
+fig5d = wrap_elements(LU_BMC_distr / SC_BMC_distr + plot_layout(axis = "collect", guides = "collect"))
+
+
+# generate title
+fig5d_lab <- wrap_elements(panel = textGrob("BMC Distribution - Median Pathway BMC vs BMC Pathway Score", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+fig5d_total = wrap_elements(fig5d_lab / fig5d + plot_layout(heights = c(0.5, 7)))
+fig5d_total
+
+ggsave(plot = fig5c_total, file.path(plotDir, "fig5d.pdf"), width = 15, height = 8)
+
+``` 
+
+## Figure 5e
+Compare pathway size & variation
+
+```{r}
+
+plot_bmc_diff_vs_pathway_size <- function(df, 
+                                          partner,
+                                          pathwaySource,
+                                          score_col   = "pwScore_BMD",
+                                          median_col  = "medianBMD",
+                                          size_col    = "n_genes_used",
+                                          time_col    = "timepoint",
+                                          log_x       = TRUE,
+                                          log_y       = FALSE) {
+  
+  # 1) Explicitly define all timepoints
+  all_tps <- c("4h", "8h", "16h", "24h", "48h", "72h")
+  df[[time_col]] <- factor(df[[time_col]], levels = all_tps)
+  
+  # 2) Filter and compute differences
+  df_plot <- df %>%
+    filter(!is.na(.data[[score_col]]),
+           !is.na(.data[[median_col]]),
+           !is.na(.data[[size_col]])) %>%
+    mutate(
+      diff_signed = .data[[score_col]] - .data[[median_col]],
+      diff_abs    = abs(diff_signed),
+      rel_diff    = diff_signed / .data[[median_col]]
+    )
+  
+  # 3) Plot
+  p <- ggplot(df_plot,
+              aes(x = .data[[size_col]],
+                  y = diff_abs,
+                  color = .data[[time_col]])) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(se = FALSE, method = "loess") +
+    facet_wrap(as.formula(paste("~", time_col)), drop = FALSE, nrow = 1) +  
+    labs(
+      x = "Number of genes used for median BMC calculation",
+      y = "Absolute difference in BMC\n(Pathway Score − Median Pathway)",
+      title = partner,
+      subtitle = pathwaySource
+    ) +
+    scale_color_manual(values = timepoint_cols)
+  
+  if (log_x) p <- p + scale_x_log10()
+  if (log_y) p <- p + scale_y_log10()
+  
+  p
+}
+
+
+
+LU_pwSize_BMC = plot_bmc_diff_vs_pathway_size(df = LU_pwScore_medianScore, log_x = TRUE, partner = "LeidenU", pathwaySource = "WGCNA Modules") +
+  theme(plot.title = element_text(color = "blue2"))
+
+SC_pwSize_BMC = plot_bmc_diff_vs_pathway_size(df = Sciensano_pwScore_medianScore, log_x = TRUE, partner = "Sciensano", pathwaySource = "HALLMARK Pathways") + 
+  theme(plot.title = element_text(color = "forestgreen"))
+
+
+fig5e = wrap_elements(LU_pwSize_BMC / SC_pwSize_BMC + plot_layout(axis = "collect", guides = "collect"))
+
+# generate title
+
+fig5e_lab <- wrap_elements(panel = textGrob("Effect of pathway size on disagreement between BMC methods", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+fig5e_total = wrap_elements(fig5e_lab / fig5e + plot_layout(heights = c(0.5, 7)))
+fig5e_total
+
+ggsave(plot = fig5e_total, file.path(plotDir, "fig5e.pdf"), width = 15, height = 8)
+
+
+```
+
+
 ## Generate total figure 5
 ```{r}
-fig5_top = wrap_elements(fig5a) + wrap_elements(fig5b) + plot_layout(widths = c(1.4, 2.1), nrow = 1, ncol = 2)
+fig5_top = wrap_elements(fig5a) + wrap_elements(fig5c_total) + plot_layout(widths = c(1.4, 2.1), nrow = 1, ncol = 2)
 
 fig5 = wrap_elements(fig5_top) /
-  wrap_elements(fig5c) +
-  plot_layout(heights = c(10, 6), ncol = 1)
+  fig5d_total /
+  fig5e_total +
+  plot_layout(heights = c(10, 6, 6), ncol = 1) + plot_annotation(tag_levels = "A")
 
+fig5
 
-ggsave(plot = fig5, file.path(plotDir, "Figure5.pdf"), width = 15, height = 16)
+ggsave(plot = fig5, file.path(plotDir, "Figure5_v3.pdf"), width = 18, height = 22)
 ```

@@ -33,6 +33,18 @@ standard_plotTheme <- theme_minimal() +
 
 
 theme_set(standard_plotTheme)
+
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue (replacing teal)
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
 ```
 
 
@@ -93,7 +105,7 @@ load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 Here we plot the accumulation of the HALLMARK pathways
 
 ```{r}
-fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, partner = "Aristotle University") +
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, partner = "AristotleU") +
   theme(
     plot.title = element_text(color = "firebrick")
   ) +
@@ -107,13 +119,13 @@ fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, pa
   xlim(c(0,50))
 
 
-fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, partner = "Ghent University") +
+fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, partner = "GhentU") +
   theme(
     plot.title = element_text(color = "gold1")
   ) +
   xlim(c(0,50))
 
-fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, partner = "Leiden University") + 
+fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, partner = "LeidenU") + 
   theme(
     plot.title = element_text(color = "blue2")
   ) +
@@ -128,7 +140,7 @@ fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_selec
 
 
 # generate title 
-fig3a_lab = wrap_elements(panel = textGrob("Median BMC accumulation HALLMARK pathways (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+fig3a_lab = wrap_elements(panel = textGrob("Median BMC Accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
 
 fig3a = wrap_elements(fig3a_lab / wrap_elements(fig3a_AU + fig3a_BPI + fig3a_GU + fig3a_LU + fig3a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")) + plot_layout(heights = c(0.5, 5)))
 
@@ -141,21 +153,33 @@ ggsave(plot = fig3a, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5
 
 ## Figure 3b
 ```{r}
-fig3b_cor = GGally::ggpairs(norm_HALLMARK_combined_wide, aes(color = timepoint),
-                columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"),
-                columnLabels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano"),
-                upper = list(continuous = wrap("cor", size = 6))) +
+fig3b_cor <- GGally::ggpairs(
+  norm_HALLMARK_combined_wide,
+  aes(color = timepoint),
+  columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"),
+  columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
+  upper = list(continuous = GGally::wrap("cor", size = 6))
+) +
+  scale_color_manual(values = timepoint_cols) +
+  scale_fill_manual(values = timepoint_cols) +
   theme_bw() +
-  theme(strip.text = element_text(size = 16),
-        axis.text = element_text(size = 12))
+  theme(
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text  = element_text(size = 12),
+    strip.background = element_rect(fill = "white", colour = "black")
+  )
 
+fig3b_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig3b_cor))  # convert to ggplot
 
-fig3b_cor_gg = wrap_elements(full = ggmatrix_gtable(fig3b_cor)) # convert to ggplot
+# title
+fig3b_lab <- wrap_elements(
+  panel = textGrob(
+    "Median BMC Correlations",
+    gp = gpar(fontface = "bold", fontsize = 18)
+  )
+)
 
-# generate title
-fig3b_lab <- wrap_elements(panel = textGrob("Median BMC correlations (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
-
-fig3b = wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
+fig3b <- wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
 
 fig3b
 
@@ -168,10 +192,10 @@ ggsave(plot = fig3b, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
 ## Figure 3c
 ```{r}
 
-fig3c_24hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24hr", pathway_oi = "HALLMARK_P53_PATHWAY")
-fig3c_48hr = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48hr", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3c_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3c_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY")
 
-fig3c = wrap_elements(fig3c_24hr / fig3c_48hr + plot_layout(guides = "collect", axis = "collect"))
+fig3c = wrap_elements(fig3c_24h / fig3c_48h + plot_layout(guides = "collect", axis = "collect"))
 fig3c
 
 ggsave(plot = fig3c, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, height = 10.5)
@@ -182,26 +206,28 @@ ggsave(plot = fig3c, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, he
 ## Figure 3d
 ```{r}
 
-fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24hr"), aes(x=partner, y=finalBMD, color = partner)) +
+fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD, color = partner)) +
   geom_violin() +
   geom_jitter() +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
-  labs(subtitle = "24hr",
-       x = "BMC")
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  labs(subtitle = "24h",
+       x = "Median BMC") +
+  scale_x_discrete(labels= c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
 
 
-fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48hr"), aes(x=partner, y=finalBMD, color = partner)) +
+fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD, color = partner)) +
   geom_violin() +
   geom_jitter() +
   stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
-  labs(subtitle = "48hr",
-       x = "BMC")
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  labs(subtitle = "48h",
+       x = "Median BMC") +
+  scale_x_discrete(labels= c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
 
 
 # generate title
@@ -229,7 +255,7 @@ fig3_row2 = wrap_elements(fig3b + fig3c + plot_layout(widths = 10, 7.5))
 figure3 = fig3a /
   (fig3b + fig3c + plot_layout(widths = c(10, 7.5))) /
   fig3d +
-  plot_layout(guides = "collect", axis = "collect", heights = c(5.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
+  plot_layout(guides = "collect", axis = "collect", heights = c(6.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
 
 figure3
 
@@ -240,7 +266,7 @@ fig3_row3 = wrap_elements(fig3c + fig3d + plot_layout(guides = "collect"))
 figure3 = fig3a /
   fig3b /
   fig3_row3 +
-  plot_layout(heights = c(4.5, 14, 8))
+  plot_layout(heights = c(5.5, 14, 8))
 
 ggsave(plot = figure3, file.path(plotDir, "Figure3_v2.pdf"), width = 17, height = 22)
 
