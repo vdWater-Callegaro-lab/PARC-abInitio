@@ -35,6 +35,17 @@ standard_plotTheme <- theme_minimal() +
 
 
 theme_set(standard_plotTheme)
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue 
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
 ```
 
 
@@ -84,6 +95,14 @@ if(!dir.exists(plotDir)){
 # Load data
 ```{r}
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+
+tPOD_genelevel = readxl::read_xlsx(file.path(inputDir, "tPOD_calculations_geneLevel.xlsx")) %>%
+  pivot_longer(cols = -tPOD_measures, names_to = "partner", values_to = "tPOD")
+
+DRGs = readxl::read_xlsx(file.path(inputDir, "DRG_PMFG_pertp.xlsx")) %>%
+  mutate(timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")))
+
+
 ```
 
 
@@ -94,13 +113,13 @@ load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 Here we will have:   
 1. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint
 2. A zoom of the accumulation plot per partner (to see the slight differences in the beginning)
-3. A combined accumulationplot of the most sensitive timepoint (24hr)
+3. A combined accumulationplot of the most sensitive timepoint (24h)
 
 ### Figure 2a
 
 #### Plot first row
 ```{r}
-fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "Aristotle University") +
+fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
 
@@ -108,11 +127,11 @@ fig2a_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI"
   theme(plot.title = element_text(color = "gray30")) +
   ylim(c(0, 6300))
 
-fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "Ghent University") + 
+fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
-fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "Leiden University") +
+fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") +
   theme(plot.title = element_text(color = "blue3")) +
   ylim(c(0, 6300))
 
@@ -135,17 +154,17 @@ Zoom in on first part (250 genes) plot
 
 #### Plot zoom
 ```{r}
-fig2a_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "Aristotle Univserity") + 
+fig2a_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") + 
   theme(plot.title = element_text(color = "firebrick"))
 
 fig2a_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select, partner = "BPI") + 
   theme(plot.title = element_text(color = "gray30"))
 
-fig2a_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "Ghent University") + 
+fig2a_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
   theme(plot.title = element_text(color = "gold1"))
 
 
-fig2a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "Leiden University") + 
+fig2a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") + 
   theme(plot.title = element_text(color = "blue3"))
 
 
@@ -163,7 +182,7 @@ fig2a_row2
 # Generate total figure 2a
 ```{r}
 # generate title
-fig2a_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+fig2a_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 # combine
@@ -183,12 +202,12 @@ ggsave(plot = fig2a, file.path(plotDir, "fig2a_total.pdf"), width = 15, height =
 
 
 ### Figure 2b
-Select most sensitive timepoint (now 24hr) and combine accumulation plots of partners
+Select most sensitive timepoint (now 24h) and combine accumulation plots of partners
 
 ```{r}
 
 fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
-  filter(timepoint == "24hr") %>%
+  filter(timepoint == "24h") %>%
   group_by(partner) %>%
   arrange(finalBMD) %>%
   mutate(ranked_gene = row_number()) %>%
@@ -198,7 +217,7 @@ fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
        x = "BMC") +
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("Aristotle University", "BPI", "Ghent University", "Leiden University", "Sciensano")) +
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
   theme(legend.title = element_blank())
 
 fig2b_zoom = fig2b_norm +
@@ -208,7 +227,7 @@ fig2b_zoom = fig2b_norm +
 
 
 # generate title
-fig2b_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24 hours (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
+fig2b_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 
@@ -231,38 +250,205 @@ ggsave(plot = fig2b_norm, file.path(plotDir, "fig2b_24hours.pdf"), width=5, heig
 BMD correlations
 
 ```{r}
-fig2c_cor = GGally::ggpairs(norm_BMD_combined_wide, aes(color = timepoint),
-                columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
-                lower = list(continuous = GGally::wrap("points", size = 0.05)),
-                diag = list(continuous = GGally::wrap("densityDiag"), mapping = ggplot2::aes(color=timepoint), alpha = 0.5)
-                )
 
+fig2c_cor <- GGally::ggpairs(
+  norm_BMD_combined_wide,
+  aes(color = timepoint),
+  columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
+  columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
+  lower = list(continuous = GGally::wrap("points", size = 0.05)),
+  diag  = list(
+    # continuous = GGally::wrap("densityDiag"),
+    # mapping    = ggplot2::aes(color = timepoint),
+    # alpha      = 0.5
+    continuous   = GGally::wrap("blankDiag")
+  )
+) +
+  theme_bw() +
+  scale_color_manual(values = timepoint_cols) +
+  scale_fill_manual(values = timepoint_cols) +  # for density fill, if used
+  # if densityDiag uses color only, this is harmless but keeps things consistent
+  theme(strip.background = element_rect(fill = "white", colour = "black"),
+        strip.text = element_text(face = "bold", size = 13))
 
-fig2c_cor_gg = wrap_elements(full = ggmatrix_gtable(fig2c_cor)) # convert to ggplot
+# convert to ggplot
+fig2c_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2c_cor))
 
-
-# generate title
-fig2c_lab <- wrap_elements(panel = textGrob("BMD correlations (normalized counts)", gp = gpar(fontface = "bold", fontsize = 18)))
-
+# title
+fig2c_lab <- wrap_elements(
+  panel = textGrob("BMC correlations",
+                   gp = gpar(fontface = "bold", fontsize = 18))
+)
 
 # combine
-fig2c = wrap_elements(fig2c_lab / fig2c_cor_gg + plot_layout(heights = c(0.5, 10))) 
+fig2c <- wrap_elements(fig2c_lab / fig2c_cor_gg + plot_layout(heights = c(0.5, 10)))
 
 ggsave(plot = fig2c, file.path(plotDir, "fig2c.pdf"), width = 10, height = 10.5)
 
+
 ```
+
+
+
+## BMC distribution + tPOD calculations
+Only for the most sensitive timepoint (24 hours)
+
+```{r}
+library(ggnewscale)
+
+facet_labels = c(
+  "AU" = "AristotleU",
+  "BPI" = "BPI",
+  "GU" = "GhentU",
+  "LU" = "LeidenU",
+  "SC" = "Sciensano"
+)
+
+tpod_cols <- c(
+  "fifthPercentile"        = "#1b9e77",
+  "TwentyfifthLowestRanked"   = "#d95f02",
+  "firstMode"   = "#7570b3",
+  "LCRD" =  "#249"
+)
+
+
+fig2d <- ggplot(
+  norm_BMD_combined %>% filter(timepoint == "24h"),
+  aes(x = finalBMD, group = partner)
+) +
+  # timepoint densities, first colour scale
+  geom_density(
+    data = norm_BMD_combined,
+    aes(x = finalBMD, group = timepoint, colour = timepoint),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    values = timepoint_cols,
+    name   = "timepoint"
+  ) +
+  
+  # reset colour so we can reuse it for tPOD
+  new_scale_color() +
+  
+  # background grey density (24h only)
+  geom_density(fill = "grey80", colour = "#e7298a") +
+  
+  facet_wrap(
+    ~partner,
+    scale   = "free",
+    nrow    = 1,
+    labeller = labeller(partner = facet_labels)
+  ) +
+  
+  # tPOD vertical lines with their own colours + linetypes
+  geom_vline(
+    data = tPOD_genelevel,
+    aes(xintercept = tPOD,
+        linetype   = tPOD_measures,
+        colour     = tPOD_measures),
+    linewidth   = 1.5,
+    show.legend = TRUE
+  ) +
+  scale_color_manual(
+    values = tpod_cols,
+    labels = c("5th percentile", "first mode", "LCRD", "25th lowest ranked"),
+    name   = "tPOD measure"
+  ) +
+  scale_linetype_discrete(name = "tPOD measure",
+                          breaks = c("fifthPercentile", "firstMode", "LCRD", "TwentyfifthLowestRanked"),
+                          labels = c("5th percentile", "first mode", "LCRD", "25th lowest ranked")) +
+  scale_x_log10() +
+  
+  labs(
+    x        = "BMC",
+    linetype = "tPOD measure"
+  ) +
+  theme(
+    strip.text = element_text(size = 15, face = "bold")
+  )
+
+fig2d
+
+
+```
+
+
+```{r}
+# generate title
+fig2d_lab <- wrap_elements(panel = textGrob("BMC distribution + tPOD calculations - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+fig2d_total = wrap_elements(fig2d_lab /
+  fig2d + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
+
+
+fig2d_total
+
+ggsave(plot = fig2d_total, file.path(plotDir, "fig2d.pdf"), width = 15, height = 5.5)
+```
+
+
+# Add additional barplot
+## Barplot
+
+```{r}
+label_steps = c(
+  "DRG"  = "Dose Responsive Genes",
+  "PMFG" = "Post Model Filter Genes"
+)
+
+  
+barplot_DRGs = DRGs %>%
+  ggplot(aes(x = partner, y = value, fill = value)) +
+  geom_bar(stat = "identity") +
+  facet_grid(step ~ timepoint,
+             labeller = labeller(step = label_steps)) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white", colour = "black"),
+    strip.text.x = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(size = 9, face = "bold"),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_blank(),
+    legend.position = "none"
+  ) +
+  scale_fill_gradient(low = "yellow", high = "red")
+
+barplot_DRGs
+
+
+# generate title
+DRGs_lab <- wrap_elements(panel = textGrob("Number of Dose Responsive Genes", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+DRGs_total = wrap_elements(DRGs_lab /
+  barplot_DRGs + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
+
+
+DRGs_total
+
+ggsave(plot = DRGs_total, file.path(plotDir, "fig2_barplot_DRG.pdf"), width = 15, height = 8)
+
+```
+
+
 
 
 ## Create total figure 2
 ```{r}
 
-figure2 = fig2a /
-  (fig2b + fig2c) + 
-  plot_layout(guides = "collect", axis = "collect", heights = c(5.5,5.5)) + plot_annotation(tag_levels = "A")
+figure2 = DRGs_total /
+  fig2a /
+  (fig2b + fig2c + plot_layout(widths = c(0.6, 1))) /
+  fig2d_total +
+  plot_layout(guides = "collect", axis = "collect", heights = c(4,4,6, 3)) + plot_annotation(tag_levels = "A")
 
 figure2
 
-ggsave(plot = figure2, file.path(plotDir, "Figure2.pdf"), width = 15, height = 16)
+ggsave(plot = figure2, file.path(plotDir, "Figure2_v4.pdf"), width = 17, height = 23)
 
 
 ```

@@ -13,7 +13,8 @@ BMDaccumulationPlot <- function(BMDoutput, partner) {
     labs(title = partner,
          y = "Accumulation",
          x = "BMC") +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+    # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+    scale_color_manual(values = timepoint_cols)
 }
 
 
@@ -31,37 +32,9 @@ BMDaccumulationPlot_zoom <- function(BMDoutput, partner) {
          x = "BMC") +
     ylim(c(0, 250)) + 
     xlim(c(0, 2)) +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+    # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+    scale_color_manual(values = timepoint_cols)
 }
-
-
-
-
-BMDaccumulationPlot_zoom_HL5th <- function(BMDoutput, HLgene4hr, HLgene8hr, HLgene16hr, HLgene24hr, HLgene48hr, HLgene72hr){
-    plotdata = BMDoutput %>% 
-      separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
-      group_by(timepoint) %>%
-      arrange(finalBMD) %>%
-      mutate(ranked_gene = row_number())
-    
-    highlight_data = plotdata %>% filter(gene_symbol == HLgene4hr & timepoint == "4hr" |
-                                           gene_symbol == HLgene8hr & timepoint == "8hr" |
-                                           gene_symbol == HLgene16hr & timepoint == "16hr" |
-                                           gene_symbol == HLgene24hr & timepoint == "24hr" |
-                                           gene_symbol == HLgene48hr & timepoint == "48hr" |
-                                           gene_symbol == HLgene72hr & timepoint == "72hr")
-    
-    ggplot(plotdata, aes(finalBMD, y = ranked_gene)) +
-      geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1) +
-      geom_point(data = highlight_data, aes(x = finalBMD, y=ranked_gene, shape = timepoint), color = "red", size = 2) +
-      labs(y = "Accumulation", 
-           x = "BMD") +
-      ylim(c(0, 250)) + 
-      xlim(c(0, 2)) +
-      theme(legend.position = "none") +
-      scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
-}
-
 
 
 
@@ -75,11 +48,13 @@ BMDaccumulationPlot_pathway <- function(BMDoutput, partner) {
     geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
     labs(title = partner,
          y = "Accumulation", 
-         x = "BMC") +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"),
-                       breaks = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr")) +
+         x = "Median BMC") +
+    # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"),
+    #                    breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
+    scale_color_manual(values = c(timepoint_cols),
+                       breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
     scale_shape_manual(values = c(16, 17, 15, 3, 7, 8),
-                       breaks = c("4hr", "8hr", "16hr", "24hr", "48hr", "72hr"))
+                       breaks = c("4h", "8h", "16h", "24h", "48h", "72h"))
 }
 
 
@@ -100,8 +75,9 @@ BMDaccumulationPlot_pathway_highlight <- function(BMDoutput, partner, pathway_oi
     # geom_text(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, label = Pathway.Name), vjust = -1, hjust = 1, color = "red") +
     labs(title = partner,
          y = "Accumulation",
-         x = "BMC") +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+         x = "Median BMC") +
+    # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+      scale_color_manual(values = timepoint_cols)
     
 }
 
@@ -122,11 +98,11 @@ BMDaccumulationPlot_pathway_highlight_combined <- function(BMDoutput, timepoint_
     geom_point(stat = "identity", aes(color = partner), size = 1.5) +
     geom_point(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, shape = partner), color = "black", size = 3) +
     labs(y = "Accumulation",
-         x = "BMC",
+         x = "Median BMC",
          subtitle = timepoint_oi) +
     scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                        breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                       labels = c("Aristotle University (AU)", "BPI", "Ghent University (GU)", "Leiden University (LU)", "Sciensano (SC)")) +
+                       labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
     scale_shape_manual(values = c(0, 8, 1, 2, 6)) +
     theme(legend.title = element_blank())
   
@@ -192,12 +168,12 @@ BMDaccumulationPlot_pwscores_highlight <- function(BMDoutput, HLpw, partner){
   highlight_data = plotdata %>% filter(pathway == HLpw)
   
   ggplot(plotdata, aes(finalBMD, y = ranked_pathway)) + 
-    geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1) +
+    geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
     geom_point(data = highlight_data, aes(x = finalBMD, y=ranked_pathway, shape = timepoint), color = "red", size = 3) +
     labs(title = partner,
          y = "Accumulation", 
          x = "BMC") +
-    scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
+    scale_color_manual(values = c(timepoint_cols))
 
 }
 
@@ -247,7 +223,7 @@ BMD_output_plots_pathways = function(BMDoutput, time_oi, BMD_pathways_oi, txgmap
       #   dose_level == "8" ~ 30,
       #   dose_level == "9" ~ 50
       # ),
-      timepoint = paste0(timepoint, "hr"),
+      timepoint = paste0(timepoint, "h"),
       dose = as.numeric(dose),
       replicate = gsub("CISPLATIN", "", replicate),
       replicate = paste0("R", replicate)) %>%
