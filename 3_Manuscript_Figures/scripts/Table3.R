@@ -1,95 +1,74 @@
 
 
+tpods = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_calculations_alltimepoints.txt"))
 
-## GENERATE TABLE 3
-
-# calcualte original tPODs
-tpod_orig_LU <- bind_rows(
-  get_percentile_bmd(LU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), prob = 0.05)        %>% mutate(method = "p5"),
-  get_nth_ranked_bmd(LU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), n = 25)       %>% mutate(method = "rank25"),
-  get_LCRD_bmd(LU_norm_BMD_select %>%
-                 dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
-  get_first_mode_bmd(LU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
-)
+tpod_bootstrapping = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_ci_median.txt"))
 
 
-tpod_orig_SC <- bind_rows(
-  get_percentile_bmd(
-    Sciensano_norm_BMD_select %>%
-      dplyr::rename("bmd" = finalBMD),
-    prob = 0.05
-  )        %>% mutate(method = "p5"),
-  get_nth_ranked_bmd(
-    Sciensano_norm_BMD_select %>%
-      dplyr::rename("bmd" = finalBMD),
-    n = 25
-  )       %>% mutate(method = "rank25"),
-  get_LCRD_bmd(Sciensano_norm_BMD_select %>%
-                 dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
-  get_first_mode_bmd(Sciensano_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
-)
+# generate table 3
 
+library(tidyverse)
+library(stringr)
 
+# join original tpod and bootstrapped results
+tpod_joined <- tpods %>% 
+  select(partner, timepoint, method, tpod_orig) %>%
+  left_join(
+    tpod_bootstrapping %>%
+      select(partner, timepoint, method, tpod_lower, tpod_upper),
+    by = c("partner", "timepoint", "method")
+  )
 
-tpod_orig_BPI <- bind_rows(
-  get_percentile_bmd(BPI_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), prob = 0.05)        %>% mutate(method = "p5"),
-  get_nth_ranked_bmd(BPI_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), n = 25)       %>% mutate(method = "rank25"),
-  get_LCRD_bmd(BPI_norm_BMD_select %>%
-                 dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
-  get_first_mode_bmd(BPI_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
-)
-
-
-
-tpod_orig_GU <- bind_rows(
-  get_percentile_bmd(GU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), prob = 0.05)        %>% mutate(method = "p5"),
-  get_nth_ranked_bmd(GU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), n = 25)       %>% mutate(method = "rank25"),
-  get_LCRD_bmd(GU_norm_BMD_select %>%
-                 dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
-  get_first_mode_bmd(GU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
-)
-
-
-
-tpod_orig_AU <- bind_rows(
-  get_percentile_bmd(AU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), prob = 0.05)        %>% mutate(method = "p5"),
-  get_nth_ranked_bmd(AU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD), n = 25)       %>% mutate(method = "rank25"),
-  get_LCRD_bmd(AU_norm_BMD_select %>%
-                 dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
-  get_first_mode_bmd(AU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
-)
-
-
-
-
-
-# generate table (NEED TO ADD CI)
-tpod_orig_all <- list(
-  LeidenU    = tpod_orig_LU,
-  Sciensano  = tpod_orig_SC,
-  GhentU     = tpod_orig_GU,
-  BPI        = tpod_orig_BPI,
-  AristotleU = tpod_orig_AU
-) %>%
-  imap_dfr(~ mutate(.x, partner = .y)) %>%
+# format tpods: original (lower - upper)
+tpod_formatted <- tpod_joined %>%
   mutate(
-    timepoint = factor(timepoint, levels = c("4h","8h","16h","24h","48h","72h")),
-    method = factor(method,
-                    levels = c("p5","rank25","LCRD","first_mode"),
-                    labels = c("5th percentile","25th ranked gene","LCRD","First mode")
+    tpod_ci = str_glue(
+      "{round(tpod_orig, 2)} ({round(tpod_lower, 2)}–{round(tpod_upper, 2)})"
     )
+  )
+
+## order methods
+method_order <- c("5th percentile",
+                  "25th ranked gene",
+                  "LCRD",
+                  "First mode")
+
+
+# order timepoints
+timepoint_order <- c("4h", "8h", "16h", "24h", "48h", "72h") 
+
+# order partners
+partner_order <- c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")
+
+tpod_ordered <- tpod_formatted %>%
+  mutate(
+    method    = factor(method, levels = method_order),
+    timepoint = factor(timepoint, levels = timepoint_order),
+    partner = factor(partner, levels = partner_order)
   ) %>%
-  rename(tpod_orig = tpod)   # adjust if your col has a different name
+  arrange(timepoint, method)
+
+# generate final table
+tpod_table_final <- tpod_ordered %>%
+  select(timepoint, method, partner, tpod_ci) %>%
+  pivot_wider(
+    names_from  = partner,
+    values_from = tpod_ci
+  ) %>%
+  arrange(timepoint, method)
+
+tpod_table_final
+
+
+library(flextable)
+library(officer)
+
+ft = flextable(tpod_table_final)
+ft = autofit(ft)
+
+doc = read_docx()
+doc = body_add_flextable(doc, ft)
+
+print(doc, target = file.path(getwd(), "tables", "table3R.docx"))
+
+
