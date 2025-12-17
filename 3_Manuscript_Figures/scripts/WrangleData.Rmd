@@ -55,7 +55,10 @@ if(!dir.exists(plotDir)){
 ```{r}
 
 # BMD normalized counts
-AU_norm_BMD = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE)
+AU_norm_BMD = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE) %>%
+  filter(BMD.zSD != Inf,
+         BMD.zSD.lower != Inf,
+         BMD.zSD.upper != Inf) # for AU still needs to be filtered as the table includes all genes passing prefilter
 
 GU_norm_BMD = fread(file.path(inputDir, "Ghent", "BMD_output_normalized_counts.txt"), sep = " ", check.names = TRUE) 
 

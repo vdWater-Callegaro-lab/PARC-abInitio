@@ -96,8 +96,15 @@ if(!dir.exists(plotDir)){
 ```{r}
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 
-tPOD_genelevel = readxl::read_xlsx(file.path(inputDir, "tPOD_calculations_geneLevel.xlsx")) %>%
-  pivot_longer(cols = -tPOD_measures, names_to = "partner", values_to = "tPOD")
+
+tpod_original = data.table::fread(file.path(outputDir, "tpod_calculations_alltimepoints.txt")) %>%
+  mutate(time_num = as.numeric(gsub("h", "", timepoint)),
+         timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+         method = factor(method, levels = c("5th percentile", "25th ranked gene", "LCRD", "First mode")))
+
+
+tpod_bootstrapping = data.table::fread(file.path(outputDir, "tpod_bootstrapping_ci_median.txt"))
+
 
 DRGs = readxl::read_xlsx(file.path(inputDir, "DRG_PMFG_pertp.xlsx")) %>%
   mutate(timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")))
@@ -258,10 +265,9 @@ fig2c_cor <- GGally::ggpairs(
   columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
   lower = list(continuous = GGally::wrap("points", size = 0.05)),
   diag  = list(
-    # continuous = GGally::wrap("densityDiag"),
-    # mapping    = ggplot2::aes(color = timepoint),
-    # alpha      = 0.5
-    continuous   = GGally::wrap("blankDiag")
+    continuous = GGally::wrap("densityDiag", alpha = 0.5),
+    mapping    = ggplot2::aes(color = timepoint)
+    # continuous   = GGally::wrap("blankDiag")
   )
 ) +
   theme_bw() +
@@ -289,104 +295,117 @@ ggsave(plot = fig2c, file.path(plotDir, "fig2c.pdf"), width = 10, height = 10.5)
 ```
 
 
-
-## BMC distribution + tPOD calculations
-Only for the most sensitive timepoint (24 hours)
+## tPOD calcuations
 
 ```{r}
-library(ggnewscale)
-
-facet_labels = c(
-  "AU" = "AristotleU",
-  "BPI" = "BPI",
-  "GU" = "GhentU",
-  "LU" = "LeidenU",
-  "SC" = "Sciensano"
-)
-
-tpod_cols <- c(
-  "fifthPercentile"        = "#1b9e77",
-  "TwentyfifthLowestRanked"   = "#d95f02",
-  "firstMode"   = "#7570b3",
-  "LCRD" =  "#249"
-)
-
-
-fig2d <- ggplot(
-  norm_BMD_combined %>% filter(timepoint == "24h"),
-  aes(x = finalBMD, group = partner)
-) +
-  # timepoint densities, first colour scale
-  geom_density(
-    data = norm_BMD_combined,
-    aes(x = finalBMD, group = timepoint, colour = timepoint),
-    linewidth = 1
-  ) +
-  scale_color_manual(
-    values = timepoint_cols,
-    name   = "timepoint"
-  ) +
-  
-  # reset colour so we can reuse it for tPOD
-  new_scale_color() +
-  
-  # background grey density (24h only)
-  geom_density(fill = "grey80", colour = "#e7298a") +
-  
-  facet_wrap(
-    ~partner,
-    scale   = "free",
-    nrow    = 1,
-    labeller = labeller(partner = facet_labels)
-  ) +
-  
-  # tPOD vertical lines with their own colours + linetypes
-  geom_vline(
-    data = tPOD_genelevel,
-    aes(xintercept = tPOD,
-        linetype   = tPOD_measures,
-        colour     = tPOD_measures),
-    linewidth   = 1.5,
-    show.legend = TRUE
-  ) +
-  scale_color_manual(
-    values = tpod_cols,
-    labels = c("5th percentile", "first mode", "LCRD", "25th lowest ranked"),
-    name   = "tPOD measure"
-  ) +
-  scale_linetype_discrete(name = "tPOD measure",
-                          breaks = c("fifthPercentile", "firstMode", "LCRD", "TwentyfifthLowestRanked"),
-                          labels = c("5th percentile", "first mode", "LCRD", "25th lowest ranked")) +
-  scale_x_log10() +
-  
+fig2d = ggplot(tpod_original, aes(x = timepoint, y = tpod_orig, color = partner, group = partner)) +
+  geom_point(size = 3) +
+  geom_line() +
+  facet_wrap(~ method, nrow = 1) +
   labs(
-    x        = "BMC",
-    linetype = "tPOD measure"
+    x = "",
+    y = "tPOD",
+    color = "",
   ) +
+  theme_bw() +
   theme(
-    strip.text = element_text(size = 15, face = "bold")
-  )
+    strip.text = element_text(size = 12, face = "bold"),
+    strip.background = element_rect(fill = "white", colour = "black"),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 11),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_color_manual(values = c("firebrick","gray30", "gold1", "blue2", "forestgreen"))
 
-fig2d
 
 
-```
 
-
-```{r}
-# generate title
-fig2d_lab <- wrap_elements(panel = textGrob("BMC distribution + tPOD calculations - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
-
+# title
+fig2d_lab <- wrap_elements(
+  panel = textGrob("Comparison of tPOD Estimates Across Partners over Time",
+                   gp = gpar(fontface = "bold", fontsize = 18))
+)
 
 # combine
-fig2d_total = wrap_elements(fig2d_lab /
-  fig2d + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
-
-
+fig2d_total <- wrap_elements(fig2d_lab / fig2d + plot_layout(heights = c(0.5, 5)))
 fig2d_total
 
-ggsave(plot = fig2d_total, file.path(plotDir, "fig2d.pdf"), width = 15, height = 5.5)
+ggsave(plot = fig2d_total, file.path(plotDir, "fig2d_total.pdf"), width = 10, height = 4)
+
+
 ```
+
+
+## tPOD calculations + bootstrapping results
+```{r}
+timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
+method_order = c("5th percentile", "25th ranked gene", "LCRD", "First mode")
+
+
+### combine original tpods + bootstrap results
+tpod_plot_df <- tpod_bootstrapping %>%
+  left_join(tpod_original,
+            by = c("partner","timepoint","method")) %>%
+  mutate(timepoint = factor(timepoint, levels = timepoint_order),
+         method = factor(method, levels = method_order))
+
+
+
+### OPTION 1: FACET BY TPOD METHOD
+fig2d_bs = ggplot(tpod_plot_df,
+       aes(x = timepoint, y = tpod_median,
+           ymin = tpod_lower, ymax = tpod_upper,
+           color = partner)) +
+  geom_pointrange(
+    position = position_dodge(width = 0.6)
+  ) +
+  geom_point(
+    aes(y = tpod_orig),
+    shape = 21,
+    fill = "white",
+    size = 2.3,
+    stroke = 0.6,
+    position = position_dodge(width = 0.6)
+  ) +
+  geom_line(aes(x=timepoint, y=tpod_orig, group = partner)) +
+  facet_wrap(~ method, scales = "free_y", nrow = 1) +
+  labs(
+    x = "",
+    y = "tPOD",
+    color = ""
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.background = element_rect(fill = "white", color = "black"),
+    strip.text = element_text(face = "bold", size = 12),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text.x = element_text(size = 12),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_y_log10() +
+  scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
+                     breaks = c("AristotleU", "GhentU", "BPI", "LeidenU", "Sciensano"))
+
+
+
+# title
+fig2d_lab <- wrap_elements(
+  panel = textGrob("tPOD Estimates and Bootstrap Uncertainty",
+                   gp = gpar(fontface = "bold", fontsize = 18))
+)
+
+# combine
+fig2d_bs_total <- wrap_elements(fig2d_lab / fig2d_bs + plot_layout(heights = c(0.5, 5)))
+fig2d_bs_total
+
+ggsave(plot = fig2d_bs_total, file.path(plotDir, "fig2d_bs_total.pdf"), width = 10, height = 4)
+
+
+
+```
+
 
 
 # Add additional barplot
@@ -443,7 +462,7 @@ ggsave(plot = DRGs_total, file.path(plotDir, "fig2_barplot_DRG.pdf"), width = 15
 figure2 = DRGs_total /
   fig2a /
   (fig2b + fig2c + plot_layout(widths = c(0.6, 1))) /
-  fig2d_total +
+  fig2d_bs_total +
   plot_layout(guides = "collect", axis = "collect", heights = c(4,4,6, 3)) + plot_annotation(tag_levels = "A")
 
 figure2

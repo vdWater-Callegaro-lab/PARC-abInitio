@@ -95,12 +95,27 @@ if(!dir.exists(plotDir)){
 ```{r}
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 
-
-
+rptec_modules = read_rds(file.path(dirname(inputDir), "RPTECmodules", "module_definition.rds"))
 ```
 
 # Wrangle data
 ```{r}
+
+# calcuate nr genes per pathway
+LU_modules_genetotals <- rptec_modules %>%
+  distinct(module, entrez_id) %>% 
+  count(module, name = "n_genes_total")
+
+
+SC_pathway_gene_totals <- Sciensano_pathway_overview %>%
+  filter(str_starts(pathway, "HALLMARK_")) %>% 
+  dplyr::rename("HALLMARKpw" = pathway) %>%
+  distinct(HALLMARKpw, gene_symbol_entrez_id) %>% 
+  count(HALLMARKpw, name = "n_genes_total")
+
+
+
+# add percentage overlap to df
 LU_pwScore_medianScore = tibble(
   module = LU_BMD_pathway_select$pathway,
   pwScore_BMD = LU_BMD_pathway_select$finalBMD,
@@ -110,7 +125,13 @@ LU_pwScore_medianScore = tibble(
               select("module" = Pathway.Name,
                      medianBMD,
                      timepoint,
-                     n_genes_used), by = c("module", "timepoint"))
+                     n_genes_used), by = c("module", "timepoint")) %>% 
+  left_join(LU_modules_genetotals, by = "module") %>%
+  mutate(pct_overlap = 100*n_genes_used / n_genes_total)
+
+
+
+
 
 Sciensano_pwScore_medianScore = tibble(
   HALLMARKpw = Sciensano_BMD_pathway_select$pathway,
@@ -121,7 +142,11 @@ Sciensano_pwScore_medianScore = tibble(
               select("HALLMARKpw" = Pathway.Name,
                      medianBMD,
                      timepoint,
-                     n_genes_used), by = c("HALLMARKpw", "timepoint")) 
+                     n_genes_used), by = c("HALLMARKpw", "timepoint")) %>%
+  left_join(SC_pathway_gene_totals, by = "HALLMARKpw") %>%
+  mutate(pct_overlap = 100*n_genes_used / n_genes_total)
+
+
 ```
 
 
@@ -434,7 +459,7 @@ fig5d_lab <- wrap_elements(panel = textGrob("BMC Distribution - Median Pathway B
 fig5d_total = wrap_elements(fig5d_lab / fig5d + plot_layout(heights = c(0.5, 7)))
 fig5d_total
 
-ggsave(plot = fig5c_total, file.path(plotDir, "fig5d.pdf"), width = 15, height = 8)
+ggsave(plot = fig5d_total, file.path(plotDir, "fig5d.pdf"), width = 15, height = 8)
 
 ``` 
 
@@ -443,15 +468,16 @@ Compare pathway size & variation
 
 ```{r}
 
-plot_bmc_diff_vs_pathway_size <- function(df, 
-                                          partner,
-                                          pathwaySource,
-                                          score_col   = "pwScore_BMD",
-                                          median_col  = "medianBMD",
-                                          size_col    = "n_genes_used",
-                                          time_col    = "timepoint",
-                                          log_x       = TRUE,
-                                          log_y       = FALSE) {
+
+plot_bmc_diff_vs_pct_overlap <- function(df,
+                                         partner, 
+                                         pathwaySource,
+                                         score_col   = "pwScore_BMD",
+                                         median_col  = "medianBMD",
+                                         pct_col     = "pct_overlap",
+                                         time_col    = "timepoint",
+                                         log_x       = FALSE,
+                                         log_y       = FALSE) {
   
   # 1) Explicitly define all timepoints
   all_tps <- c("4h", "8h", "16h", "24h", "48h", "72h")
@@ -461,7 +487,8 @@ plot_bmc_diff_vs_pathway_size <- function(df,
   df_plot <- df %>%
     filter(!is.na(.data[[score_col]]),
            !is.na(.data[[median_col]]),
-           !is.na(.data[[size_col]])) %>%
+           !is.na(.data[[pct_col]]),
+           is.finite(.data[[pct_col]])) %>%
     mutate(
       diff_signed = .data[[score_col]] - .data[[median_col]],
       diff_abs    = abs(diff_signed),
@@ -470,14 +497,14 @@ plot_bmc_diff_vs_pathway_size <- function(df,
   
   # 3) Plot
   p <- ggplot(df_plot,
-              aes(x = .data[[size_col]],
+              aes(x = .data[[pct_col]],
                   y = diff_abs,
                   color = .data[[time_col]])) +
     geom_point(alpha = 0.6) +
     geom_smooth(se = FALSE, method = "loess") +
-    facet_wrap(as.formula(paste("~", time_col)), drop = FALSE, nrow = 1) +  
+    facet_wrap(as.formula(paste("~", time_col)), drop = FALSE, scales = "free", nrow = 1) +
     labs(
-      x = "Number of genes used for median BMC calculation",
+      x = "Percentage of pathway used for BMC calculation",
       y = "Absolute difference in BMC\n(Pathway Score − Median Pathway)",
       title = partner,
       subtitle = pathwaySource
@@ -492,10 +519,11 @@ plot_bmc_diff_vs_pathway_size <- function(df,
 
 
 
-LU_pwSize_BMC = plot_bmc_diff_vs_pathway_size(df = LU_pwScore_medianScore, log_x = TRUE, partner = "LeidenU", pathwaySource = "WGCNA Modules") +
+
+LU_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = LU_pwScore_medianScore, log_x = F, partner = "LeidenU", pathwaySource = "WGCNA Modules") +
   theme(plot.title = element_text(color = "blue2"))
 
-SC_pwSize_BMC = plot_bmc_diff_vs_pathway_size(df = Sciensano_pwScore_medianScore, log_x = TRUE, partner = "Sciensano", pathwaySource = "HALLMARK Pathways") + 
+SC_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = Sciensano_pwScore_medianScore, log_x = F, partner = "Sciensano", pathwaySource = "HALLMARK Pathways") + 
   theme(plot.title = element_text(color = "forestgreen"))
 
 
@@ -503,7 +531,7 @@ fig5e = wrap_elements(LU_pwSize_BMC / SC_pwSize_BMC + plot_layout(axis = "collec
 
 # generate title
 
-fig5e_lab <- wrap_elements(panel = textGrob("Effect of pathway size on disagreement between BMC methods", gp = gpar(fontface = "bold", fontsize = 18)))
+fig5e_lab <- wrap_elements(panel = textGrob("Effect of pathway coverage on disagreement between BMC methods", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 fig5e_total = wrap_elements(fig5e_lab / fig5e + plot_layout(heights = c(0.5, 7)))
@@ -527,4 +555,6 @@ fig5 = wrap_elements(fig5_top) /
 fig5
 
 ggsave(plot = fig5, file.path(plotDir, "Figure5_v3.pdf"), width = 18, height = 22)
+
+
 ```
