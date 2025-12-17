@@ -256,69 +256,66 @@ Overview of BMC genes in p53 pathways of choice + add median BMC
 ```{r}
 
 fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% KEGG_p53) %>%
-  ggplot(aes(x=timepoint, y=finalBMD)) +
-  geom_violin(color = "firebrick") + 
-  geom_jitter(color = "firebrick") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "KEGG",
-       y = "Median BMC") + 
-  ylim(c(0, 50)) +
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "firebrick", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "red4") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "KEGG", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
 
 
 fig4c_BPI = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% WP_p53) %>%
-  ggplot(aes(x=timepoint, y = finalBMD)) +
-  geom_violin(color = "gray30") +
-  geom_jitter(color = "gray30") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "WikiPathways",
-       y = "Median BMC") +
-  ylim(c(0, 50)) +
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "gray30", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "gray1") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "WikiPathways", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
 
 
-fig4c_GU = GU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% HALLMARK_p53) %>%
-  ggplot(aes(x=timepoint, y = finalBMD)) +
-  geom_violin(color = "gold1") +
-  geom_jitter(color = "gold1") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "HALLMARK",
-       y = "Median BMC") +
-  ylim(c(0, 50)) +
+fig4c_GU <- GU_norm_BMD_select %>% 
+  separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% 
+  filter(gene_symbol %in% HALLMARK_p53) %>%
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "gold1", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "gold4") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "HALLMARK", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
+
 
 
 fig4c_LU = LU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% module_p53) %>%
-  ggplot(aes(x=timepoint, y = finalBMD)) +
-  geom_violin(color = "blue2") +
-  geom_jitter(color = "blue2") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "WGCNA modules",
-       y = "Median BMC") +
-  ylim(c(0, 50)) +
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "blue2", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "blue4") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "WGCNA modules", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
   
 
 
 fig4c_SC_gm = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% GENOMARK) %>%
-  ggplot(aes(x=timepoint, y = finalBMD)) +
-  geom_violin(color = "forestgreen") +
-  geom_jitter(color = "forestgreen") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "GENOMARK84",
-       y = "Median BMC") +
-  ylim(c(0, 50)) +
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "forestgreen", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "darkgreen") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "GENOMARK84", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
 
 
 fig4c_SC_td = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% TGxDDI) %>%
-  ggplot(aes(x=timepoint, y = finalBMD)) +
-  geom_violin(color = "forestgreen") +
-  geom_jitter(color = "forestgreen") +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, vjust = -0.3, color = "red") +
-  labs(subtitle = "TGxDDI64",
-       y = "Median BMC") +
-  ylim(c(0, 50)) +
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "forestgreen", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "darkgreen") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "TGxDDI64", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
 
 
@@ -336,6 +333,9 @@ fig4c_total
 
 
 ggsave(plot = fig4c_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, height = 5)
+
+
+
 
 ```
 

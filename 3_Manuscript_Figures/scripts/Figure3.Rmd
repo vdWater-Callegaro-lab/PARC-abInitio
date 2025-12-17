@@ -153,15 +153,21 @@ ggsave(plot = fig3a, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5
 
 ## Figure 3b
 ```{r}
+
 fig3b_cor <- GGally::ggpairs(
   norm_HALLMARK_combined_wide,
   aes(color = timepoint),
   columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"),
   columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
-  upper = list(continuous = GGally::wrap("cor", size = 6))
+  upper = list(continuous = GGally::wrap("cor", size = 6),
+               mapping = ggplot2::aes(color = timepoint)),
+  diag = list(continuous = GGally::wrap("densityDiag", alpha = 0.5),
+    mapping    = ggplot2::aes(color = timepoint))
 ) +
-  scale_color_manual(values = timepoint_cols) +
-  scale_fill_manual(values = timepoint_cols) +
+  scale_color_manual(values = timepoint_cols, 
+                     breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
+  scale_fill_manual(values = timepoint_cols, 
+                     breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
   theme_bw() +
   theme(
     strip.text = element_text(size = 16, face = "bold"),
@@ -206,28 +212,36 @@ ggsave(plot = fig3c, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, he
 ## Figure 3d
 ```{r}
 
-fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD, color = partner)) +
-  geom_violin() +
-  geom_jitter() +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
-  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD)) +
+  geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
   labs(subtitle = "24h",
-       x = "Median BMC") +
-  scale_x_discrete(labels= c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
-
-
-fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD, color = partner)) +
-  geom_violin() +
-  geom_jitter() +
-  stat_summary(fun = median, geom = "text", label = "*", size = 10, color = "red", vjust = 0.75) + 
-  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+       y = "BMC") +
+  scale_x_discrete(labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
                      labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
+
+
+
+
+fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD)) +
+  geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
   labs(subtitle = "48h",
-       x = "Median BMC") +
-  scale_x_discrete(labels= c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
+       y = "BMC") +
+  scale_x_discrete(labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+  scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
+                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
 
 
 # generate title
@@ -240,7 +254,7 @@ fig3d = wrap_elements(fig3d_24h / fig3d_48h + plot_layout(heights = c(7.5, 7.5),
 fig3d
 
 
-ggsave(plot = fig3d, filename = file.path(plotDir, "fig3d.pdf"), width = 7.5, height = 17.5)
+ggsave(plot = fig3d, filename = file.path(plotDir, "fig3d.pdf"), width = 17.5, height = 7.5)
 
 
 ```
@@ -248,20 +262,20 @@ ggsave(plot = fig3d, filename = file.path(plotDir, "fig3d.pdf"), width = 7.5, he
 
 ## Create total figure 3
 ```{r}
+# 
+# # fix second row
+# fig3_row2 = wrap_elements(fig3b + fig3c + plot_layout(widths = 10, 7.5))
+# 
+# figure3 = fig3a /
+#   (fig3b + fig3c + plot_layout(widths = c(10, 7.5))) /
+#   fig3d +
+#   plot_layout(guides = "collect", axis = "collect", heights = c(6.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
+# 
+# figure3
+# 
+# ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 15, height = 16)
 
-# fix second row
-fig3_row2 = wrap_elements(fig3b + fig3c + plot_layout(widths = 10, 7.5))
-
-figure3 = fig3a /
-  (fig3b + fig3c + plot_layout(widths = c(10, 7.5))) /
-  fig3d +
-  plot_layout(guides = "collect", axis = "collect", heights = c(6.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
-
-figure3
-
-ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 15, height = 16)
-
-fig3_row3 = wrap_elements(fig3c + fig3d + plot_layout(guides = "collect"))
+fig3_row3 = wrap_elements(fig3c + fig3d + plot_layout(guides = "collect")) + plot_annotation(tag_levels = "A")
 
 figure3 = fig3a /
   fig3b /
