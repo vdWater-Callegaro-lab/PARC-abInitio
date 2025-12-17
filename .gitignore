@@ -62,3 +62,6 @@ data/
 
 # output
 output/
+*.docx
+*.xlsx
+*.csv
