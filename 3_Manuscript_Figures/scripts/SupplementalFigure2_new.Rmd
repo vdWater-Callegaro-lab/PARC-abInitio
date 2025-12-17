@@ -1,0 +1,175 @@
+---
+title: "Supplemental Figure 2"
+author: "Imke Bruns"
+date: "2025-12-16"
+output: html_document
+---
+
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue 
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
+```
+
+
+
+MANUSCRIPT FIGURE 2
+Here, we will generate figure 2 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, patchwork, purrr)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+LU_WTT = data.table::fread(file.path(inputDir, "Leiden", "EUT046_log2cpm_WTT_output.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+  ))
+
+LU_BMD = data.table::fread(file.path(inputDir, "Leiden", "EUT046_log2cpm_BMD_output.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+  ))
+
+LU_total_input = data.table::fread(file.path(inputDir, "Leiden", "BMD_input_72hr_log2cpmcounts.txt"))
+LU_total_input = LU_total_input[-1,]
+
+```
+
+
+# Generate figure
+We generate a Venn diagram to show the overlap of genes removed by the prefilter & by the post model filters. This also shows which genes are removed by the prefilter, but retained after model filters. 
+
+```{r}
+library(ggVennDiagram)
+library(VennDiagram)
+
+all_timepoints = LU_BMD %>% pull(timepoint) %>% unique()
+venn_output = NULL
+
+
+for(time in all_timepoints){
+  x <- list(prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% (LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value < 0.05))) %>% pull(gene_symbol_entrez_id),
+            postmodel_removed = LU_BMD %>% filter(timepoint == time) %>% filter(Best.BMD < 0.01 | Best.BMD > 50 | Best.BMD.BMDL > 20 | Best.BMDU.BMD > 20 | Best.RSquared < 0.8) %>% pull(Probe.ID))
+  
+  p1 = ggVennDiagram(x, category.names = c("Removed by pre-filter\n (WTT padj < 0.05)", "Removed by post-model filters")) +
+  scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+  labs(
+    # caption = "Top: Removed by post-model filters; Bottom: Removed by pre-filter (padj < 0.05)",
+    subtitle = time
+  ) +
+    theme(plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ))
+  
+  print(p1)
+  
+  venn_output[[time]] = p1
+
+}
+
+
+reduce(venn_output, `+`) + plot_layout(nrow =3) 
+
+ggsave(file.path(plotDir, "SupplementalFigure2_new.pdf"), width = 15, height = 15)
+
+
+
+```
+
+
+
+```{r}
+time = "4h"
+
+prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% (LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value < 0.05))) %>% pull(gene_symbol_entrez_id)
+
+postmodel_removed = LU_BMD %>% filter(timepoint == time) %>% filter(Best.BMD < 0.01 | Best.BMD > 50 | Best.BMD.BMDL > 20 | Best.BMDU.BMD > 20 | Best.RSquared < 0.8) %>% pull(Probe.ID)
+
+
+prefilter_removed[(!prefilter_removed %in% postmodel_removed) %>% which()]
+
+
+
+
+```
+
+
+
+

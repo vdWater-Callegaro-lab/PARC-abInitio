@@ -1,0 +1,304 @@
+---
+title: "SupplementalFigure2_new"
+output: html_document
+date: "2025-12-15"
+---
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue 
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
+```
+
+
+
+MANUSCRIPT FIGURE 2
+Here, we will generate figure 2 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, patchwork, data.table)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+
+LU_norm_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_BMD_output.txt")), check.names = TRUE) %>%
+  filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
+         Best.BMD.BMDL < 20,
+         Best.BMDU.BMD < 20,
+         Best.RSquared >= 0.8) %>% # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+  ))
+
+
+Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>%
+  filter(Best.BMD <= 50,
+         Best.BMD.BMDL <= 20,
+         Best.BMDU.BMDL <= 40,
+         Best.RSquared >= 0.8) %>% # for Sciensano filter needs te be applied; copied from OECD reporting table
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+  ))
+
+
+
+```
+
+
+
+# Generate figure
+## Facet by timepoint
+Here, we generate a correlation plot between Sciensano and LeidenU to show the fitted models for the accumulated BMCs.
+
+```{r}
+
+
+norm_BMD_combined_LU_SC = Sciensano_norm_BMD %>% select(gene_symbol_entrez_id, timepoint, "SC_finalBMD" = Best.BMD, "SC_bestModel" = Best.Model) %>%
+  left_join(LU_norm_BMD %>% select("gene_symbol_entrez_id" = Probe.ID, timepoint, "LU_finalBMD" = Best.BMD, "LU_bestModel" = Best.Model), by = c("timepoint", "gene_symbol_entrez_id")) %>%
+  filter(!is.na(SC_finalBMD) & !is.na(LU_finalBMD))
+
+# facet time
+supfig2a = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = LU_bestModel)) +
+  geom_point(size = 0.3) +
+  facet_wrap(~timepoint) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (Sciensano)",
+       color = "Model") + 
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text  = element_text(size = 12),
+    strip.background = element_rect(fill = "white", colour = "black"),
+    legend.position = "none"
+  )
+
+# combined
+supfig2b = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = LU_bestModel)) +
+  geom_point(size = 0.3) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (Sciensano)",
+       color = "Model",
+       subtitle = "All Timepoints Combined")
+
+
+
+# facet time
+supfig2c = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = SC_bestModel)) +
+  geom_point(size = 0.3) +
+  facet_wrap(~timepoint) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (Sciensano)",
+       color = "Model") +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.text  = element_text(size = 12),
+    strip.background = element_rect(fill = "white", colour = "black"),
+    legend.position = "none"
+  )
+
+# combined
+supfig2d = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = SC_bestModel)) +
+  geom_point(size = 0.3) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (Sciensano)",
+       color = "Model",
+       subtitle = "All Timepoints Combined") 
+
+
+
+supfig2 = wrap_elements(supfig2a + supfig2b + plot_layout(guides = "collect", axis = "collect") + plot_annotation(title =  "LeidenU Models Fit", theme = theme(plot.title = element_text(size = 25, face = "bold")), tag_levels = "I") + plot_layout(widths = c(1, 0.75))) /
+  wrap_elements(supfig2c + supfig2d + plot_layout(guides = "collect", axis = "collect") + patchwork::plot_annotation(title = "Sciensano Models Fit", theme = theme(plot.title = element_text(size = 25, face = "bold")), tag_levels = "I") + plot_layout(widths = c(1, 0.75))) + plot_annotation(tag_levels = "A")
+
+supfig2
+
+
+ggsave(file.path(plotDir, "SupplementalFigure2_new.pdf"), width = 16, height = 12)
+
+Sciensano_norm_BMD %>% pull(Best.Model) %>% table()
+
+
+``` 
+
+
+
+
+# All correlations
+```{r}
+library(RColorBrewer)
+model_cols <- c(
+  "Exp 3"   = brewer.pal(7, "Set1")[1],
+  "Exp 5"   = brewer.pal(7, "Set1")[2],
+  "Hill"    = brewer.pal(7, "Set1")[3],
+  "Linear"  = brewer.pal(7, "Set1")[4],
+  "Poly 2"  = brewer.pal(7, "Set1")[5],
+  "Poly 3"  = brewer.pal(7, "Set1")[6],
+  "Power"   = brewer.pal(7, "Set1")[7]
+)
+
+# LeidenU
+norm_BMD_combined_wide_LUmodels = norm_BMD_combined_wide %>%
+  left_join(LU_norm_BMD %>% select("gene_symbol_entrez_id" = Probe.ID, Best.Model, timepoint), by = c("gene_symbol_entrez_id", "timepoint")) %>%
+  filter(!is.na(Best.Model)) 
+
+
+p1 = norm_BMD_combined_wide_LUmodels %>%
+  ggplot(aes(x=LU_finalBMD, y=AU_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (AristotleU)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+p2 = norm_BMD_combined_wide_LUmodels %>%
+  ggplot(aes(x=LU_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (BPI)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+p3 = norm_BMD_combined_wide_LUmodels %>%
+  ggplot(aes(x=LU_finalBMD, y=GU_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (GhentU)", 
+       color = "Best Model")+
+  scale_color_manual(values = model_cols)
+
+p4 = norm_BMD_combined_wide_LUmodels %>%
+  ggplot(aes(x=LU_finalBMD, y=SC_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (LeidenU)",
+       y = "BMC (Sciensano)", 
+       color = "Best Model")+
+  scale_color_manual(values = model_cols)
+
+
+
+
+# Sciensano
+norm_BMD_combined_wide_SCmodels = norm_BMD_combined_wide %>%
+  left_join(Sciensano_norm_BMD %>% select(gene_symbol_entrez_id, Best.Model, timepoint), by = c("gene_symbol_entrez_id", "timepoint")) %>%
+  filter(!is.na(Best.Model))
+
+
+p5 = norm_BMD_combined_wide_SCmodels %>%
+  ggplot(aes(x=SC_finalBMD, y=AU_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (Sciensano)",
+       y = "BMC (AristotleU)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+p6 = norm_BMD_combined_wide_SCmodels %>%
+  ggplot(aes(x=SC_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (Sciensano)",
+       y = "BMC (BPI)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+p7 = norm_BMD_combined_wide_SCmodels %>%
+  ggplot(aes(x=SC_finalBMD, y=GU_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (Sciensano)",
+       y = "BMC (GhentU)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+p8 = norm_BMD_combined_wide_SCmodels %>%
+  ggplot(aes(x=SC_finalBMD, y=LU_finalBMD, color = Best.Model)) +
+  geom_point(size = 0.5) +
+  labs(x = "BMC (Sciensano)",
+       y = "BMC (LeidenU)", 
+       color = "Best Model") +
+  scale_color_manual(values = model_cols)
+
+
+
+# combine
+wrap_elements(p1 + p2 + p3 + p4 + plot_layout(nrow = 1) + plot_annotation(title = "LeidenU Models Fit", theme = theme(element_text(size = 23, face = "bold")), tag_levels = "I") + plot_layout(axis = "collect", guides = "collect")) /
+  wrap_elements(p5 + p6 + p7 + p8 + plot_layout(nrow = 1) + plot_annotation(title = "Sciensano Models Fit", theme = theme(element_text(size = 23, face = "bold")), tag_levels = "I") + plot_layout(axis = "collect", guides = "collect"))
+
+
+ggsave(file.path(plotDir, "SupplementalFigure3_new.pdf"), width = 15, height = 8)
+
+
+```
+
