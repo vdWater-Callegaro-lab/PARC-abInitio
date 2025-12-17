@@ -1,0 +1,205 @@
+---
+title: "Supplemental Figure 2"
+author: IBBruns
+output: html_document
+date: "2025-11-26"
+---
+
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue 
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+
+```
+
+
+
+MANUSCRIPT FIGURE 2
+Here, we will generate figure 2 from the PARC ab initio manuscript
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify)
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+
+tpod_original = data.table::fread(file.path(outputDir, "tpod_calculations_alltimepoints.txt")) %>%
+  mutate(time_num = as.numeric(gsub("h", "", timepoint)),
+         timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+         method = factor(method, levels = c("5th percentile", "25th ranked gene", "LCRD", "First mode")))
+
+```
+
+
+# Generate figure
+
+
+
+
+## BMC distribution + tPOD calculations
+Only for the most sensitive timepoint (24 hours)
+
+```{r}
+library(ggnewscale)
+
+tpod_cols <- c(
+  "5th percentile"        = "#1b9e77",
+  "25th ranked gene"   = "#d95f02",
+  "LCRD"   = "#7570b3",
+  "First mode" =  "#249"
+)
+
+
+plot_data = norm_BMD_combined %>%
+  mutate(
+    partner = case_when(
+      partner == "AU" ~ "AristotleU",
+      partner == "BPI" ~ "BPI",
+      partner == "GU" ~ "GhentU",
+      partner == "LU" ~ "LeidenU",
+      partner == "SC" ~ "Sciensano"
+    )
+  )
+
+
+supfig2 <- ggplot() +
+  # ---- densities (per timepoint + partner) ----
+  geom_density(
+    data = plot_data,
+    aes(
+      x     = finalBMD,
+      colour = timepoint,
+      fill   = timepoint
+      # if needed, you can add group = interaction(timepoint, partner)
+    ),
+    linewidth = 1,
+    alpha     = 0.7
+  ) +
+  scale_color_manual(
+    values = timepoint_cols,
+    name   = "timepoint"
+  ) +
+  scale_fill_manual(
+    values = timepoint_cols,
+    name   = "timepoint"
+  ) +
+
+  # reset colour so we can reuse it for tPOD
+  new_scale_color() +
+
+  # ---- tPOD vertical lines (same facets) ----
+  geom_vline(
+    data = tpod_original,
+    aes(
+      xintercept = tpod_orig,
+      linetype   = method,
+      colour     = method
+    ),
+    linewidth   = 1.5,
+    show.legend = TRUE
+  ) +
+  scale_color_manual(
+    values = tpod_cols,
+    labels = c("5th percentile", "first mode", "LCRD", "25th ranked gene"),
+    name   = "tPOD measure"
+  ) +
+  scale_linetype_discrete(
+    name   = "tPOD measure",
+    breaks = c("5th percentile", "25th ranked gene", "LCRD", "First mode")
+  ) +
+  # scale_x_log10() +
+  labs(
+    x        = "BMC",
+    linetype = "tPOD measure"
+  ) +
+  facet_grid(
+    rows = vars(timepoint),
+    cols = vars(partner),
+    scales = "free"
+  ) +
+  theme(
+    strip.text = element_text(size = 15, face = "bold")
+  ) +
+  scale_x_log10()
+
+supfig2
+
+ggsave(plot = supfig2, file.path(plotDir, "supplementalFigure4_xlog10.pdf"), width=15, height = 13)
+
+```
+
+
+
