@@ -43,10 +43,16 @@ partner_order <- c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")
 tpod_ordered <- tpod_formatted %>%
   mutate(
     method    = factor(method, levels = method_order),
-    timepoint = factor(timepoint, levels = timepoint_order),
-    partner = factor(partner, levels = partner_order)
+    timepoint = factor(timepoint, levels = timepoint_order)
   ) %>%
   arrange(timepoint, method)
+
+tpod_mean <- tpod_joined %>%
+  group_by(timepoint, method) %>%
+  summarise(mean_tpod = mean(tpod_orig, na.rm = TRUE), .groups = "drop") %>%
+  mutate(mean_tpod_fmt = sprintf("%.2f", mean_tpod),
+         timepoint = factor(timepoint, levels = timepoint_order))
+
 
 # generate final table
 tpod_table_final <- tpod_ordered %>%
@@ -55,7 +61,12 @@ tpod_table_final <- tpod_ordered %>%
     names_from  = partner,
     values_from = tpod_ci
   ) %>%
-  arrange(timepoint, method)
+  left_join(
+    tpod_mean %>% select(timepoint, method, mean_tpod_fmt),
+    by = c("timepoint", "method")
+  ) %>%
+  arrange(timepoint, method) %>%
+  select(timepoint, method, all_of(partner_order), mean_tPOD = mean_tpod_fmt)
 
 tpod_table_final
 
