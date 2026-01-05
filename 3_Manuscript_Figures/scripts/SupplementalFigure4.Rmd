@@ -135,7 +135,7 @@ plot_data = norm_BMD_combined %>%
   )
 
 
-supfig2 <- ggplot() +
+supfig4 <- ggplot() +
   # ---- densities (per timepoint + partner) ----
   geom_density(
     data = plot_data,
@@ -195,9 +195,9 @@ supfig2 <- ggplot() +
   ) +
   scale_x_log10()
 
-supfig2
+supfig4
 
-ggsave(plot = supfig2, file.path(plotDir, "supplementalFigure4_xlog10.pdf"), width=15, height = 13)
+ggsave(plot = supfig4, file.path(plotDir, "supplementalFigure4.pdf"), width=15, height = 13)
 
 ```
 

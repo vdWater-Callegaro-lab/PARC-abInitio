@@ -142,11 +142,11 @@ fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_selec
 # generate title 
 fig3a_lab = wrap_elements(panel = textGrob("Median BMC Accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
 
-fig3a = wrap_elements(fig3a_lab / wrap_elements(fig3a_AU + fig3a_BPI + fig3a_GU + fig3a_LU + fig3a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")) + plot_layout(heights = c(0.5, 5)))
+fig3a_total = wrap_elements(fig3a_lab / wrap_elements(fig3a_AU + fig3a_BPI + fig3a_GU + fig3a_LU + fig3a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")) + plot_layout(heights = c(0.5, 5)))
 
-fig3a
+fig3a_total
 
-ggsave(plot = fig3a, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5)
+ggsave(plot = fig3a_total, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5)
 
 ```
 
@@ -185,11 +185,11 @@ fig3b_lab <- wrap_elements(
   )
 )
 
-fig3b <- wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
+fig3b_total <- wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
 
-fig3b
+fig3b_total
 
-ggsave(plot = fig3b, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
+ggsave(plot = fig3b_total, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
 
 ```
 
@@ -201,10 +201,15 @@ ggsave(plot = fig3b, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
 fig3c_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY")
 fig3c_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY")
 
-fig3c = wrap_elements(fig3c_24h / fig3c_48h + plot_layout(guides = "collect", axis = "collect"))
-fig3c
 
-ggsave(plot = fig3c, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, height = 10.5)
+# generate title
+fig3c_lab = wrap_elements(panel = textGrob("Median BMC Accumulation - 24h & 48h", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+fig3c_total = wrap_elements(fig3c_lab / fig3c_24h / fig3c_48h + plot_layout(guides = "collect", axis = "collect", heights = c(0.75, 7.5, 7.5)))
+fig3c_total
+
+ggsave(plot = fig3c_total, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, height = 10.5)
 ```
 
 
@@ -245,44 +250,32 @@ fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"),
 
 
 # generate title
-fig3d_lab = wrap_elements(panel = textGrob("BMC distribution genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
+fig3d_lab = wrap_elements(panel = textGrob("BMC Distribution of Genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 # combine
-fig3d = wrap_elements(fig3d_24h / fig3d_48h + plot_layout(heights = c(7.5, 7.5), axis = "collect", guides = "collect"))
+fig3d_total = wrap_elements(fig3d_lab / fig3d_24h / fig3d_48h + plot_layout(heights = c(0.75, 7.5, 7.5), axis = "collect", guides = "collect"))
 
-fig3d
+fig3d_total
 
 
-ggsave(plot = fig3d, filename = file.path(plotDir, "fig3d.pdf"), width = 17.5, height = 7.5)
+ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 17.5, height = 7.5)
 
 
 ```
 
-
 ## Create total figure 3
+
 ```{r}
-# 
-# # fix second row
-# fig3_row2 = wrap_elements(fig3b + fig3c + plot_layout(widths = 10, 7.5))
-# 
-# figure3 = fig3a /
-#   (fig3b + fig3c + plot_layout(widths = c(10, 7.5))) /
-#   fig3d +
-#   plot_layout(guides = "collect", axis = "collect", heights = c(6.5, 10.5, 7.5)) + plot_annotation(tag_levels = "A")
-# 
-# figure3
-# 
-# ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 15, height = 16)
 
-fig3_row3 = wrap_elements(fig3c + fig3d + plot_layout(guides = "collect")) + plot_annotation(tag_levels = "A")
+figure3 = fig3a_total /
+  fig3b_total /
+  (fig3c_total + fig3d_total) +
+  plot_layout(heights = c(5.5, 14, 8)) +
+  plot_annotation(tag_levels = "A")
 
-figure3 = fig3a /
-  fig3b /
-  fig3_row3 +
-  plot_layout(heights = c(5.5, 14, 8))
 
-ggsave(plot = figure3, file.path(plotDir, "Figure3_v2.pdf"), width = 17, height = 22)
+ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 17, height = 22)
 
   
 

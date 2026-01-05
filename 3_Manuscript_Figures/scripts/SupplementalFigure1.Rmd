@@ -1,5 +1,5 @@
 ---
-title: "Supplemental Figure 2"
+title: "Supplemental Figure 1"
 author: "Imke Bruns"
 date: "2025-12-16"
 output: html_document
@@ -50,8 +50,7 @@ timepoint_cols <- c(
 
 
 
-MANUSCRIPT FIGURE 2
-Here, we will generate figure 2 from the PARC ab initio manuscript
+MANUSCRIPT SUPPLEMENTAL FIGURE 1
 
 # Settings
 
@@ -115,14 +114,16 @@ We generate a Venn diagram to show the overlap of genes removed by the prefilter
 
 ```{r}
 library(ggVennDiagram)
-library(VennDiagram)
 
 all_timepoints = LU_BMD %>% pull(timepoint) %>% unique()
 venn_output = NULL
 
 
 for(time in all_timepoints){
-  x <- list(prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% (LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value < 0.05))) %>% pull(gene_symbol_entrez_id),
+  
+  LU_WTT_retained = LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value <= 0.05) %>% pull(Probe.ID)
+
+  x <- list(prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% LU_WTT_retained) %>% pull(gene_symbol_entrez_id),
             postmodel_removed = LU_BMD %>% filter(timepoint == time) %>% filter(Best.BMD < 0.01 | Best.BMD > 50 | Best.BMD.BMDL > 20 | Best.BMDU.BMD > 20 | Best.RSquared < 0.8) %>% pull(Probe.ID))
   
   p1 = ggVennDiagram(x, category.names = c("Removed by pre-filter\n (WTT padj < 0.05)", "Removed by post-model filters")) +
@@ -147,28 +148,12 @@ for(time in all_timepoints){
 
 reduce(venn_output, `+`) + plot_layout(nrow =3) 
 
-ggsave(file.path(plotDir, "SupplementalFigure2_new.pdf"), width = 15, height = 15)
+ggsave(file.path(plotDir, "SupplementalFigure1.pdf"), width = 15, height = 15)
 
 
 
 ```
 
-
-
-```{r}
-time = "4h"
-
-prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% (LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value < 0.05))) %>% pull(gene_symbol_entrez_id)
-
-postmodel_removed = LU_BMD %>% filter(timepoint == time) %>% filter(Best.BMD < 0.01 | Best.BMD > 50 | Best.BMD.BMDL > 20 | Best.BMDU.BMD > 20 | Best.RSquared < 0.8) %>% pull(Probe.ID)
-
-
-prefilter_removed[(!prefilter_removed %in% postmodel_removed) %>% which()]
-
-
-
-
-```
 
 
 

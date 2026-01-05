@@ -66,7 +66,8 @@ LU_norm_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_BMD_
   filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
          Best.BMD.BMDL < 20,
          Best.BMDU.BMD < 20,
-         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+         Best.RSquared >= 0.8) %>% 
+  filter(Probe.ID != "NA_NA") # for Leiden filter needs te be applied; this is the direct output from BMDExpress
 
 
 Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>%
@@ -77,20 +78,20 @@ Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normaliz
 
 BPI_norm_BMD = fread(file.path(inputDir, "BPI" , "All_FilteredDRomicV3.txt"), check.names = TRUE) 
 
-
-# BMD log2fc
-LU_fc_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2fc_BMD_output.txt")), check.names = TRUE) %>% 
-  filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
-         Best.BMD.BMDL < 20,
-         Best.BMDU.BMD < 20,
-         Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
-
-
-ODAF_fc_BMD = fread(file.path(inputDir, "ODAF", paste0(studyNR, "_RODAF_log2fc_BMD_output.txt")), check.names = TRUE) %>%
-  filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
-         Best.BMD.BMDL < 20,
-         Best.BMDU.BMD < 20,
-         Best.RSquared >= 0.8) # for R-ODAF filter needs te be applied; this is the direct output from BMDExpress
+# 
+# # BMD log2fc
+# LU_fc_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2fc_BMD_output.txt")), check.names = TRUE) %>% 
+#   filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
+#          Best.BMD.BMDL < 20,
+#          Best.BMDU.BMD < 20,
+#          Best.RSquared >= 0.8) # for Leiden filter needs te be applied; this is the direct output from BMDExpress
+# 
+# 
+# ODAF_fc_BMD = fread(file.path(inputDir, "ODAF", paste0(studyNR, "_RODAF_log2fc_BMD_output.txt")), check.names = TRUE) %>%
+#   filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
+#          Best.BMD.BMDL < 20,
+#          Best.BMDU.BMD < 20,
+#          Best.RSquared >= 0.8) # for R-ODAF filter needs te be applied; this is the direct output from BMDExpress
 
 
 # Median BMD biological entity
@@ -100,7 +101,7 @@ AU_norm_HALLMARK = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_HALL
 
 AU_norm_KEGG = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_KEGG_Pathway_Medians_BMD_output.txt")), check.names = TRUE) 
 
-GU_norm_HALLMARK = fread(file.path(inputDir, "Ghent", "medianBMD_pathways_normalized_counts.txt"), sep = " ", check.names = TRUE)
+GU_norm_HALLMARK = fread(file.path(inputDir, "Ghent", "medianBMD_pathways_normalized_counts_filteredonn.txt"), sep = " ", check.names = TRUE)
 
 LU_norm_HALLMARK = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_functionalClas_HALLMARK_output.txt")), check.names = TRUE) %>%
   filter(Genes.That.Passed.All.Filters >= 3 & Percentage >= 5) # need to filter, direct output BMDExpress
@@ -196,15 +197,17 @@ partner = "AU") %>% dplyr::select(
 )
 
 
-GU_norm_BMD_select = GU_norm_BMD %>% mutate(timepoint = factor(
-  paste0(timepoint, "h"),
-  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-), partner = "GU") %>% dplyr::select(
+GU_norm_BMD_select = GU_norm_BMD %>%
+  mutate(
+    timepoint = factor(gsub("hr", "h", timepoint), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+    partner = "GU"
+  ) %>% 
+  dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
-  "finalBMD" = BMD.zSD,
-  "finalBMDU" = BMD.zSD.upper,
-  "finalBMDL" = BMD.zSD.lower,
+  "finalBMD" = Best.BMD,
+  "finalBMDU" = Best.BMDU,
+  "finalBMDL" = Best.BMDL,
   partner
 )
 
@@ -255,31 +258,31 @@ BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
 
 
 
-# log2fc (need to adjust like above)
-LU_fc_select = LU_fc_BMD %>% mutate(
-  timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  partner = "LU"
-) %>% dplyr::select(
-  "gene_symbol_entrez_id" = Probe.ID, 
-  timepoint,
-  "finalBMD" = Best.BMD,
-  "finalBMDU" = Best.BMDU,
-  "finalBMDL" = Best.BMDL,
-  partner
-)
-
-
-ODAF_fc_select = ODAF_fc_BMD %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  partner = "R-ODAF"
-  ) %>% dplyr::select(
-    "gene_symbol_entrez_id" = Probe.ID,
-    timepoint,
-    "finalBMD" = Best.BMD,
-    "finalBMDU" = Best.BMDU,
-    "finalBMDL" = Best.BMDL,
-    partner
-  )
+# # log2fc (need to adjust like above)
+# LU_fc_select = LU_fc_BMD %>% mutate(
+#   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+#   partner = "LU"
+# ) %>% dplyr::select(
+#   "gene_symbol_entrez_id" = Probe.ID, 
+#   timepoint,
+#   "finalBMD" = Best.BMD,
+#   "finalBMDU" = Best.BMDU,
+#   "finalBMDL" = Best.BMDL,
+#   partner
+# )
+# 
+# 
+# ODAF_fc_select = ODAF_fc_BMD %>% mutate(timepoint = factor(
+#   str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+#   partner = "R-ODAF"
+#   ) %>% dplyr::select(
+#     "gene_symbol_entrez_id" = Probe.ID,
+#     timepoint,
+#     "finalBMD" = Best.BMD,
+#     "finalBMDU" = Best.BMDU,
+#     "finalBMDL" = Best.BMDL,
+#     partner
+#   )
   
   
 ```
@@ -302,11 +305,11 @@ AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
 
 
 GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% mutate(
-  timepoint = factor(paste0(timepoint, "h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
+  timepoint = factor(gsub("hr", "h", timepoint), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
   partner = "GU") %>% dplyr::select(
     Pathway.Name,
     timepoint,
-    "medianBMD" = BMD.median,
+    "medianBMD" = BMD.Median,
     "medianBMDU" = BMD.thirdquartile,
     "medianBMDL" = BMD.firstquartile, 
     partner
@@ -488,8 +491,9 @@ Sciensano_BMD_pathway_select = Sciensano_BMD_pathway %>%
 LU_pathway_overview_select = LU_pathway_overview %>% select(gene_symbol, entrez_id, module) %>%
   mutate(gene_symbol = gsub("id_", "", gene_symbol),
          entrez_id = gsub("id_", "", entrez_id)) %>%
-  unite(gene_symbol, entrez_id, col = "gene_symbol_entrez_id") %>%
+  tidyr::unite(gene_symbol, entrez_id, col = "gene_symbol_entrez_id") %>%
   unique()
+
 ```
 
 
@@ -512,10 +516,10 @@ gene_BMD_list = list(
 norm_BMD_combined_wide = gene_BMD_list %>% reduce(full_join, by = c("gene_symbol_entrez_id", "timepoint"))
 
 
-# log2fc BMD combined
-df_list = list(LU_fc_select, ODAF_fc_select)
-
-fc_BMD_combined = bind_rows(df_list) %>% as_tibble()
+# # log2fc BMD combined
+# df_list = list(LU_fc_select, ODAF_fc_select)
+# 
+# fc_BMD_combined = bind_rows(df_list) %>% as_tibble()
 
 
 
@@ -545,13 +549,17 @@ norm_pathwaysChoice_combined = bind_rows(df_list_pathwaysChoice) %>% as_tibble()
 
 
 # HALLMARK P53 genes BMD combined
-genes_in_HALLMARKp53 = gsea_hallmark_df %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% pull(gene_symbol) %>% unique()
-norm_BMD_combined_HALLMARKp53 = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% genes_in_HALLMARKp53)
+df_list_BMD_filtered_for_pw = list(
+  AU_norm_BMD_select %>% mutate(ratio = finalBMDU/finalBMDL) %>% filter(ratio <= 40) %>% select(-ratio), # additional filter to include in pathway analysis
+  GU_norm_BMD_select, LU_norm_BMD_select, Sciensano_norm_BMD_select, BPI_norm_BMD_select
+) 
+
+genes_in_HALLMARKp53 = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% pull(gene_symbol_entrez_id) %>% unique()
+
+norm_BMD_combined_HALLMARKp53 = bind_rows(df_list_BMD_filtered_for_pw) %>% as_tibble() %>% filter(gene_symbol_entrez_id %in% genes_in_HALLMARKp53)
 
 
-
-
-
+# pathway of choice genes BMD combined ? (need to add?)
 
 ```
 

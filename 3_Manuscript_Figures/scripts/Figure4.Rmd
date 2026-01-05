@@ -159,14 +159,14 @@ fig4a_upset
 
 fig4a_lab <- wrap_elements(panel = textGrob("Overlap Genes in P53 Pathways from Different Sources", gp = gpar(fontface = "bold", fontsize = 18)))
 
-fig4a = wrap_elements(fig4a_lab / 
+fig4a_total = wrap_elements(fig4a_lab / 
                         fig4a_upset +
                         plot_layout(heights = c(0.5, 5))) 
 
 
-fig4a
+fig4a_total
 
-ggsave(plot = fig4a, file.path(plotDir, "fig4a.pdf"), width = 15, height = 5.5)
+ggsave(plot = fig4a_total, file.path(plotDir, "fig4a.pdf"), width = 15, height = 5.5)
 
 
 
@@ -233,6 +233,7 @@ fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_sel
 fig4b = fig4b_AU + fig4b_BPI + fig4b_GU + fig4b_LU + 
   # fig4b_SC + 
   plot_layout(nrow = 1, guides = "collect", axis = "collect")
+
 fig4b
 
 # generate title 
@@ -245,7 +246,7 @@ fig4b_total
 
 
 
-ggsave(plot = fig4b_total, file.path(plotDir, "fig4b_total.pdf"), width = 24, height = 5)
+ggsave(plot = fig4b_total, file.path(plotDir, "fig4b.pdf"), width = 24, height = 5)
 
 ```
 
@@ -255,7 +256,9 @@ Overview of BMC genes in p53 pathways of choice + add median BMC
 
 ```{r}
 
-fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% KEGG_p53) %>%
+fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  mutate(ratio = finalBMDU/finalBMDL) %>% filter(ratio <= 40) %>% # add filter to include genes in pathway BMC calculation
+  filter(gene_symbol %in% KEGG_p53) %>%
   ggplot(aes(x = timepoint, y = finalBMD)) +
   geom_violin(fill = "firebrick", color = NA, alpha = 0.6) +
   geom_jitter(width = 0.1, alpha = 0.5, color = "red4") +
@@ -325,14 +328,14 @@ fig4c
 
 
 # generate title 
-fig4c_lab = wrap_elements(panel = textGrob("BMC Genes in P53 Pathways", gp = gpar(fontface = "bold", fontsize = 18)))
+fig4c_lab = wrap_elements(panel = textGrob("BMC Distribution of Genes in P53 Pathways", gp = gpar(fontface = "bold", fontsize = 18)))
 
 fig4c_total = wrap_elements(fig4c_lab / fig4c + plot_layout(heights = c(0.5, 5)))
 
 fig4c_total
 
 
-ggsave(plot = fig4c_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, height = 5)
+ggsave(plot = fig4c_total, file.path(plotDir, "fig4c.pdf"), width = 24, height = 5)
 
 
 
@@ -356,11 +359,12 @@ core_genes = membership_df %>%
 
 # build matrix
 plotMat <- norm_BMD_combined_wide %>%
-  separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id")) %>%
-  filter(timepoint == "24h", gene_symbol %in% core_genes) %>%
+  separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+  filter(timepoint == "24h") %>%
+  filter(gene_symbol %in% core_genes) %>%
   select(-entrez_id, -timepoint) %>%
-  group_by(gene_symbol) %>%
-  summarize(across(where(is.numeric), ~ first(na.omit(.x))), .groups = "drop") %>%
+  # group_by(gene_symbol) %>%
+  # summarize(across(where(is.numeric), ~ first(na.omit(.x))), .groups = "drop") %>%
   column_to_rownames("gene_symbol") %>%
   as.matrix()
 
@@ -454,7 +458,7 @@ fig4d_total = wrap_elements(fig4d_lab / fig4d_heatmap_gg + plot_layout(heights =
 
 fig4d_total
 
-ggsave(plot = fig4d_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, height = 10)
+ggsave(plot = fig4d_total, file.path(plotDir, "fig4d.pdf"), width = 24, height = 10)
 
 
 
@@ -464,15 +468,16 @@ ggsave(plot = fig4d_total, file.path(plotDir, "fig4c_total.pdf"), width = 24, he
 
 # Arrange total figure 4
 ```{r}
-figure4 = fig4a /
+figure4 = fig4a_total /
   fig4b_total /
   fig4c_total /
   fig4d_total +
-  plot_layout(heights = c(7.5, 5, 4, 12))
+  plot_layout(heights = c(7.5, 5, 4, 12)) +
+  plot_annotation(tag_levels = "A")
 
 figure4
 
-ggsave(plot = figure4, file.path(plotDir, "Figure4_v3.pdf"), width = 19, height = 24)
+ggsave(plot = figure4, file.path(plotDir, "Figure4.pdf"), width = 19, height = 24)
 
 ```
 
