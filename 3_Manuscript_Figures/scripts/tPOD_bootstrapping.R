@@ -4,11 +4,11 @@
 
 
 ## LOAD FUNCTION TO CALUCATE TPODS
-source(file.path(getwd(), "R", "calculate_distributionBased_tPODs.R"))
+source(file.path(getwd(), "functions.R"))
 
 
 ## LOAD DATA
-load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData"))
 
 
 
@@ -98,100 +98,14 @@ tpod_ci_all <- boot_all %>%
     tpod_lower  = quantile(tpod, 0.025, na.rm = TRUE),
     tpod_upper  = quantile(tpod, 0.975, na.rm = TRUE),
     .groups = "drop"
+  ) %>%
+  mutate(
+    method = factor(method,
+                    levels = c("p5","rank25","LCRD","first_mode"),
+                    labels = c("5th percentile","25th ranked gene","LCRD","First mode"))
   )
 
 
 data.table::fwrite(tpod_ci_all, file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_ci_median.txt"), sep = "\t")
-
-
-
-## PLOT
-
-
-### ORDER TIMEPOINT & METHOD FOR PLOT
-boot_all <- boot_all %>%
-  mutate(
-    timepoint = factor(timepoint, levels = c("4h","8h","16h","24h","48h","72h")),
-    method = factor(method,
-                    levels = c("p5","rank25","LCRD","first_mode"),
-                    labels = c("5th percentile","25th ranked gene","LCRD","First mode")
-    )
-  )
-
-
-
-### GENERATE DF FOR PLOTTING
-tpod_plot_df <- tpod_ci_all %>%
-  left_join(tpod_orig_all,
-            by = c("partner","timepoint","method"))
-
-
-
-### OPTION 1: FACET BY TPOD METHOD
-ggplot(tpod_plot_df,
-       aes(x = timepoint, y = tpod_median,
-           ymin = tpod_lower, ymax = tpod_upper,
-           color = partner)) +
-  geom_pointrange(
-    position = position_dodge(width = 0.6)
-  ) +
-  geom_point(
-    aes(y = tpod_orig),
-    shape = 21,
-    fill = "white",
-    size = 2.3,
-    stroke = 0.6,
-    position = position_dodge(width = 0.6)
-  ) +
-  facet_wrap(~ method, scales = "free_y") +
-  labs(
-    x = "",
-    y = "tPOD",
-    color = "",
-    title = "tPOD estimates and bootstrap uncertainty"
-  ) +
-  theme_bw(base_size = 12) +
-  theme(
-    strip.background = element_rect(fill = "white", color = "black"),
-    strip.text = element_text(face = "bold", size = 12),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.text.x = element_text(size = 12),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 12)
-  ) +
-  scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
-                     breaks = c("AristotleU", "GhentU", "BPI", "LeidenU", "Sciensano"))
-
-
-
-
-
-
-### OPTION 2: FACET BY TPOD MEASURE AND PARTNER
-ggplot(tpod_plot_df,
-       aes(x = timepoint, y = tpod_median,
-           ymin = tpod_lower, ymax = tpod_upper, color = partner)) +
-  geom_pointrange() +
-  geom_point(
-    aes(y = tpod_orig),
-    shape = 21, fill = "white", size = 2.3, stroke = 0.6
-  ) +
-  facet_grid(method ~ partner, scales = "free_y") +
-  labs(
-    x = "",
-    y = "tPOD",
-    title = "Distribution-based tPODs with bootstrap CIs"
-  ) +
-  theme_bw(base_size = 12) +
-  theme(
-    strip.background = element_rect(fill = "white", color = "black"),
-    strip.text = element_text(face = "bold", size = 12),
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-    axis.text.x = element_text(size = 10, angle = 90, hjust = 1),
-    legend.title = element_blank(),
-    legend.text = element_text(size = 12)
-  ) +
-  scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
-                     breaks = c("AristotleU", "GhentU", "BPI", "LeidenU", "Sciensano"))
 
 

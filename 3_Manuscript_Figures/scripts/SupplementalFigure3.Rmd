@@ -122,83 +122,7 @@ Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normaliz
 
 
 # Generate figure
-## Facet by timepoint
-Here, we generate a correlation plot between Sciensano and LeidenU to show the fitted models for the accumulated BMCs.
 
-```{r}
-
-
-norm_BMD_combined_LU_SC = Sciensano_norm_BMD %>% select(gene_symbol_entrez_id, timepoint, "SC_finalBMD" = Best.BMD, "SC_bestModel" = Best.Model) %>%
-  left_join(LU_norm_BMD %>% select("gene_symbol_entrez_id" = Probe.ID, timepoint, "LU_finalBMD" = Best.BMD, "LU_bestModel" = Best.Model), by = c("timepoint", "gene_symbol_entrez_id")) %>%
-  filter(!is.na(SC_finalBMD) & !is.na(LU_finalBMD))
-
-# facet time
-supfig2a = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = LU_bestModel)) +
-  geom_point(size = 0.3) +
-  facet_wrap(~timepoint) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (Sciensano)",
-       color = "Model") + 
-  theme_bw() +
-  theme(
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.text  = element_text(size = 12),
-    strip.background = element_rect(fill = "white", colour = "black"),
-    legend.position = "none"
-  )
-
-# combined
-supfig2b = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = LU_bestModel)) +
-  geom_point(size = 0.3) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (Sciensano)",
-       color = "Model",
-       subtitle = "All Timepoints Combined")
-
-
-
-# facet time
-supfig2c = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = SC_bestModel)) +
-  geom_point(size = 0.3) +
-  facet_wrap(~timepoint) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (Sciensano)",
-       color = "Model") +
-  theme_bw() +
-  theme(
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.text  = element_text(size = 12),
-    strip.background = element_rect(fill = "white", colour = "black"),
-    legend.position = "none"
-  )
-
-# combined
-supfig2d = ggplot(norm_BMD_combined_LU_SC, aes(x=LU_finalBMD, y=SC_finalBMD, color = SC_bestModel)) +
-  geom_point(size = 0.3) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (Sciensano)",
-       color = "Model",
-       subtitle = "All Timepoints Combined") 
-
-
-
-supfig2 = wrap_elements(supfig2a + supfig2b + plot_layout(guides = "collect", axis = "collect") + plot_annotation(title =  "LeidenU Models Fit", theme = theme(plot.title = element_text(size = 25, face = "bold")), tag_levels = "I") + plot_layout(widths = c(1, 0.75))) /
-  wrap_elements(supfig2c + supfig2d + plot_layout(guides = "collect", axis = "collect") + patchwork::plot_annotation(title = "Sciensano Models Fit", theme = theme(plot.title = element_text(size = 25, face = "bold")), tag_levels = "I") + plot_layout(widths = c(1, 0.75))) + plot_annotation(tag_levels = "A")
-
-supfig2
-
-
-ggsave(file.path(plotDir, "SupplementalFigure2_new.pdf"), width = 16, height = 12)
-
-Sciensano_norm_BMD %>% pull(Best.Model) %>% table()
-
-
-``` 
-
-
-
-
-# All correlations
 ```{r}
 library(RColorBrewer)
 model_cols <- c(
@@ -297,7 +221,7 @@ wrap_elements(p1 + p2 + p3 + p4 + plot_layout(nrow = 1) + plot_annotation(title 
   wrap_elements(p5 + p6 + p7 + p8 + plot_layout(nrow = 1) + plot_annotation(title = "Sciensano Models Fit", theme = theme(element_text(size = 23, face = "bold")), tag_levels = "I") + plot_layout(axis = "collect", guides = "collect"))
 
 
-ggsave(file.path(plotDir, "SupplementalFigure3_new.pdf"), width = 15, height = 8)
+ggsave(file.path(plotDir, "SupplementalFigure3.pdf"), width = 15, height = 8)
 
 
 ```

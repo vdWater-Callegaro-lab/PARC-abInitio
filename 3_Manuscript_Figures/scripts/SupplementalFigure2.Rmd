@@ -1,0 +1,347 @@
+---
+title: "Supplemental Figure 2"
+output: html_document
+date: "2025-12-08"
+---
+
+
+# Set up script
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 13,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+
+# define 6 custom colors
+timepoint_cols <- c(
+  "#1f77b4",  # blue (replacing teal)
+  "#d95f02",  # orange
+  "#7570b3",  # violet
+  "#e7298a",  # magenta/pink
+  "#66a61e",  # green
+  "#e6ab02"   # mustard yellow
+)
+```
+
+
+SUPPLEMENTAL FIGURE 2
+Check overlap of genes passing pre-filter
+
+
+## Manual settings
+```{r}
+studyNR = "EUT046"
+
+```
+
+
+## Load packages
+```{r}
+pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr)
+```
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+# Load data
+```{r}
+timepoint_levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+
+# load data after prefilter but before post model filters
+## BMD normalized counts
+AU_norm_BMD_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE) %>%
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = timepoint_levels
+))
+
+BPI_norm_BMD_pref = fread(file.path(inputDir, "BPI" , "All_UnfilteredDRomicV3.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  timepoint, levels = timepoint_levels)) %>% dplyr::rename("gene_symbol_entrez_id" = id)
+
+
+folder_path_GU <- "input/EUT046/Ghent/Ab_initio_UGent/Output_046/Bootstrap_unfiltered"
+GU_norm_BMD_pref <- list.files(folder_path_GU, pattern = "\\.txt$", full.names = TRUE) %>%
+  map_dfr(~ {
+    fread(.x, check.names = TRUE) %>%
+      mutate(
+        timepoint = factor(paste0(
+          stringr::str_extract(basename(.x), "(?<=Time_)\\d+"),
+          "h"
+        ), levels = timepoint_levels
+      )
+      )
+  }) %>%
+  filter(adjpvalue < 0.01) %>%
+  dplyr::rename("gene_symbol_entrez_id" = id)
+
+LU_WTT = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_WTT_output.txt")), check.names = TRUE) %>%
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels
+  )) 
+
+
+Sciensano_norm_BMD_pref = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels
+  ))
+
+
+
+# load data after filering post model filters
+load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
+
+
+
+```
+
+
+# Generate figure
+Generate UpSet plot to show overlap between dose responsive genes
+
+## Dose responsive genes (pre-filter)
+
+### Get dose responsive genes per timepoint
+```{r}
+AU_genes_pref = AU_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+BPI_genes_pref = BPI_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+GU_genes_pref = GU_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+LU_genes_pref = LU_WTT %>% filter(Adjusted.P.Value < 0.05) %>% dplyr::select(timepoint, "gene_symbol_entrez_id" = Probe.ID)
+SC_genes_pref = Sciensano_norm_BMD_pref %>% filter(Prefilter.P.Value < 0.01 & Max.Fold.Change.Absolute.Value >= 1.5) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+
+```
+
+
+### Generate plot per timepoint
+```{r}
+
+UpSetOutput = NULL
+
+all_timepoints = timepoint_levels
+
+for(time in all_timepoints) {
+  # get genelist per timepoint
+  geneList = list(
+    AU = AU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BPI = BPI_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    GU = GU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    LU = LU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    SC = SC_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+  )
+  
+  
+  all_genes <- sort(geneList %>% unlist(use.names = FALSE) %>% unique())
+  
+  membership_df <- tibble::tibble(Gene = all_genes, !!!lapply(geneList, function(v)
+    all_genes %in% v)) %>%
+    mutate(across(-Gene, as.logical))
+  
+  supfig1 = ComplexUpset::upset(
+    membership_df,
+    names(geneList),
+    min_size = 1,
+    matrix = (
+      intersection_matrix(geom = geom_point(shape = 'circle filled', size = 3)) +
+        scale_color_manual(
+          values = c(
+            'AU' = "firebrick",
+            'BPI' = "gray30",
+            'GU' = "gold1",
+            'LU' = "blue2",
+            'SC' = "forestgreen"
+          ),
+        )
+    ),
+    queries = list(
+      upset_query(set = 'AU', fill = "firebrick"),
+      upset_query(set = "BPI", fill = "gray30"),
+      upset_query(set = "GU", fill = "gold1"),
+      upset_query(set = "LU", fill = "blue2"),
+      upset_query(set = "SC", fill = "forestgreen")
+    )
+  )
+  
+  print(supfig1)
+  
+  # ggsave(plot = supfig1, file.path(
+  #   plotDir,
+  #   paste0("supFig1_upset_", time, ".pdf")),
+  #   width = 15,
+  #   height = 6
+  # )
+  
+  UpSetOutput[[time]] = wrap_elements(supfig1)
+}
+
+
+```
+
+
+## Generate final supplemental figure 2a
+```{r}
+
+supfig2a_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow = 6))
+supfig2a_combined
+
+# generate title
+supfig2a_lab = wrap_elements(panel = textGrob("Overlap Genes after Prefilter", gp = gpar(fontface = "bold", fontsize = 24)))
+
+
+# create total supfig2a
+supfig2a_total = wrap_elements(supfig2a_lab / supfig2a_combined + plot_layout(heights = c(0.2, 10)))
+
+ggsave(plot = supfig2a_total, file.path(plotDir, "supfig2a.pdf"), width=10, height = 20)
+
+```
+
+
+
+
+
+## Retained genes after post model filter
+
+### Get dose responsive genes per timepoint
+```{r}
+AU_genes_pmf = AU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+BPI_genes_pmf = BPI_norm_BMD_select  %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+GU_genes_pmf = GU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+LU_genes_pmf = LU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+SC_genes_pmf = Sciensano_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+
+```
+
+
+### Generate plot per timepoint
+```{r}
+
+UpSetOutput = NULL
+
+all_timepoints = timepoint_levels
+
+for(time in all_timepoints) {
+  # get genelist per timepoint
+  geneList = list(
+    AU = AU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BPI = BPI_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    GU = GU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    LU = LU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    SC = SC_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+  )
+  
+  
+  all_genes <- sort(geneList %>% unlist(use.names = FALSE) %>% unique())
+  
+  membership_df <- tibble::tibble(Gene = all_genes, !!!lapply(geneList, function(v)
+    all_genes %in% v)) %>%
+    mutate(across(-Gene, as.logical))
+  
+  supfig1 = ComplexUpset::upset(
+    membership_df,
+    names(geneList),
+    min_size = 1,
+    matrix = (
+      intersection_matrix(geom = geom_point(shape = 'circle filled', size = 3)) +
+        scale_color_manual(
+          values = c(
+            'AU' = "firebrick",
+            'BPI' = "gray30",
+            'GU' = "gold1",
+            'LU' = "blue2",
+            'SC' = "forestgreen"
+          ),
+        )
+    ),
+    queries = list(
+      upset_query(set = 'AU', fill = "firebrick"),
+      upset_query(set = "BPI", fill = "gray30"),
+      upset_query(set = "GU", fill = "gold1"),
+      upset_query(set = "LU", fill = "blue2"),
+      upset_query(set = "SC", fill = "forestgreen")
+    )
+  )
+  
+  print(supfig1)
+  
+  # ggsave(plot = supfig1, file.path(
+  #   plotDir,
+  #   paste0("supFig1_upset_", time, ".pdf")),
+  #   width = 15,
+  #   height = 6
+  # )
+  
+  UpSetOutput[[time]] = wrap_elements(supfig1)
+}
+
+
+```
+
+
+## Generate final supplemental figure 2b
+```{r}
+
+supfig2b_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow =6))
+
+supfig2b_combined
+
+# generate title
+supfig2b_lab = wrap_elements(panel = textGrob("Overlap Genes after Post Model Filters", gp = gpar(fontface = "bold", fontsize = 24)))
+
+
+# create total supfig2a
+supfig2b_total = wrap_elements(supfig2b_lab / supfig2b_combined + plot_layout(heights = c(0.2, 10)))
+
+ggsave(plot = supfig2b_total, file.path(plotDir, "supfig2b.pdf"), width=10, height = 20)
+
+```
+
+
+
+## Generate final supplemental figure 2
+```{r}
+supfig2_total = supfig2a_total + supfig2b_total + plot_layout(ncol = 2, widths = c(0.8, 1))
+
+supfig2_total
+
+ggsave(plot = supfig2_total, file.path(plotDir, "SupplementalFigure2.pdf"), width = 20, height = 20)
+
+```
+

@@ -117,40 +117,90 @@ DRGs = readxl::read_xlsx(file.path(inputDir, "DRG_PMFG_pertp.xlsx")) %>%
 
 
 ## Figure 2 
-Here we will have:   
-1. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint
-2. A zoom of the accumulation plot per partner (to see the slight differences in the beginning)
-3. A combined accumulationplot of the most sensitive timepoint (24h)
+Here we will have:  
+1. Barplot with Dose Responsive Genes per timepoint per partner + Post Model Filter retained genes.  
+2. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint.  
+3. A zoom of the accumulation plot per partner (to see the slight differences in the beginning).  
+4. A combined accumulationplot of the most sensitive timepoint (24h).  
+5. Overview of distribution-based tPODs including bootstrapping results.   
+
 
 ### Figure 2a
 
+## Barplot
+
+```{r}
+label_steps = c(
+  "DRG"  = "Dose Responsive Genes",
+  "PMFG" = "Post Model Filter Genes"
+)
+
+  
+fig2a = DRGs %>%
+  ggplot(aes(x = partner, y = value, fill = value)) +
+  geom_bar(stat = "identity") +
+  facet_grid(step ~ timepoint,
+             labeller = labeller(step = label_steps)) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white", colour = "black"),
+    strip.text.x = element_text(size = 14, face = "bold"),
+    strip.text.y = element_text(size = 9, face = "bold"),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_blank(),
+    legend.position = "none"
+  ) +
+  scale_fill_gradient(low = "yellow", high = "red")
+
+fig2a
+
+
+# generate title
+fig2a_lab <- wrap_elements(panel = textGrob("Number of Dose Responsive Genes", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+# combine
+fig2a_total = wrap_elements(fig2a_lab /
+  fig2a + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
+
+
+fig2a_total
+
+ggsave(plot = fig2a_total, file.path(plotDir, "fig2a.pdf"), width = 15, height = 8)
+
+```
+
+
+### Figure 2b
+
 #### Plot first row
 ```{r}
-fig2a_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") +
+fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
 
-fig2a_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI") +
+fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI") +
   theme(plot.title = element_text(color = "gray30")) +
   ylim(c(0, 6300))
 
-fig2a_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
+fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
-fig2a_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") +
+fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") +
   theme(plot.title = element_text(color = "blue3")) +
   ylim(c(0, 6300))
 
-fig2a_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, partner = "Sciensano") + 
   theme(plot.title = element_text(color = "forestgreen")) +
   ylim(c(0, 6300))
 
 
-fig2a_row1 = fig2a_AU + fig2a_BPI + fig2a_GU + fig2a_LU + fig2a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")
-fig2a_row1
+fig2b_row1 = fig2b_AU + fig2b_BPI + fig2b_GU + fig2b_LU + fig2b_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2b_row1
 
-ggsave(plot = fig2a_row1, file.path(plotDir, "fig2a_firstrow.pdf"), width = 15, height = 5)
+# ggsave(plot = fig2b_row1, file.path(plotDir, "fig2b_firstrow.pdf"), width = 15, height = 5)
 
 ```
 
@@ -161,45 +211,46 @@ Zoom in on first part (250 genes) plot
 
 #### Plot zoom
 ```{r}
-fig2a_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") + 
+fig2b_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") + 
   theme(plot.title = element_text(color = "firebrick"))
 
-fig2a_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select, partner = "BPI") + 
+fig2b_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select, partner = "BPI") + 
   theme(plot.title = element_text(color = "gray30"))
 
-fig2a_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
+fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
   theme(plot.title = element_text(color = "gold1"))
 
 
-fig2a_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") + 
+fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") + 
   theme(plot.title = element_text(color = "blue3"))
 
 
-fig2a_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select, partner = "Sciensano") + 
   theme(plot.title = element_text(color = "forestgreen"))
 
 
-fig2a_row2 = fig2a_AU_zoom + fig2a_BPI_zoom + fig2a_GU_zoom + fig2a_LU_zoom + fig2a_SC_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
-fig2a_row2
+fig2b_row2 = fig2b_AU_zoom + fig2b_BPI_zoom + fig2b_GU_zoom + fig2b_LU_zoom + fig2b_SC_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2b_row2
 
+# ggsave(plot = fig2b_row2, file.path(plotDir, "fig2b_secondrow.pdf"), width = 15, height = 5)
 
 ```
 
 
-# Generate total figure 2a
+# Generate total figure 2b
 ```{r}
 # generate title
-fig2a_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
+fig2b_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 # combine
-fig2a = wrap_elements(fig2a_row1_lab /
-  fig2a_row1 /
-  fig2a_row2 + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 2.5, 2.5)))
+fig2b_total = wrap_elements(fig2b_row1_lab /
+  fig2b_row1 /
+  fig2b_row2 + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 2.5, 2.5)))
 
 
-fig2a
-ggsave(plot = fig2a, file.path(plotDir, "fig2a_total.pdf"), width = 15, height = 5.5)
+fig2b_total
+ggsave(plot = fig2b_total, file.path(plotDir, "fig2b.pdf"), width = 15, height = 5.5)
 
 
 ```
@@ -208,12 +259,12 @@ ggsave(plot = fig2a, file.path(plotDir, "fig2a_total.pdf"), width = 15, height =
 
 
 
-### Figure 2b
+### Figure 2c
 Select most sensitive timepoint (now 24h) and combine accumulation plots of partners
 
 ```{r}
 
-fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
+fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
   filter(timepoint == "24h") %>%
   group_by(partner) %>%
   arrange(finalBMD) %>%
@@ -227,38 +278,38 @@ fig2b_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
                      labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
   theme(legend.title = element_blank())
 
-fig2b_zoom = fig2b_norm +
+fig2c_zoom = fig2c_norm +
   ylim(c(0, 250)) +
   xlim(0, 3) 
 
 
 
 # generate title
-fig2b_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
+fig2c_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 
 # combine
-fig2b = wrap_elements(fig2b_lab / fig2b_norm / fig2b_zoom + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5, 5)))
-fig2b
+fig2c_total = wrap_elements(fig2c_lab / fig2c_norm / fig2c_zoom + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5, 5)))
+fig2c_total
 
 
-# save figure 2b
-ggsave(plot = fig2b, file.path(plotDir, "fig2b_total.pdf"), width = 5, height = 10.5)
+# save figure 2c
+ggsave(plot = fig2c_total, file.path(plotDir, "fig2c.pdf"), width = 5, height = 10.5)
 
-ggsave(plot = fig2b_norm, file.path(plotDir, "fig2b_24hours.pdf"), width=5, height = 3)
+# ggsave(plot = fig2c_norm, file.path(plotDir, "fig2c_24hours.pdf"), width=5, height = 3)
 
 ```
 
 
 
 
-### Figure 2c
+### Figure 2d
 BMD correlations
 
 ```{r}
 
-fig2c_cor <- GGally::ggpairs(
+fig2d_cor <- GGally::ggpairs(
   norm_BMD_combined_wide,
   aes(color = timepoint),
   columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
@@ -278,61 +329,62 @@ fig2c_cor <- GGally::ggpairs(
         strip.text = element_text(face = "bold", size = 13))
 
 # convert to ggplot
-fig2c_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2c_cor))
+fig2d_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2d_cor))
 
 # title
-fig2c_lab <- wrap_elements(
+fig2d_lab <- wrap_elements(
   panel = textGrob("BMC correlations",
                    gp = gpar(fontface = "bold", fontsize = 18))
 )
 
 # combine
-fig2c <- wrap_elements(fig2c_lab / fig2c_cor_gg + plot_layout(heights = c(0.5, 10)))
+fig2d_total <- wrap_elements(fig2d_lab / fig2d_cor_gg + plot_layout(heights = c(0.5, 10)))
 
-ggsave(plot = fig2c, file.path(plotDir, "fig2c.pdf"), width = 10, height = 10.5)
+ggsave(plot = fig2d_total, file.path(plotDir, "fig2d.pdf"), width = 10, height = 10.5)
 
 
 ```
 
 
-## tPOD calcuations
+### Figure 2e
+tPOD calcuations
 
 ```{r}
-fig2d = ggplot(tpod_original, aes(x = timepoint, y = tpod_orig, color = partner, group = partner)) +
-  geom_point(size = 3) +
-  geom_line() +
-  facet_wrap(~ method, nrow = 1) +
-  labs(
-    x = "",
-    y = "tPOD",
-    color = "",
-  ) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(size = 12, face = "bold"),
-    strip.background = element_rect(fill = "white", colour = "black"),
-    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
-    axis.text = element_text(size = 10),
-    axis.title = element_text(size = 11),
-    legend.text = element_text(size = 12)
-  ) +
-  scale_color_manual(values = c("firebrick","gray30", "gold1", "blue2", "forestgreen"))
-
-
-
-
-# title
-fig2d_lab <- wrap_elements(
-  panel = textGrob("Comparison of tPOD Estimates Across Partners over Time",
-                   gp = gpar(fontface = "bold", fontsize = 18))
-)
-
-# combine
-fig2d_total <- wrap_elements(fig2d_lab / fig2d + plot_layout(heights = c(0.5, 5)))
-fig2d_total
-
-ggsave(plot = fig2d_total, file.path(plotDir, "fig2d_total.pdf"), width = 10, height = 4)
-
+# fig2e = ggplot(tpod_original, aes(x = timepoint, y = tpod_orig, color = partner, group = partner)) +
+#   geom_point(size = 3) +
+#   geom_line() +
+#   facet_wrap(~ method, nrow = 1) +
+#   labs(
+#     x = "",
+#     y = "tPOD",
+#     color = "",
+#   ) +
+#   theme_bw() +
+#   theme(
+#     strip.text = element_text(size = 12, face = "bold"),
+#     strip.background = element_rect(fill = "white", colour = "black"),
+#     plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+#     axis.text = element_text(size = 10),
+#     axis.title = element_text(size = 11),
+#     legend.text = element_text(size = 12)
+#   ) +
+#   scale_color_manual(values = c("firebrick","gray30", "gold1", "blue2", "forestgreen"))
+# 
+# 
+# 
+# 
+# # title
+# fig2e_lab <- wrap_elements(
+#   panel = textGrob("Comparison of tPOD Estimates Across Partners over Time",
+#                    gp = gpar(fontface = "bold", fontsize = 18))
+# )
+# 
+# # combine
+# fig2e_total <- wrap_elements(fig2e_lab / fig2e + plot_layout(heights = c(0.5, 5)))
+# fig2e_total
+# 
+# ggsave(plot = fig2e_total, file.path(plotDir, "fig2e.pdf"), width = 10, height = 4)
+# 
 
 ```
 
@@ -353,7 +405,7 @@ tpod_plot_df <- tpod_bootstrapping %>%
 
 
 ### OPTION 1: FACET BY TPOD METHOD
-fig2d_bs = ggplot(tpod_plot_df,
+fig2e_bs = ggplot(tpod_plot_df,
        aes(x = timepoint, y = tpod_median,
            ymin = tpod_lower, ymax = tpod_upper,
            color = partner)) +
@@ -384,74 +436,29 @@ fig2d_bs = ggplot(tpod_plot_df,
     legend.title = element_blank(),
     legend.text = element_text(size = 12)
   ) +
-  scale_y_log10() +
+  # scale_y_log10() +
   scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
                      breaks = c("AristotleU", "GhentU", "BPI", "LeidenU", "Sciensano"))
 
 
+fig2e_bs
 
 # title
-fig2d_lab <- wrap_elements(
+fig2e_lab <- wrap_elements(
   panel = textGrob("tPOD Estimates and Bootstrap Uncertainty",
                    gp = gpar(fontface = "bold", fontsize = 18))
 )
 
 # combine
-fig2d_bs_total <- wrap_elements(fig2d_lab / fig2d_bs + plot_layout(heights = c(0.5, 5)))
-fig2d_bs_total
+fig2e_bs_total <- wrap_elements(fig2e_lab / fig2e_bs + plot_layout(heights = c(0.5, 5)))
+fig2e_bs_total
 
-ggsave(plot = fig2d_bs_total, file.path(plotDir, "fig2d_bs_total.pdf"), width = 10, height = 4)
+ggsave(plot = fig2e_bs_total, file.path(plotDir, "fig2e.pdf"), width = 10, height = 4)
 
 
 
 ```
 
-
-
-# Add additional barplot
-## Barplot
-
-```{r}
-label_steps = c(
-  "DRG"  = "Dose Responsive Genes",
-  "PMFG" = "Post Model Filter Genes"
-)
-
-  
-barplot_DRGs = DRGs %>%
-  ggplot(aes(x = partner, y = value, fill = value)) +
-  geom_bar(stat = "identity") +
-  facet_grid(step ~ timepoint,
-             labeller = labeller(step = label_steps)) +
-  theme_bw() +
-  theme(
-    strip.background = element_rect(fill = "white", colour = "black"),
-    strip.text.x = element_text(size = 14, face = "bold"),
-    strip.text.y = element_text(size = 9, face = "bold"),
-    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 12),
-    axis.text.y = element_text(size = 12),
-    axis.title = element_blank(),
-    legend.position = "none"
-  ) +
-  scale_fill_gradient(low = "yellow", high = "red")
-
-barplot_DRGs
-
-
-# generate title
-DRGs_lab <- wrap_elements(panel = textGrob("Number of Dose Responsive Genes", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
-# combine
-DRGs_total = wrap_elements(DRGs_lab /
-  barplot_DRGs + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
-
-
-DRGs_total
-
-ggsave(plot = DRGs_total, file.path(plotDir, "fig2_barplot_DRG.pdf"), width = 15, height = 8)
-
-```
 
 
 
@@ -459,15 +466,15 @@ ggsave(plot = DRGs_total, file.path(plotDir, "fig2_barplot_DRG.pdf"), width = 15
 ## Create total figure 2
 ```{r}
 
-figure2 = DRGs_total /
-  fig2a /
-  (fig2b + fig2c + plot_layout(widths = c(0.6, 1))) /
-  fig2d_bs_total +
+figure2 = fig2a_total /
+  fig2b_total /
+  (fig2c_total + fig2d_total + plot_layout(widths = c(0.6, 1))) /
+  fig2e_bs_total +
   plot_layout(guides = "collect", axis = "collect", heights = c(4,4,6, 3)) + plot_annotation(tag_levels = "A")
 
 figure2
 
-ggsave(plot = figure2, file.path(plotDir, "Figure2_v4.pdf"), width = 17, height = 23)
+ggsave(plot = figure2, file.path(plotDir, "Figure2.pdf"), width = 17, height = 23)
 
 
 ```
