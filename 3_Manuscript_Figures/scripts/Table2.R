@@ -28,7 +28,8 @@ AU_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_B
 
 BPI_pref = fread(file.path(inputDir, "BPI", "All_UnfilteredDRomicV3.txt"), check.names = TRUE) %>%
   filter(adjpvalue < 0.01) %>%
-  mutate(timepoint = factor(timepoint, levels = timepoint_levels))
+  mutate(timepoint = factor(timepoint, levels = timepoint_levels)) 
+
 
 folder_path_GU <- "input/EUT046/Ghent/Ab_initio_UGent/Output_046/Bootstrap_unfiltered"
 GU_pref <- list.files(folder_path_GU, pattern = "\\.txt$", full.names = TRUE) %>%

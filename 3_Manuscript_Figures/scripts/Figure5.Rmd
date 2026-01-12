@@ -495,13 +495,35 @@ plot_bmc_diff_vs_pct_overlap <- function(df,
       rel_diff    = diff_signed / .data[[median_col]]
     )
   
+  df_stats <- df_plot %>%
+  group_by(.data[[time_col]]) %>%
+  summarise(
+    n = sum(is.finite(.data[[pct_col]]) & is.finite(diff_abs)),
+    rho = if (n >= 2)
+      suppressWarnings(cor(.data[[pct_col]], diff_abs,
+                            method = "spearman",
+                            use = "complete.obs"))
+      else NA_real_,
+    p = if (n >= 2)
+      suppressWarnings(cor.test(.data[[pct_col]], diff_abs,
+                                method = "spearman")$p.value)
+      else NA_real_,
+    .groups = "drop"
+  ) %>%
+  filter(n >= 2) %>%  
+  mutate(
+    label = sprintf("Spearman ρ=%.1f\np=%.2g", rho, p)
+  )
+  
+  
+  
   # 3) Plot
   p <- ggplot(df_plot,
               aes(x = .data[[pct_col]],
                   y = diff_abs,
                   color = .data[[time_col]])) +
     geom_point(alpha = 0.6) +
-    geom_smooth(se = FALSE, method = "loess") +
+    geom_smooth(se = FALSE, method = "gam") +
     facet_wrap(as.formula(paste("~", time_col)), drop = FALSE, scales = "free", nrow = 1) +
     labs(
       x = "Percentage of pathway used for BMC calculation",
@@ -509,7 +531,14 @@ plot_bmc_diff_vs_pct_overlap <- function(df,
       title = partner,
       subtitle = pathwaySource
     ) +
-    scale_color_manual(values = timepoint_cols)
+    scale_color_manual(values = timepoint_cols) +
+    geom_text(
+      data = df_stats,
+      aes(x = -Inf, y = Inf, label = label),
+      inherit.aes = FALSE,
+      hjust = -0.05, vjust = 1.05,
+      size = 3
+    )
   
   if (log_x) p <- p + scale_x_log10()
   if (log_y) p <- p + scale_y_log10()
@@ -545,16 +574,6 @@ ggsave(plot = fig5d_total, file.path(plotDir, "fig5d.pdf"), width = 15, height =
 
 ## Generate total figure 5
 ```{r}
-fig5_top = wrap_elements(fig5a) + wrap_elements(fig5c_total) + plot_layout(widths = c(1.4, 2.1), nrow = 1, ncol = 2)
-
-fig5 = wrap_elements(fig5_top) /
-  fig5d_total /
-  fig5e_total +
-  plot_layout(heights = c(10, 6, 6), ncol = 1) + plot_annotation(tag_levels = "A")
-
-fig5
-
-ggsave(plot = fig5, file.path(plotDir, "Figure5_v3.pdf"), width = 18, height = 22)
 
 
 fig5 = (fig5a_total + fig5b_total + plot_layout(widths = c(1.4, 2.1), ncol = 2)) /
