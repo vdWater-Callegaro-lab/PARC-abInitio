@@ -541,7 +541,7 @@ norm_HALLMARK_combined_wide = df_list_HALLMARK %>% reduce(full_join, by = c("Pat
 
 
 # Pathway of choice combined
-df_list_pathwaysChoice = list(AU_norm_KEGG_select, GU_norm_HALLMARK_select, LU_norm_modules_select, Sciensano_norm_TXDDI_GENOMARK_select, BPI_norm_WIKIPATHWAYS)
+df_list_pathwaysChoice = list(AU_norm_KEGG_select, GU_norm_HALLMARK_select, LU_norm_modules_select, Sciensano_norm_TXDDI_GENOMARK_select, BPI_norm_WIKIPATHWAYS_select)
 
 norm_pathwaysChoice_combined = bind_rows(df_list_pathwaysChoice) %>% as_tibble()
 
@@ -557,9 +557,6 @@ df_list_BMD_filtered_for_pw = list(
 genes_in_HALLMARKp53 = GU_pathway_overview %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>% pull(gene_symbol_entrez_id) %>% unique()
 
 norm_BMD_combined_HALLMARKp53 = bind_rows(df_list_BMD_filtered_for_pw) %>% as_tibble() %>% filter(gene_symbol_entrez_id %in% genes_in_HALLMARKp53)
-
-
-# pathway of choice genes BMD combined ? (need to add?)
 
 ```
 

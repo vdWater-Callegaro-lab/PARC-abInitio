@@ -61,7 +61,7 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr)
+pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr, grid)
 ```
 
 
@@ -86,6 +86,9 @@ if(!dir.exists(plotDir)){
 ```{r}
 timepoint_levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 
+# manifest
+manifest = fread("input/Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt")
+
 # load data after prefilter but before post model filters
 ## BMD normalized counts
 AU_norm_BMD_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE) %>%
@@ -95,7 +98,8 @@ AU_norm_BMD_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2
 ))
 
 BPI_norm_BMD_pref = fread(file.path(inputDir, "BPI" , "All_UnfilteredDRomicV3.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
-  timepoint, levels = timepoint_levels)) %>% dplyr::rename("gene_symbol_entrez_id" = id)
+  timepoint, levels = timepoint_levels)) %>% dplyr::rename("Probe_ID" = id) %>%
+  unite(c("gene_symbol", "entrez_id"), col = "gene_symbol_entrez_id")
 
 
 folder_path_GU <- "input/EUT046/Ghent/Ab_initio_UGent/Output_046/Bootstrap_unfiltered"
