@@ -1,0 +1,951 @@
+---
+title: "BMD Reporting Template"
+author: "Imke Bruns / LeidenU"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    keep_md: false
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    number_sections: true
+  pdf_document:
+    toc: true
+    toc_depth: '4'
+params:
+  study_id: EUT046
+  input_dir: input/LeidenU
+  output_dir: output/LeidenU
+  run_bmd_normalized_counts: true
+  run_bmd_log2fc: true
+  run_bmd_pathway_scores: true
+  have_median_pathway_scores: true
+  have_trend_test: true
+  files:
+    value:
+      sample_metadata: sample_metadata.txt
+      normalized_counts: normalized_counts.txt
+      log2fc_table: log2fc_table.txt
+      pathway_overview: pathway_overview_hallmarks.txt
+      bmd_gene_normalized_counts: BMD_output_normalized_counts.txt
+      bmd_gene_log2fc: BMD_output_log2fc.txt
+      bmd_pathway_scores: BMD_output_pathway_scores.txt
+      median_bmd_normalized_counts: medianBMD_pathway_normalized_counts_hallmarks.txt
+      median_bmd_log2fc: medianBMD_pathways_log2fc.txt
+      tt_normalized_counts: WTT_normalized_counts.txt
+      tt_log2fc: WTT_log2fc.txt
+      tt_pathway_scores: WTT_pathway_scores.txt
+  columns:
+    value:
+      metadata:
+        sample_id:
+        - sampleid
+        - id
+        dose:
+        - dose
+        - conc
+        - concentration
+        - doseum
+        timepoint:
+        - timepoint
+        - time
+        - tp
+        - hrs
+        - hours
+        compound:
+        - compound
+        - treatment
+        - chemical
+        - agent
+        - experiment
+        replicate:
+        - replicate
+        - rep
+        - biorep
+        - techrep
+      gene_table:
+        gene_id:
+        - genesymbolentrezid
+        - gene
+        - symbol
+        - geneid
+        - genesymbol
+        - entrezid
+        - ensembl
+        - ensemblid
+        - probeid
+      pathway_overview:
+        gene_id:
+        - genesymbolentrezid
+        - gene
+        - symbol
+        - geneid
+        - genesymbol
+        - entrezid
+        - ensembl
+        - ensemblid
+        - probeid
+        pathway_id:
+        - module
+        - pathway
+        - network
+        - set
+        - term
+        - pathwayname
+        - description
+      bmd_gene:
+        gene_id:
+        - genesymbolentrezid
+        - gene
+        - symbol
+        - geneid
+        - genesymbol
+        - entrezid
+        - ensembl
+        - ensemblid
+        - probeid
+        timepoint:
+        - timepoint
+        - tp
+        - hours
+        - hrs
+        bmd:
+        - bestbmd
+        - bmd
+        - bmdzsd
+        bmdl:
+        - bestbmdl
+        - bmdl
+        - bmdzsdlower
+        bmdu:
+        - bestbmdu
+        - bmdu
+        - bmdzsdupper
+      bmd_pathway:
+        pathway_id:
+        - module
+        - pathway
+        - pathwayname
+        timepoint:
+        - timepoint
+        - tp
+        - hours
+        - hrs
+        bmd:
+        - bestbmd
+        - bmd
+        bmdl:
+        - bestbmdl
+        - bmdl
+        - bmdzsdlower
+        bmdu:
+        - bestbmdu
+        - bmdu
+        - bmdzsdupper
+      bmd_median_pathway:
+        pathway_id:
+        - pathway
+        - module
+        - network
+        - set
+        - term
+        - gopathwaygenesetgenename
+        - pathwayname
+        - description
+        timepoint:
+        - timepoint
+        - tp
+        - hours
+        - hrs
+        bmd:
+        - bmdmedian
+        - bmd
+        - bmdzsd
+        - median
+        - medianbmd
+        bmdl:
+        - bmdlmedian
+        - bmdl
+        - bmdzsdlower
+        - medianbmdl
+        - bmdfirstquartile
+        bmdu:
+        - bmdumedian
+        - bmdu
+        - bmdzsdupper
+        - medianbmdu
+        - bmdthirdquartile
+      tt:
+        gene_id:
+        - genesymbolentrezid
+        - gene
+        - symbol
+        - geneid
+        - genesymbol
+        - entrezid
+        - ensembl
+        - ensemblid
+        - probeid
+        timepoint:
+        - timepoint
+        - tp
+        - hours
+        - hrs
+        adj_p:
+        - adjustedpvalue
+        - padj
+        - fdr
+        - qvalue
+        - adjpvalue
+        - prefilteradjustedpvalue
+        p:
+        - pvalue
+        - p
+        - pval
+        - unadjustedpvalue
+        - prefilterpvalue
+        max_fold_change:
+        - maxfoldchange
+        - maxfc
+      tt_pathway:
+        pathway_id:
+        - pathway
+        - module
+        - pathwayname
+        timepoint:
+        - timepoint
+        - tp
+        - hours
+        - hrs
+        adj_p:
+        - adjustedpvalue
+        - padj
+        - fdr
+        - qvalue
+        - adjpvalue
+        - prefilteradjustedpvalue
+        p:
+        - pvalue
+        - p
+        - pval
+        - unadjustedpvalue
+        - prefilterpvalue
+        max_fold_change:
+        - maxfoldchange
+        - maxfc
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.align = "center")
+```
+
+
+# Set up Analysis {.tabset}
+
+## Load packages
+```{r}
+pacman::p_load(
+  tidyverse,
+  readr,
+  readxl,
+  janitor,
+  glue,
+  here,
+  fs,
+  ggfortify,
+  gridExtra,
+  pheatmap,
+  plotly,
+  DT,
+  knitr,
+  cowplot,
+  kableExtra,
+  scales,
+  data.table,
+  stats
+)
+```
+
+## Directories
+```{r}
+# Resolve & create directories if needed
+input_dir   <- fs::path(params$input_dir)
+output_dir  <- fs::path(params$output_dir)
+
+fs::dir_create(input_dir)
+fs::dir_create(output_dir)
+```
+
+## Helpers
+Reusable utilities for reading, standardizing, and checking data.
+
+```{r}
+source("R/read_utils.R")
+```
+
+
+## Import data
+```{r}
+files <- params$files
+cols  <- params$columns
+
+# Sample metadata
+if(fs::file_exists(fs::path(input_dir, files$sample_metadata))){
+  sample_metadata <- read_any(files$sample_metadata) %>%
+  rename_using_mapping(cols$metadata) %>%
+  require_cols(c("sample_id","dose","timepoint"), "sample_metadata") %>%
+  mutate(
+    dose = as.numeric(dose),
+    timepoint = as.character(timepoint),
+    timepoint = order_tp(timepoint)
+  )
+} else {
+  message("No metadata provided.")
+}
+
+
+# Normalized counts (genes x samples); first column = gene id
+normalized_counts <- NULL
+if(fs::file_exists(fs::path(input_dir, files$normalized_counts))){
+  normalized_counts <- read_counts_matrix(files$normalized_counts) # Map synonyms to standard names
+}
+
+
+# Ensure we have a 'gene_id' column; if not, promote the first matching synonym
+if (!"gene_id" %in% names(normalized_counts)) {
+  gene_syn <- janitor::make_clean_names(unlist(cols$gene_table$gene_id, use.names = FALSE))
+  hit <- intersect(gene_syn, names(normalized_counts))
+  if (length(hit) >= 1) {
+    names(normalized_counts)[match(hit[1], names(normalized_counts))] <- "gene_id"
+  }
+}
+
+
+# Optional log2FC table
+log2fc_table <- NULL
+if (params$run_bmd_log2fc && fs::file_exists(fs::path(input_dir, files$log2fc_table))) {
+  log2fc_table <- read_counts_matrix(files$log2fc_table)
+  colnames(log2fc_table)[1] <- "gene_id"
+}
+
+# Pathway overview (gene -> pathway)
+pathway_overview <- NULL
+if (params$have_median_pathway_scores || params$run_bmd_pathway_scores && fs::file_exists(fs::path(input_dir, files$pathway_overview))) {
+  pathway_overview <- read_any(files$pathway_overview) %>%
+  rename_using_mapping(cols$pathway_overview) %>%
+  require_cols(c("gene_id", "pathway_id"), "pathway_overview")
+}
+
+
+# --- BMD outputs (gene-level) ---
+BMD_gene_normalized_counts <- NULL
+if(params$run_bmd_normalized_counts && fs::file_exists(fs::path(input_dir, files$bmd_gene_normalized_counts))) {
+  BMD_gene_normalized_counts <- read_any(files$bmd_gene_normalized_counts) %>%
+  rename_using_mapping(cols$bmd_gene) %>%
+  require_cols(c("gene_id","timepoint","bmd","bmdl","bmdu"), "BMD gene normalized counts")
+}
+
+
+BMD_gene_log2fc <- NULL
+if (params$run_bmd_log2fc && fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc))) {
+  BMD_gene_log2fc <- read_any(files$bmd_gene_log2fc) %>%
+    rename_using_mapping(cols$bmd_gene) %>%
+    require_cols(c("gene_id","timepoint","bmd","bmdl","bmdu"), "BMD gene log2fc")
+}
+
+# --- BMD outputs (pathway-level) ---
+BMD_pathway_scores <- NULL
+if (params$run_bmd_pathway_scores && fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores))) {
+  BMD_pathway_scores <- read_any(files$bmd_pathway_scores) %>%
+    rename_using_mapping(cols$bmd_pathway) %>%
+    require_cols(c("pathway_id","timepoint","bmd","bmdl","bmdu"), "BMD pathway scores")
+}
+
+medianBMD_pathways_from_genes <- NULL
+if (params$have_median_pathway_scores && fs::file_exists(fs::path(input_dir, files$median_bmd_normalized_counts))) {
+  medianBMD_pathways_from_genes <- read_any(files$median_bmd_normalized_counts) %>%
+    rename_using_mapping(cols$bmd_median_pathway) %>%
+    require_cols(c("pathway_id","bmd","bmdl","bmdu", "timepoint"), "median pathway BMD from genes")
+}
+
+# --- Trend Test (optional) ---
+TT_normalized_counts <- NULL
+if (params$have_trend_test && fs::file_exists(fs::path(input_dir, files$tt_normalized_counts))) {
+  TT_normalized_counts <- read_any(files$tt_normalized_counts) %>%
+    rename_using_mapping(cols$tt) %>%
+    require_cols(c("gene_id", "timepoint"), "TT normalized counts")
+
+  # Require at least ONE p column
+  if (!("p" %in% names(TT_normalized_counts)) && !("adj_p" %in% names(TT_normalized_counts))) {
+    stop("TT normalized counts must contain either 'p' or 'adj_p' (or both).")
+  }
+
+  # Optional max_fold_change
+  if (!"max_fold_change" %in% names(TT_normalized_counts)) {
+    TT_normalized_counts$max_fold_change <- NA_real_
+  }
+}
+
+
+
+TT_log2fc <- NULL
+if (params$have_trend_test && params$run_bmd_log2fc && fs::file_exists(fs::path(input_dir, files$tt_log2fc))) {
+  TT_log2fc <- read_any(files$tt_log2fc) %>%
+    rename_using_mapping(cols$tt) %>%
+    require_cols(c("gene_id", "timepoint"), "TT log2fc")
+
+  # Require at least ONE p column
+  if (!("p" %in% names(TT_log2fc)) && !("adj_p" %in% names(TT_log2fc))) {
+    stop("TT log2fc counts must contain either 'p' or 'adj_p' (or both).")
+  }
+
+  # Optional max_fold_change
+  if (!"max_fold_change" %in% names(TT_log2fc)) {
+    TT_log2fc$max_fold_change <- NA_real_
+  }
+}
+
+
+TT_pathway_scores <- NULL
+if (params$have_trend_test && params$run_bmd_pathway_scores && fs::file_exists(fs::path(input_dir, files$tt_pathway_scores))) {
+  TT_pathway_scores <- read_any(files$tt_pathway_scores) %>%
+    rename_using_mapping(cols$tt_pathway) %>%
+    require_cols(c("pathway_id", "timepoint"), "TT pathway scores")
+
+  # Require at least ONE p column
+  if (!("p" %in% names(TT_pathway_scores)) && !("adj_p" %in% names(TT_pathway_scores))) {
+    stop("TT pathway scores counts must contain either 'p' or 'adj_p' (or both).")
+  }
+
+  # Optional max_fold_change
+  if (!"max_fold_change" %in% names(TT_pathway_scores)) {
+    TT_pathway_scores$max_fold_change <- NA_real_
+  }
+}
+
+```
+
+# Generate BMD Report
+
+## Data overview
+In this section, we explore the data to assess concentration-dependent effects and identify early indications of dose–response behavior. Specifically, we evaluate global expression patterns using the following approaches:   
+* Principal Component Analysis (PCA).  
+* Heatmap visualization.  
+   
+### Principal component analysis {.tabset}
+
+#### Normalized counts
+```{r, warning=FALSE, message=TRUE}
+
+if((params$run_bmd_normalized_counts && fs::file_exists(fs::path(input_dir, files$normalized_counts)))) {
+  pca_data <- normalized_counts |>
+    column_to_rownames("gene_id") |>
+    t() |>
+    as.data.frame() |>
+    rownames_to_column("sample_id") |>
+    left_join(sample_metadata, by = "sample_id")
+  
+  gene_cols <- setdiff(names(pca_data), names(sample_metadata))
+  
+  pca <- stats::prcomp(pca_data |> select(gene_cols),
+                       scale. = TRUE,
+                       center = TRUE)
+  
+  autoplot(pca,
+           data = pca_data |> mutate(dose = as.factor(dose)),
+           color = "dose") +
+    facet_wrap(~ timepoint) +
+    theme_bw() +
+    labs(title = "PCA - colored by dose", subtitle = "normalized counts") +
+    theme(
+      plot.title = element_text(
+        size = 18,
+        face = "bold",
+        hjust = 0.5
+      ),
+      plot.subtitle = element_text(
+        size = 14,
+        face = "italic",
+        hjust = 0.5
+      )
+    )
+} else {
+  message("Skipping PCA - log2fc (missing data or disabled by params).")
+}
+
+
+```
+
+
+#### Log2FC
+```{r, warning=FALSE, message=TRUE}
+
+if((params$run_bmd_log2fc &&
+    fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc)))) {
+  pca_data <- log2fc_table |>
+    as.data.frame() |>
+    column_to_rownames("gene_id") |>
+    t() |>
+    as.data.frame() |>
+    rownames_to_column("sample_id") |>
+    left_join(sample_metadata, by = "sample_id")
+  
+  gene_cols <- setdiff(names(pca_data), names(sample_metadata))
+  
+  pca <- stats::prcomp(pca_data |> select(gene_cols),
+                       scale. = TRUE,
+                       center = TRUE)
+  
+  autoplot(pca,
+           data = pca_data |> mutate(dose = as.factor(dose)),
+           color = "dose") +
+    facet_wrap(~ timepoint) +
+    theme_bw() +
+    labs(title = "PCA - colored by dose", subtitle = "log2fc") +
+    theme(
+      plot.title = element_text(
+        size = 18,
+        face = "bold",
+        hjust = 0.5
+      ),
+      plot.subtitle = element_text(
+        size = 14,
+        face = "italic",
+        hjust = 0.5
+      )
+    )
+} else {
+  message("Skipping PCA - log2fc (missing data or disabled by params).")
+}
+
+```
+
+
+
+## Gene-Level Benchmark Dose Modeling
+In this section, we evaluate the benchmark dose (BMD/BMC) modeling results at the gene level. BMD/BMC values were derived using normalized count data and, where applicable, log2 fold-change values. Specifically, we:    
+- Identify dose-responsive genes using the Trend Test (TT).   
+- Generate accumulation plots to summarize gene-level responses.    
+- Determine transcriptional points of departure (tPODs), including:   
+        * The 5th percentile of gene BMDs    
+        * The 25th ranked gene      
+        * The Lowest Consistent Response Dose (LCRD)     
+        * The first mode of the BMD distribution          
+- Visualize tPOD values using histogram plots.
+  
+  
+### Identification of Dose Responsive Genes (TT) {.tabset}
+
+```{r}
+source("R/trendtest_results.R")
+```
+
+
+#### Normalized counts
+```{r, warning=FALSE, message=TRUE, eval=((params$have_trend_test && params$run_bmd_normalized_counts) && fs::file_exists(fs::path(input_dir, files$tt_normalized_counts)))}
+
+doseresponsive_plot(
+  TT = TT_normalized_counts,
+  level = "genes",
+  p_col = "p",
+  p_thresh = 0.05
+) %>% print()
+
+dose_responsive_table(TT = TT_normalized_counts, return_data = FALSE)
+
+tbl <- dose_responsive_table(TT = TT_normalized_counts, return_data = TRUE)
+
+data.table::fwrite(tbl,
+                   file.path(output_dir, "dose_responsive_genes_normalized_counts.txt"),
+                   sep = "\t")
+
+
+```
+
+```{r, eval=!((params$have_trend_test && params$run_bmd_normalized_counts) && fs::file_exists(fs::path(input_dir, files$tt_normalized_counts))), message=TRUE}
+
+message("Skipping Dose Responsive Genes output - normalized counts (missing data or disabled by params).")
+```
+
+
+#### Log2fc
+```{r, warning=FALSE, message=TRUE, eval=((params$have_trend_test && params$run_bmd_log2fc) && fs::file_exists(fs::path(input_dir, files$tt_log2fc)))}
+
+doseresponsive_plot(
+  TT = TT_log2fc,
+  level = "genes",
+  p_col = "p",
+  p_thresh = 0.05
+) %>% print()
+
+dose_responsive_table(TT = TT_log2fc, return_data = FALSE)
+
+tbl <- dose_responsive_table(TT = TT_normalized_counts, return_data = TRUE)
+
+data.table::fwrite(tbl,
+                   file.path(output_dir, "dose_responsive_genes_log2fc.txt"),
+                   sep = "\t")
+
+```
+
+  
+```{r, eval=!((params$have_trend_test && params$run_bmd_log2fc) && fs::file_exists(fs::path(input_dir, files$tt_log2fc))), message=TRUE}
+
+message("Skipping Dose Responsive Genes output - log2FC (missing data or disabled by params).")
+```
+   
+   
+### BMD Distributions and Accumulation Plots {.tabset}
+Investigate the accumulative distribution of BMDs.
+
+```{r}
+source("R/plots_accumulation.R")
+```
+
+
+#### Normalized counts
+```{r, message=TRUE}
+
+if ((params$run_bmd_normalized_counts) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_gene_normalized_counts))) {
+  accumulation_plot(BMD_gene_normalized_counts,
+                    title_prefix = "Gene",
+                    label_col = "gene_id")
+} else {
+  message("Skipping BMD Accumulation - normalized counts (missing data or disabled by params).")
+}
+
+```
+
+#### Log2fc
+```{r, message=TRUE}
+
+if ((params$run_bmd_log2fc) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc))) {
+  accumulation_plot(BMD_gene_log2fc, title_prefix = "Gene", label_col = "gene_id")
+
+} else {
+  message("Skipping BMD Accumulation - log2FC (missing data or disabled by params).")
+}
+
+
+```
+
+
+
+### tPOD Derivation {.tabset}
+In this part we calculate BMD distribution based tPODs:    
+- 5th Percentile.     
+- 25th Ranked Gene.  
+- Lowest Consistent Response Dose (LCRD).  
+- First Mode of the Distribution.  
+- Inflection Point (Kneedle).  
+   
+```{r}
+source("R/calculate_distributionBased_tPODs.R")
+```
+
+
+#### Normalized counts
+
+##### Calculate tPODs
+
+```{r, eval=((params$run_bmd_normalized_counts) && fs::file_exists(fs::path(input_dir, files$bmd_gene_normalized_counts))), message=TRUE}
+message("Calculating Distribution Based tPODs - normalized counts")
+
+bmd_summary_table(BMD_gene_normalized_counts, caption = "Gene-level BMD metrics (normalized counts)")
+
+# Get the underlying data frame:
+tPODs_normalized_counts <- bmd_summary_table(BMD_gene_normalized_counts, return_data = TRUE)
+data.table::fwrite(
+  tPODs_normalized_counts,
+  file.path(
+    output_dir,
+    "distribution_based_tPODs_normalized_counts.txt"
+  ),
+  sep = "\t"
+)
+
+```
+
+```{r, eval=!((params$run_bmd_normalized_counts) && fs::file_exists(fs::path(input_dir, files$bmd_gene_normalized_counts))), message=TRUE}
+
+message("Skipping Distribution Based tPOD calculation - normalized counts (mising data or disabled by params).")
+```
+
+
+##### Plot tPODs in histogram BMD distribution 
+```{r}
+source("R/plot_hist_tPODs.R")
+```
+
+```{r, fig.width=10, fig.height=7, message=TRUE}
+
+if ((params$run_bmd_normalized_counts) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_gene_normalized_counts))) {
+  
+  plot_bmd_hist_with_tpods(
+    bmd   = BMD_gene_normalized_counts,
+    tpods = tPODs_normalized_counts,
+    value_col = "bmd",
+    tp_col = "timepoint",
+    tpods_tpcol = "timepoint",
+    log10_x = TRUE
+  ) %>% print()
+  
+  
+} else {
+  message(
+    "Skipping Histogram with tPODs - normalized counts (missing data or disabled by params)."
+  )
+}
+
+
+```
+
+
+#### Log2fc
+
+##### Calculate tPODs
+```{r, eval=((params$run_bmd_log2fc) && fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc))), message=TRUE}
+message("Calculating Distribution Based tPODs - log2FC")
+
+bmd_summary_table(BMD_gene_log2fc, caption = "Gene-level BMD metrics (log2FC)")
+
+
+# Get the underlying data frame:
+tPODs_log2fc <- bmd_summary_table(BMD_gene_log2fc, return_data = TRUE)
+data.table::fwrite(tPODs_log2fc,
+                   file.path(output_dir, "distribution_based_tPODs_log2fc.txt"),
+                   sep = "\t")
+
+```
+
+```{r, eval=!((params$run_bmd_log2fc) && fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc))), message=TRUE}
+
+message("Skipping Distribution Based tPOD calculation - log2FC (missing data or disabled by params).")
+```
+
+
+##### Plot tPODs in histogram BMD distribution 
+```{r, fig.width=10, fig.height=7, message=TRUE}
+
+if ((params$run_bmd_log2fc) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_gene_log2fc))) {
+  
+  plot_bmd_hist_with_tpods(
+  bmd   = BMD_gene_log2fc,
+  tpods = tPODs_log2fc,
+  value_col = "bmd",
+  tp_col = "timepoint",
+  tpods_tpcol = "timepoint",
+  log10_x = TRUE
+) %>% print()
+  
+  
+} else {
+  message(
+    "Skipping Histogram with tPODs - log2FC (missing data or disabled by params)."
+  )
+}
+
+
+```
+
+
+
+
+
+## Pathway-Level BMDs Based on Gene Aggregation 
+In the second part of the analysis, we assess pathway-level BMDs by aggregating gene-level results. For each pathway, the BMD is summarized using the median BMD of its constituent genes. This allows us to evaluate coordinated biological responses rather than individual gene effects. In this section, we:    
+- Identify the top five pathways with the lowest median BMD for each timepoint, representing the most sensitive biological responses.   
+- Visualize the distribution of BMDs for the genes within these top pathways, including associated confidence intervals (BMDL and BMDU), to highlight the variability and robustness of pathway-level effects.    
+     
+
+### Median Pathway BMD and Confidence Intervals {.tabset}
+
+```{r}
+source("R/table_lowest_pathways.R")
+```
+
+#### Top 5 networks lowest BMD
+Select top 5 networks with the lowest median BMD per timepoint; indicating the most sensitive pathways to compound exposure
+```{r, eval=((params$have_median_pathway_scores) && fs::file_exists(fs::path(input_dir, files$median_bmd_normalized_counts))), message=FALSE}
+
+tabs <- render_top_pathway_tables(df=medianBMD_pathways_from_genes, n = Inf, page_length = 5)
+tabs
+
+
+overview <- save_top_pathway_overview(
+  df=medianBMD_pathways_from_genes,
+  output_dir = output_dir,
+  filename = "medianBMD_ordered_pathways_per_timepoint.txt",
+  n = Inf
+)
+
+top_pw_pertp = make_top_pw_pertp(df=medianBMD_pathways_from_genes,
+                                 k=4)
+```
+
+
+```{r, eval=!((params$have_median_pathway_scores) && fs::file_exists(fs::path(input_dir, files$median_bmd_normalized_counts)))}
+
+message("Skipping table showing most sensitive pathways (missing data or disables by params).")
+```
+
+
+
+#### Distribution genes in top pathways
+```{r}
+source("R/plot_pathway_gene_BMD.R")
+```
+
+Show the distribution of the genes in the top 5 pathways (bmd, bmdl, bmdu for each gene), and compare to the gene set derived BMD. If a gene set contains > 30 genes, we remove the gene names to make the plot readable.
+```{r, warning=FALSE, fig.width=15, fig.height=15, message=TRUE}
+
+
+if((params$have_median_pathway_scores) &&
+   fs::file_exists(fs::path(input_dir, files$median_bmd_normalized_counts))) {
+  message("Plot Distribution BMDs (BMDL/BMDU) Genes in Top 5 Pathways")
+  
+  plot_bmd_genes_top_per_tp(
+    top_pw_pertp = top_pw_pertp,
+    gene_bmd = BMD_gene_normalized_counts,
+    pathway_overview = pathway_overview,
+    combine_per_tp = TRUE
+  ) %>% print()
+} else {
+  message("Skipping distribution of genes in most sensitive pathways (missing data or disables by params).")
+}
+
+
+```
+
+
+## Pathway Score–Based Benchmark Dose Modeling
+The final part of the analysis focuses on pathway-level benchmark dose modeling based on pathway activity scores, rather than individual gene values. Pathway activity was summarized using metrics such as normalized enrichment scores (NES) or eigengene scores. This approach captures coordinated changes across all genes within a pathway and provides an integrated measure of pathway activation. In this section, we:   
+- Identify dose-responsive pathways based on their dose–response trends.    
+- Calculate transcriptional points of departure (tPODs), using the same metrics applied at the gene level.    
+
+### Identification of Dose Responsive Pathways
+```{r, message=TRUE}
+
+if ((params$have_trend_test &&
+     params$run_bmd_pathway_scores) &&
+    fs::file_exists(fs::path(input_dir, files$tt_pathway_scores))) {
+  doseresponsive_plot(
+    TT = TT_pathway_scores,
+    level = "modules",
+    p_col = "p",
+    p_thresh = 0.05
+  ) %>% print()
+  
+  dose_responsive_table(TT = TT_pathway_scores, return_data = FALSE)
+  
+  tbl <- dose_responsive_table(TT = TT_pathway_scores, return_data = TRUE)
+  data.table::fwrite(tbl,
+                     file.path(output_dir, "dose_responsive_genes_pathways.txt"),
+                     sep = "\t")
+  
+} else {
+  message("Skipping Dose Responsive Genes output - pathway scores (missing data or disabled by params).")
+}
+
+```
+
+### Top 5 networks lowest BMD
+Select top networks with the lowest BMD per timepoint; indicating the most sensitive pathways to compound exposure
+```{r, eval=((params$run_bmd_pathway_scores) && fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores)))}
+
+tabs <- render_top_pathway_tables(df=BMD_pathway_scores, n = Inf, page_length = 5)
+tabs
+
+
+overview <- save_top_pathway_overview(
+  df=BMD_pathway_scores,
+  output_dir = output_dir,
+  filename = "pathwayscore_baased_modeling_ordered_pathways_per_timepoint.txt",
+  n = Inf
+)
+
+top_pw_pertp = make_top_pw_pertp(df=BMD_pathway_scores,
+                                 k=4)
+
+```
+
+```{r, eval=!((params$run_bmd_pathway_scores) && fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores))), message=TRUE}
+message("Skipping table showing most sensitive pathways (missing data or disables by params).")
+```
+
+
+### BMD Distributions and Accumulation plots
+```{r, message=TRUE}
+
+if ((params$run_bmd_pathway_scores) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores))) {
+  
+  accumulation_plot(BMD_pathway_scores, title_prefix = "Module", label_col = "pathway_id")
+} else {
+  message("Skipping BMD Accumulation - pathway scores (missing data or disabled by params).")
+}
+  
+
+```
+
+
+
+### tPOD Derivation
+
+#### Calculate tPODs
+```{r, warning=FALSE, message=TRUE, eval=((params$run_bmd_pathway_scores) && fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores)))}
+
+message("Calculating Distribution Based tPODs - pathway scores")
+
+bmd_summary_table(BMD_pathway_scores, caption = "Pathway Score-Based BMD metrics")
+
+# Get the underlying data frame:
+tPODs_pathway_scores <- bmd_summary_table(BMD_pathway_scores, return_data = TRUE)
+data.table::fwrite(
+  tPODs_pathway_scores,
+  file.path(output_dir, "distribution_based_tPODs_pathway_scores.txt"),
+  sep = "\t"
+)
+
+```
+
+```{r, warning=FALSE, message=TRUE, eval=!((params$run_bmd_pathway_scores) && fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores)))}
+message("Skipping Pathway Score-Based tPOD derivation (missing data or disabled by params).")
+```
+
+
+
+#### Plot tPODs in histogram BMD distribution 
+```{r, fig.width=10, fig.height=7}
+
+if ((params$run_bmd_pathway_scores) &&
+    fs::file_exists(fs::path(input_dir, files$bmd_pathway_scores))) {
+  message("Plot tPODs in BMD distribution - pathway scores")
+  
+  plot_bmd_hist_with_tpods(
+  bmd   = BMD_pathway_scores,
+  tpods = tPODs_pathway_scores,
+  value_col = "bmd",
+  tp_col = "timepoint",
+  tpods_tpcol = "timepoint",
+  log10_x = TRUE
+) %>% print()
+  
+  
+} else {
+  message(
+    "Skipping Histogram with tPODs - pathway scores (missing data or disabled by params)."
+  )
+}
+
+
+```
+
+
+
