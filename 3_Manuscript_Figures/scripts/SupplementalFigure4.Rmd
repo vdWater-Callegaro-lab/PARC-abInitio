@@ -197,7 +197,7 @@ supfig4 <- ggplot() +
 
 supfig4
 
-ggsave(plot = supfig4, file.path(plotDir, "supplementalFigure4.pdf"), width=15, height = 13)
+ggsave(plot = supfig4, file.path(plotDir, "SupplementalFigure4.pdf"), width=15, height = 13)
 
 ```
 
