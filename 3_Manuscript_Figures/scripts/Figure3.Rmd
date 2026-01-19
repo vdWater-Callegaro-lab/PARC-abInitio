@@ -95,6 +95,7 @@ if(!dir.exists(plotDir)){
 ```{r}
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 
+pw_gene_cor = data.table::fread(file.path(outputDir, "pathway_vs_gene_correlations_same_n.txt"))
 ```
 
 
@@ -189,27 +190,47 @@ fig3b_total <- wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(
 
 fig3b_total
 
-ggsave(plot = fig3b_total, file.path(plotDir, "fig3b.pdf"), width = 10, height = 10.5)
+ggsave(plot = fig3b_total, file.path(plotDir, "fig3b.pdf"), width = 13, height = 10.5)
 
 ```
 
-
-
 ## Figure 3c
 ```{r}
+pwgene_plot <- pw_gene_cor %>%
+  mutate(
+    pair = paste(partner_a, "vs", partner_b),
+    diff_pathway_minus_gene = r_pathway - r_gene_mean,
+    timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h"))
+  )
 
-fig3c_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY")
-fig3c_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3c = ggplot(pwgene_plot, aes(x = pair)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  # Bootstrap gene expectation (mean + 95% interval)
+  geom_errorbar(aes(ymin = r_gene_q025, ymax = r_gene_q975), width = 0.2) +
+  geom_point(aes(y = r_gene_mean), size = 2) +
+  # Observed pathway correlation
+  geom_point(aes(y = r_pathway),
+             shape = 4,
+             size = 3,
+             stroke = 1) +
+  coord_flip() +
+  facet_wrap( ~ timepoint, scales = "free_y", ncol = 1) +
+  labs(
+    x = NULL,
+    y = "Correlation",
+    title = "Pathway vs Gene Correlations",
+    subtitle = "same #n"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(face = "italic", hjust = 0.5),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text  = element_text(size = 10),
+    strip.background = element_rect(fill = "white", colour = "black")
+  )
 
-
-# generate title
-fig3c_lab = wrap_elements(panel = textGrob("Median BMC Accumulation - 24h & 48h", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
-fig3c_total = wrap_elements(fig3c_lab / fig3c_24h / fig3c_48h + plot_layout(guides = "collect", axis = "collect", heights = c(0.75, 7.5, 7.5)))
-fig3c_total
-
-ggsave(plot = fig3c_total, filename = file.path(plotDir, "fig3c.pdf"), width = 7.5, height = 10.5)
+ggsave(file.path(getwd(), "figures", "EUT046", "fig3c.pdf"), width=4.1, height=15)
 ```
 
 
@@ -217,7 +238,26 @@ ggsave(plot = fig3c_total, filename = file.path(plotDir, "fig3c.pdf"), width = 7
 ## Figure 3d
 ```{r}
 
-fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD)) +
+fig3d_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY") 
+fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY")
+
+
+# generate title
+fig3d_lab = wrap_elements(panel = textGrob("Median BMC Accumulation - 24h & 48h", gp = gpar(fontface = "bold", fontsize = 18)))
+
+
+fig3d_total = wrap_elements(fig3d_lab / fig3d_24h / fig3d_48h + plot_layout(guides = "collect", axis = "collect", heights = c(0.75, 7.5, 7.5)))
+fig3d_total
+
+ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 7.5, height = 10.5)
+```
+
+
+
+## Figure 3e
+```{r}
+
+fig3e_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD)) +
   geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
   geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
   geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
@@ -229,12 +269,13 @@ fig3d_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"),
                      labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
   scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))  +
+  theme(legend.position = "none")
 
 
 
 
-fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD)) +
+fig3e_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD)) +
   geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
   geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
   geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
@@ -246,20 +287,21 @@ fig3d_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"),
                      labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
   scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
                      breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))
+                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))  +
+  theme(legend.position = "none")
 
 
 # generate title
-fig3d_lab = wrap_elements(panel = textGrob("BMC Distribution of Genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
+fig3e_lab = wrap_elements(panel = textGrob("BMC Distribution of Genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
 
 
 # combine
-fig3d_total = wrap_elements(fig3d_lab / fig3d_24h / fig3d_48h + plot_layout(heights = c(0.75, 7.5, 7.5), axis = "collect", guides = "collect"))
+fig3e_total = wrap_elements(fig3e_lab / fig3e_24h / fig3e_48h + plot_layout(heights = c(0.75, 7.5, 7.5), axis = "collect", guides = "collect"))
 
-fig3d_total
+fig3e_total
 
 
-ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 17.5, height = 7.5)
+ggsave(plot = fig3e_total, filename = file.path(plotDir, "fig3e.pdf"), width = 17.5, height = 7.5)
 
 
 ```
@@ -268,16 +310,37 @@ ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 1
 
 ```{r}
 
+# figure3 = fig3a_total /
+#   fig3b_total /
+#   (fig3c_total + fig3d_total) +
+#   plot_layout(heights = c(5.5, 14, 8)) +
+#   plot_annotation(tag_levels = "A")
+# 
+# 
+# ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 17, height = 22)
+
+
+
+# combine b, d and e
+fig3bde = wrap_elements(fig3b_total /
+  (fig3d_total + fig3e_total) +
+  plot_layout(heights = c(10, 7), widths = c(10, 4, 6))) + plot_layout(guides = "collect")
+
+# add c
+fig3bdec = wrap_elements(fig3bde + fig3c +
+  plot_layout(widths = c(10, 3)))
+
+# create fig3
 figure3 = fig3a_total /
-  fig3b_total /
-  (fig3c_total + fig3d_total) +
-  plot_layout(heights = c(5.5, 14, 8)) +
+  fig3bdec +
+  plot_layout(heights = c(5, 17)) +
   plot_annotation(tag_levels = "A")
 
+figure3
 
-ggsave(plot = figure3, file.path(plotDir, "Figure3.pdf"), width = 17, height = 22)
+ggsave(file.path(plotDir, "Figure3_v2.pdf"), width = 17, height = 22)
 
-  
+
 
 ```
 

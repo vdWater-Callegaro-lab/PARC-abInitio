@@ -61,7 +61,7 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr, grid)
+pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr, grid, here)
 ```
 
 
@@ -158,64 +158,63 @@ SC_genes_pref = Sciensano_norm_BMD_pref %>% filter(Prefilter.P.Value < 0.01 & Ma
 ### Generate plot per timepoint
 ```{r}
 
-UpSetOutput = NULL
+# ---- collapse ComplexUpset 1.3.3 theme *lists* into single theme objects ----
+themes_fixed <- lapply(ComplexUpset::upset_themes, function(ths) {
+  Reduce(`+`, ths)   # combine theme_minimal() + theme(...) etc into one theme
+})
 
-all_timepoints = timepoint_levels
+UpSetOutput <- list()
+all_timepoints <- timepoint_levels
 
-for(time in all_timepoints) {
-  # get genelist per timepoint
-  geneList = list(
-    AU = AU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+for (time in all_timepoints) {
+
+  geneList <- list(
+    AU  = AU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
     BPI = BPI_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    GU = GU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    LU = LU_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    SC = SC_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+    GU  = GU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    LU  = LU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    SC  = SC_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
   )
-  
-  
-  all_genes <- sort(geneList %>% unlist(use.names = FALSE) %>% unique())
-  
-  membership_df <- tibble::tibble(Gene = all_genes, !!!lapply(geneList, function(v)
-    all_genes %in% v)) %>%
-    mutate(across(-Gene, as.logical))
-  
-  supfig1 = ComplexUpset::upset(
-    membership_df,
-    names(geneList),
-    min_size = 1,
-    matrix = (
-      intersection_matrix(geom = geom_point(shape = 'circle filled', size = 3)) +
-        scale_color_manual(
-          values = c(
-            'AU' = "firebrick",
-            'BPI' = "gray30",
-            'GU' = "gold1",
-            'LU' = "blue2",
-            'SC' = "forestgreen"
-          ),
-        )
-    ),
-    queries = list(
-      upset_query(set = 'AU', fill = "firebrick"),
-      upset_query(set = "BPI", fill = "gray30"),
-      upset_query(set = "GU", fill = "gold1"),
-      upset_query(set = "LU", fill = "blue2"),
-      upset_query(set = "SC", fill = "forestgreen")
-    )
-  )
-  
-  print(supfig1)
-  
-  # ggsave(plot = supfig1, file.path(
-  #   plotDir,
-  #   paste0("supFig1_upset_", time, ".pdf")),
-  #   width = 15,
-  #   height = 6
-  # )
-  
-  UpSetOutput[[time]] = wrap_elements(supfig1)
-}
 
+  all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
+
+  membership_df <- tibble(
+    Gene = all_genes,
+    !!!lapply(geneList, function(v) all_genes %in% v)
+  ) %>%
+    mutate(across(-Gene, ~ as.logical(.x) & !is.na(.x)))
+
+  supfig1a <- ComplexUpset::upset(
+  membership_df,
+  names(geneList),
+  min_size = 1,
+  themes = themes_fixed,
+
+  # keep the bars, remove the numbers
+  base_annotations = list(
+    "Intersection size" = intersection_size(counts = FALSE)
+  ),
+
+  matrix = (
+    intersection_matrix() +
+      scale_color_manual(values = c(
+        AU="firebrick", BPI="gray30", GU="gold1", LU="blue2", SC="forestgreen"
+      ))
+  ),
+  queries = list(
+    upset_query(set = "AU",  fill = "firebrick"),
+    upset_query(set = "BPI", fill = "gray30"),
+    upset_query(set = "GU",  fill = "gold1"),
+    upset_query(set = "LU",  fill = "blue2"),
+    upset_query(set = "SC",  fill = "forestgreen")
+  )
+)
+
+
+
+  print(supfig1a)
+  UpSetOutput[[as.character(time)]] <- patchwork::wrap_elements(full = supfig1a)
+}
 
 ```
 
@@ -223,7 +222,7 @@ for(time in all_timepoints) {
 ## Generate final supplemental figure 2a
 ```{r}
 
-supfig2a_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow = 6))
+supfig2a_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow = 6) + plot_annotation(tag_levels = "A"))
 supfig2a_combined
 
 # generate title
@@ -257,64 +256,62 @@ SC_genes_pmf = Sciensano_norm_BMD_select %>% dplyr::select(timepoint, gene_symbo
 ### Generate plot per timepoint
 ```{r}
 
-UpSetOutput = NULL
+themes_fixed <- lapply(ComplexUpset::upset_themes, function(ths) {
+  Reduce(`+`, ths)   # combine theme_minimal() + theme(...) etc into one theme
+})
 
-all_timepoints = timepoint_levels
+UpSetOutput <- list()
+all_timepoints <- timepoint_levels
 
-for(time in all_timepoints) {
-  # get genelist per timepoint
-  geneList = list(
-    AU = AU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+for (time in all_timepoints) {
+
+  geneList <- list(
+    AU  = AU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
     BPI = BPI_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    GU = GU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    LU = LU_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    SC = SC_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+    GU  = GU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    LU  = LU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    SC  = SC_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
   )
-  
-  
-  all_genes <- sort(geneList %>% unlist(use.names = FALSE) %>% unique())
-  
-  membership_df <- tibble::tibble(Gene = all_genes, !!!lapply(geneList, function(v)
-    all_genes %in% v)) %>%
-    mutate(across(-Gene, as.logical))
-  
-  supfig1 = ComplexUpset::upset(
-    membership_df,
-    names(geneList),
-    min_size = 1,
-    matrix = (
-      intersection_matrix(geom = geom_point(shape = 'circle filled', size = 3)) +
-        scale_color_manual(
-          values = c(
-            'AU' = "firebrick",
-            'BPI' = "gray30",
-            'GU' = "gold1",
-            'LU' = "blue2",
-            'SC' = "forestgreen"
-          ),
-        )
-    ),
-    queries = list(
-      upset_query(set = 'AU', fill = "firebrick"),
-      upset_query(set = "BPI", fill = "gray30"),
-      upset_query(set = "GU", fill = "gold1"),
-      upset_query(set = "LU", fill = "blue2"),
-      upset_query(set = "SC", fill = "forestgreen")
-    )
-  )
-  
-  print(supfig1)
-  
-  # ggsave(plot = supfig1, file.path(
-  #   plotDir,
-  #   paste0("supFig1_upset_", time, ".pdf")),
-  #   width = 15,
-  #   height = 6
-  # )
-  
-  UpSetOutput[[time]] = wrap_elements(supfig1)
-}
 
+  all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
+
+  membership_df <- tibble(
+    Gene = all_genes,
+    !!!lapply(geneList, function(v) all_genes %in% v)
+  ) %>%
+    mutate(across(-Gene, ~ as.logical(.x) & !is.na(.x)))
+
+  supfig1b <- ComplexUpset::upset(
+  membership_df,
+  names(geneList),
+  min_size = 1,
+  themes = themes_fixed,
+
+  # keep the bars, remove the numbers
+  base_annotations = list(
+    "Intersection size" = intersection_size(counts = FALSE)
+  ),
+
+  matrix = (
+    intersection_matrix() +
+      scale_color_manual(values = c(
+        AU="firebrick", BPI="gray30", GU="gold1", LU="blue2", SC="forestgreen"
+      ))
+  ),
+  queries = list(
+    upset_query(set = "AU",  fill = "firebrick"),
+    upset_query(set = "BPI", fill = "gray30"),
+    upset_query(set = "GU",  fill = "gold1"),
+    upset_query(set = "LU",  fill = "blue2"),
+    upset_query(set = "SC",  fill = "forestgreen")
+  )
+)
+
+
+
+  print(supfig1b)
+  UpSetOutput[[as.character(time)]] <- patchwork::wrap_elements(full = supfig1b)
+}
 
 ```
 
@@ -322,7 +319,7 @@ for(time in all_timepoints) {
 ## Generate final supplemental figure 2b
 ```{r}
 
-supfig2b_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow =6))
+supfig2b_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow =6) + plot_annotation(tag_levels = "A"))
 
 supfig2b_combined
 
