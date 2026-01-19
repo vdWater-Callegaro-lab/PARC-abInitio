@@ -1,0 +1,294 @@
+---
+title: "SupplementalFigureX"
+output: html_document
+date: "2026-01-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Generate Supplemental Figure X
+Bootstrap gene level BMDs (as many times as the sig HALLMARK pathways) and compare correlation
+
+```{r}
+load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData"))
+
+```
+
+```{r}
+library(tidyverse)
+library(purrr)
+```
+
+
+
+## Significant number of overlapping pathways per timepoint
+```{r}
+
+pairwise_overlap_cor <- function(df,
+                                 id_col,
+                                 value_col,
+                                 timepoint_col,
+                                 partner_a,
+                                 partner_b,
+                                 timepoint,
+                                 method = "pearson",
+                                 collapse_fun = median,
+                                 debug = FALSE) {
+  tp <- as.character(timepoint)
+  
+  # Helper to filter + collapse to one row per id
+  prep_one <- function(d, partner_name, value_name) {
+    d %>%
+      filter(partner == partner_name, as.character(.data[[timepoint_col]]) == tp) %>%
+      select(id = .data[[id_col]], val = .data[[value_col]]) %>%
+      filter(!is.na(id)) %>%
+      group_by(id) %>%
+      summarise(!!value_name := collapse_fun(val, na.rm = TRUE), .groups = "drop")
+  }
+  
+  a <- prep_one(df, partner_a, rlang::sym("val_a"))
+  b <- prep_one(df, partner_b, rlang::sym("val_b"))
+  
+  # Explicit overlap set + joined values
+  joined <- a %>%
+    semi_join(b, by = "id") %>%
+    inner_join(b, by = "id")
+  
+  n <- nrow(joined)
+  
+  if (debug) {
+    message("timepoint = ", tp)
+    message("n_a pathways (collapsed) = ", nrow(a))
+    message("n_b pathways (collapsed) = ", nrow(b))
+    message("n_overlap = ", n)
+    if (n > 0) {
+      message("example overlap ids: ", paste(head(joined$id, 5), collapse = ", "))
+    }
+  }
+  
+  if (n < 3) {
+    return(list(
+      cor = NA_real_,
+      n = n,
+      joined = joined
+    ))
+  }
+  
+  r <- suppressWarnings(cor(
+    joined$val_a,
+    joined$val_b,
+    method = method,
+    use = "complete.obs"
+  ))
+  list(cor = r, n = n, joined = joined)
+}
+#-----------------------------
+# Main: for one partner pair + one timepoint, compare:
+#  - observed pathway correlation (overlapping pathways)
+#  - bootstrap gene correlation using SAME n as pathway overlap
+#-----------------------------
+compare_pathway_vs_gene_bootstrap <- function(gene_df,
+                                              pathway_df,
+                                              partner_a,
+                                              partner_b,
+                                              timepoint,
+                                              B = 2000,
+                                              method = "pearson",
+                                              timepoint_col = "timepoint",
+                                              gene_pool = c("overlap_sig_genes", "overlap_all_genes", "all_genes")) {
+  gene_pool <- match.arg(gene_pool)
+  
+  # 1) Observed pathway correlation on overlapping pathways (no significance filter)
+  pw <- pairwise_overlap_cor(
+    df = pathway_df,
+    id_col = "Pathway.Name",
+    value_col = "medianBMD",
+    timepoint_col = timepoint_col,
+    partner_a = partner_a,
+    partner_b = partner_b,
+    timepoint = timepoint,
+    method = method,
+    collapse_fun = median,
+    # or dplyr::first, mean, etc.
+    debug = FALSE
+  )
+  
+  
+  r_pathway <- pw$cor
+  n_pathways <- pw$n
+  
+  if (is.na(r_pathway) || n_pathways < 3) {
+    return(
+      tibble(
+        timepoint = timepoint,
+        partner_a = partner_a,
+        partner_b = partner_b,
+        n_pathways = n_pathways,
+        r_pathway = r_pathway,
+        gene_pool = gene_pool,
+        B = B,
+        r_gene_mean = NA_real_,
+        r_gene_q025 = NA_real_,
+        r_gene_q975 = NA_real_,
+        emp_p_two_sided = NA_real_
+      )
+    )
+  }
+  
+  # 2) Gene-level paired table, restricted to same timepoint
+  ga <- gene_df %>%
+    filter(partner == partner_a,
+           !!rlang::sym(timepoint_col) == timepoint) %>%
+    select(gene_symbol_entrez_id, BMD_a = finalBMD, sig_a = significant)
+  
+  gb <- gene_df %>%
+    filter(partner == partner_b,
+           !!rlang::sym(timepoint_col) == timepoint) %>%
+    select(gene_symbol_entrez_id, BMD_b = finalBMD, sig_b = significant)
+  
+  g_join <- inner_join(ga, gb, by = "gene_symbol_entrez_id")
+  
+  # Choose sampling pool
+  g_pool <- switch(
+    gene_pool,
+    overlap_sig_genes = g_join %>% filter(sig_a & sig_b),
+    overlap_all_genes = g_join,
+    all_genes = g_join
+  )
+  
+  if (nrow(g_pool) < 3) {
+    return(
+      tibble(
+        timepoint = timepoint,
+        partner_a = partner_a,
+        partner_b = partner_b,
+        n_pathways = n_pathways,
+        r_pathway = r_pathway,
+        gene_pool = gene_pool,
+        B = B,
+        r_gene_mean = NA_real_,
+        r_gene_q025 = NA_real_,
+        r_gene_q975 = NA_real_,
+        emp_p_two_sided = NA_real_
+      )
+    )
+  }
+  
+  sample_replace <- nrow(g_pool) < n_pathways
+  
+  # 3) Bootstrap
+  set.seed(1)
+  r_gene <- replicate(B, {
+    idx <- sample.int(nrow(g_pool), size = n_pathways, replace = sample_replace)
+    dat <- g_pool[idx, ]
+    suppressWarnings(cor(dat$BMD_a, dat$BMD_b, method = method, use = "complete.obs"))
+  })
+  
+  r_gene <- r_gene[is.finite(r_gene)]
+  emp_p <- mean(abs(r_gene) >= abs(r_pathway))
+  
+  tibble(
+    timepoint = timepoint,
+    partner_a = partner_a,
+    partner_b = partner_b,
+    n_pathways = n_pathways,
+    r_pathway = r_pathway,
+    gene_pool = gene_pool,
+    B = B,
+    r_gene_mean = mean(r_gene),
+    r_gene_q025 = quantile(r_gene, 0.025, names = FALSE),
+    r_gene_q975 = quantile(r_gene, 0.975, names = FALSE),
+    emp_p_two_sided = emp_p
+  )
+}
+
+#-----------------------------
+# Run for many partner pairs, across ALL timepoints
+#-----------------------------
+run_all_pairs <- function(gene_df,
+                          pathway_df,
+                          partners,
+                          B = 2000,
+                          method = "pearson",
+                          timepoint_col = "timepoint",
+                          gene_pool = "overlap_sig_genes") {
+  pairs <- combn(partners, 2, simplify = FALSE)
+  timepoints <- sort(unique(pathway_df[[timepoint_col]]))
+  
+  purrr::map_dfr(timepoints, function(tp) {
+    purrr::map_dfr(pairs, function(p) {
+      compare_pathway_vs_gene_bootstrap(
+        gene_df = gene_df,
+        pathway_df = pathway_df,
+        partner_a = p[1],
+        partner_b = p[2],
+        timepoint = tp,
+        B = B,
+        method = method,
+        timepoint_col = timepoint_col,
+        gene_pool = gene_pool
+      )
+    })
+  })
+}
+
+
+```
+
+
+```{r, warning=FALSE}
+set.seed(42)
+
+partners <- unique(norm_HALLMARK_combined$partner)
+
+res <- run_all_pairs(
+  gene_df = norm_BMD_combined %>% mutate(significant = TRUE),  # keep for gene_pool filtering
+  pathway_df = norm_HALLMARK_combined,                         # no significant needed
+  partners = partners,
+  B = 1000,
+  method = "pearson",
+  timepoint_col = "timepoint",
+  gene_pool = "overlap_sig_genes"
+)
+
+res
+
+data.table::fwrite(res, file.path(getwd(), "output", "EUT046", "pathway_vs_gene_correlations_same_n.txt"))
+
+```
+
+Generate figure
+```{r}
+
+# If you want an explicit "difference" column too:
+res_plot <- res %>%
+  mutate(
+    pair = paste(partner_a, "vs", partner_b),
+    diff_pathway_minus_gene = r_pathway - r_gene_mean
+  )
+
+ggplot(res_plot, aes(x = pair)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  # Bootstrap gene expectation (mean + 95% interval)
+  geom_errorbar(aes(ymin = r_gene_q025, ymax = r_gene_q975), width = 0.2) +
+  geom_point(aes(y = r_gene_mean), size = 2) +
+  # Observed pathway correlation
+  geom_point(aes(y = r_pathway), shape = 4, size = 3, stroke = 1) +
+  coord_flip() +
+  facet_wrap(~ timepoint, scales = "free_y") +
+  labs(
+    x = NULL,
+    y = "Correlation",
+    title = "Observed pathway correlation vs gene-bootstrap expectation",
+    subtitle = "X = r_pathway, dot+CI = bootstrap gene mean and 95% interval (same n as overlapping pathways)"
+  ) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(face = "italic", hjust = 0.5))
+
+ggsave(file.path(getwd(), "figures", "EUT046", "SupplementalFigureX.pdf"), width=10, height=7)
+
+```
+
