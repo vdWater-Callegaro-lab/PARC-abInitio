@@ -59,10 +59,73 @@ get_first_mode_bmd <- function(df, bw = "nrd0") {
     summarise(first_mode_bmd = first_mode(bmd), .groups = "drop")
 }
 
+# Kneedle / inflection-point BMD (per timepoint), matching LCRD structure
+get_kneedle_bmd <- function(df, S = 1, min_points = 3) {
+  stopifnot(is.data.frame(df), all(c("timepoint", "bmd") %in% names(df)))
+  
+  compute_knee <- function(y_raw, S = 1, min_points = 3) {
+    # need enough points to detect an inflection
+    y_raw <- y_raw[is.finite(y_raw)]
+    if (length(y_raw) < min_points) return(NA_real_)
+    
+    # Order by BMD; x is rank, y is sorted BMD
+    ord <- order(y_raw)
+    x   <- seq_along(y_raw)
+    y   <- y_raw[ord]
+    
+    # Smooth the curve (fall back to raw if spline fails)
+    ss <- tryCatch(stats::smooth.spline(x, y), error = function(e) NULL)
+    if (!is.null(ss)) { x_s <- ss$x; y_s <- ss$y } else { x_s <- x; y_s <- y }
+    
+    # Normalize x,y to [0,1] (guard zero ranges)
+    rx <- range(x_s, finite = TRUE); ry <- range(y_s, finite = TRUE)
+    x_n <- if (diff(rx) == 0) rep(0, length(x_s)) else (x_s - rx[1]) / diff(rx)
+    y_n <- if (diff(ry) == 0) rep(0, length(y_s)) else (y_s - ry[1]) / diff(ry)
+    
+    # Difference curve D(x) = y - x
+    Dd <- data.frame(x = x_n, y = y_n - x_n, i = seq_along(x_n))
+    
+    # Find local maxima of D(x)
+    if (nrow(Dd) < 3) {
+      knee_i <- which.max(Dd$y)
+    } else {
+      lmx_idx <- which(diff(sign(diff(Dd$y))) == -2) + 1
+      if (length(lmx_idx) == 0) {
+        knee_i <- which.max(Dd$y)
+      } else {
+        Dlmx   <- Dd[lmx_idx, , drop = FALSE]
+        diff_x <- mean(diff(Dd$x))
+        Tlmx   <- Dlmx$y - S * diff_x
+        
+        # Search regions after each local max for first index below its threshold
+        knee_idx <- integer(0)
+        n <- nrow(Dd)
+        for (k in seq_len(nrow(Dlmx))) {
+          start <- Dlmx$i[k]
+          end   <- if (k < nrow(Dlmx)) Dlmx$i[k + 1] else n
+          idx   <- start:end
+          below <- which(Dd$y[idx] < Tlmx[k])
+          if (length(below) > 0) knee_idx <- c(knee_idx, idx[below])
+        }
+        
+        knee_i <- if (length(knee_idx) == 0) which.max(Dd$y) else min(knee_idx)
+      }
+    }
+    
+    # Map knee index back to the ORIGINAL (unsmoothed) sorted y
+    as.numeric(y[knee_i])
+  }
+  
+  df %>%
+    dplyr::group_by(timepoint) %>%
+    dplyr::summarise(kneedle_bmd = compute_knee(bmd, S = S, min_points = min_points),
+                     .groups = "drop")
+}
 
 
 
-# Summarize BMD metrics per timepoint and render a nice Rmd table
+
+# Summarize BMD metrics per timepoint (simple text table; no knitr/kableExtra)
 bmd_summary_table <- function(
     df,
     digits = 3,
@@ -76,18 +139,20 @@ bmd_summary_table <- function(
   tps_ord <- tryCatch(levels(order_tp(tps)), error = function(e) tps)
   base <- tibble::tibble(timepoint = factor(tps_ord, levels = tps_ord))
   
-  # Compute metrics (using your already-defined helpers)
-  p5   <- get_percentile_bmd(df, prob = 0.05)         |> dplyr::rename(`P5` = bmd_percentile)
-  n25  <- get_nth_ranked_bmd(df, n = 25)              |> dplyr::rename(`Nth25` = nth_bmd)
-  lcrd <- get_LCRD_bmd(df)                            |> dplyr::rename(`LCRD` = lcrd_bmd)
-  mode1<- get_first_mode_bmd(df)                      |> dplyr::rename(`FirstMode` = first_mode_bmd)
+  # Compute metrics (using your helpers)
+  p5    <- get_percentile_bmd(df, prob = 0.05)        |> dplyr::rename(`P5` = bmd_percentile)
+  n25   <- get_nth_ranked_bmd(df, n = 25)             |> dplyr::rename(`Nth25` = nth_bmd)
+  lcrd  <- get_LCRD_bmd(df)                           |> dplyr::rename(`LCRD` = lcrd_bmd)
+  mode1 <- get_first_mode_bmd(df)                     |> dplyr::rename(`FirstMode` = first_mode_bmd)
+  kneedle <- get_kneedle_bmd(df)                      |> dplyr::rename(`Kneedle` = kneedle_bmd)
   
   # Join everything together (keeping all timepoints)
   out <- base |>
-    dplyr::left_join(p5,   by = "timepoint") |>
-    dplyr::left_join(n25,  by = "timepoint") |>
-    dplyr::left_join(lcrd, by = "timepoint") |>
-    dplyr::left_join(mode1,by = "timepoint") |>
+    dplyr::left_join(p5,    by = "timepoint") |>
+    dplyr::left_join(n25,   by = "timepoint") |>
+    dplyr::left_join(lcrd,  by = "timepoint") |>
+    dplyr::left_join(mode1, by = "timepoint") |>
+    dplyr::left_join(kneedle, by = "timepoint") |>
     dplyr::mutate(timepoint = as.character(timepoint))
   
   # Round numerics for display
@@ -96,17 +161,34 @@ bmd_summary_table <- function(
   
   if (return_data) return(out)
   
-  # Pretty table for Rmd
-  knitr::kable(
-    out,
-    caption = caption,
-    align = c("l", rep("r", ncol(out) - 1)),
-    format = "html"
-  ) |>
-    kableExtra::kable_styling(
-      bootstrap_options = c("striped", "hover", "condensed"),
-      full_width = FALSE
+  make_kable_tbl <- function(out,
+                             digits = 2,
+                             caption = NULL) {
+    tbl <- out
+    if ("timepoint" %in% names(tbl))
+      names(tbl)[names(tbl) == "timepoint"] <- "Timepoint"
+    
+    fmt_num <- function(x)
+      ifelse(is.na(x), "NA", sprintf(paste0("%.", digits, "f"), x))
+    for (nm in names(tbl)) {
+      if (is.numeric(tbl[[nm]])) {
+        tbl[[nm]] <- fmt_num(tbl[[nm]])
+      } else {
+        tbl[[nm]] <- as.character(tbl[[nm]])
+        tbl[[nm]][is.na(tbl[[nm]])] <- "NA"
+      }
+    }
+    
+    knitr::kable(
+      tbl,
+      caption = caption,
+      align = c("l", rep("r", ncol(tbl) - 1)),
+      booktabs = TRUE
     ) |>
-    kableExtra::add_header_above(c(" " = 1, "BMD metrics" = ncol(out) - 1))
+      kableExtra::kable_styling(full_width = FALSE)
+  }
+  
+  make_kable_tbl(out, digits = digits, caption = caption)
+  
 }
 
