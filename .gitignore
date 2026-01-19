@@ -55,13 +55,15 @@ figures/
 *.jpeg
 
 # input
-input/*
+**/input/*
+!**/input/.gitkeep
 BMD_input/
 TXGMAPr_files/
 data/
 
 # output
-output/*
+**/output/*
+!**/output/.gitkeep
 *.docx
 *.xlsx
 *.csv
