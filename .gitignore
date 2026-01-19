@@ -55,17 +55,19 @@ figures/
 *.jpeg
 
 # input
-input/
+input/*
 BMD_input/
 TXGMAPr_files/
 data/
 
 # output
-output/
+output/*
 *.docx
 *.xlsx
 *.csv
 *.html
+*.txt
+*.tsv
 
 
 # renv
