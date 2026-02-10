@@ -1,0 +1,412 @@
+---
+title: "Finalsforpaper_EUT046"
+author: "Friedel Dewulf"
+date: "2024-06-28"
+output: html_document
+---
+
+# Loading of packages
+```{r, results = FALSE, message = FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gtools)
+library(DESeq2)
+library(pheatmap)
+library(apeglm)
+library("edgeR")
+library("org.Hs.eg.db")
+library("DRomics")
+library(clusterProfiler)
+
+```
+
+# Set parameters according to R-ODAF: platform is TempOSeq
+```{r}
+#minCoverage <- 1000000
+#MinCount <- 0.5
+#pAdjValue <- 0.05
+
+Platform <- "TempO-seq"
+
+if (Platform=="RNA-Seq"){
+  minCoverage <- 500000
+  MinCount<- 1
+  pAdjValue<- 0.01 
+} else if (Platform=="TempO-seq") {
+  minCoverage <- 1000000
+  MinCount<- 0.5
+  pAdjValue<- 0.05 
+} else { print("Platform/technology not recognized") }
+```
+
+# Load input files
+
+```{r}
+EUT046 <- read.csv("Data/RPTEC-TERT1_CIS/EUT046_counts_per_gene_per_sample_raw_final.csv",
+                           header = TRUE, row.names = 1)
+EUT046_meta <- read.csv("Data/RPTEC-TERT1_CIS/EUT046_metadata_final.csv",
+                                header = TRUE, row.names = 1)
+
+
+# For the EUT datasets, I need to specify the concentrations better
+EUT046_meta$CONC <- unlist(lapply(strsplit(EUT046_meta$CONCENTRATION, "u"), function(x) x[1]))
+
+# Remove timepoint zero
+EUT046_meta <- EUT046_meta[EUT046_meta$TIME != 0,]
+EUT046 <- EUT046[,rownames(EUT046_meta)]
+
+```
+
+
+Adjustments in the metadata
+```{r}
+EUT046_meta$CONC <- factor(EUT046_meta$CONC, levels = c(0,0.1,0.5,1,2.5,5,10,20,30,50), labels = c(0,0.1,0.5,1,2.5,5,10,20,30,50))
+EUT046_meta$TIME <- factor(EUT046_meta$TIME, levels = c(4,8,16,24,48,72), labels = c(4,8,16,24,48,72))
+EUT046_meta$CONC_TIME <- factor(paste(EUT046_meta$CONC, EUT046_meta$TIME, sep = "_"))
+
+all(rownames(EUT046_meta) %in% colnames(EUT046))
+EUT046 <- EUT046[, rownames(EUT046_meta)]
+
+```
+
+
+# Step 1: Quality control of samples based on sequening depth
+```{r}
+depth_046 <- data.frame(x = colSums(EUT046))
+ggplot(depth_046, aes(x = x)) +
+  geom_histogram(binwidth = 50000) +
+  labs(title = "046") +
+  geom_vline(xintercept = 500000, color = "red", size = 2) +
+  geom_vline(xintercept = 1000000, color = "orange", size = 2)
+min <- min(depth_046$x)
+print(paste0("046: ",min))
+```
+
+# Step 2: Create the dds object + function DESeq
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = EUT046, colData = EUT046_meta, design = ~ CONC_TIME)
+dds_deseq <- DESeq(dds, quiet = TRUE)
+```
+
+
+# Step 3: Filter low readcounts: relevance filter
+
+```{r}
+SampPerGroup <- table(EUT046_meta[,"CONC_TIME"])
+Counts <- counts(dds_deseq, normalized = TRUE)
+rawcounts <- counts(dds_deseq, normalized = FALSE)
+CPMdds <- cpm(counts(dds_deseq, normalized = TRUE))
+
+Filter <- matrix(data=NA, ncol=3, nrow= nrow(Counts))
+rownames(Filter) <- rownames(Counts)
+colnames(Filter) <- c("Low","quantile","spike")
+  
+#apply the relevance filter
+for (gene in 1:nrow(dds_deseq)){
+  CountsPass <- NULL
+  for (group in 1:length(SampPerGroup)){
+    sampleCols <- grep(dimnames(SampPerGroup)[[1]][group], EUT046_meta[,"CONC_TIME"])
+    Check <- sum(CPMdds[gene,sampleCols] >= MinCount) >= 0.75*SampPerGroup[group]
+    CountsPass <- c(CountsPass,Check)
+  }
+  if ( sum(CountsPass) > 0) {Filter[gene,1] <- 1 }	else { Filter[gene,1] <- 0 }
+}
+
+dds_filtered <- dds_deseq[Filter[,1] == 1,]
+
+passed_relevance <- Filter[,1]
+compte <- Counts[Filter[,1] == 1,]
+rawcounts <- rawcounts[Filter[,1] == 1,]
+Filter2 <- Filter[rownames(Filter) %in% rownames(compte),]
+print(paste0("Relevance filtering removed ",nrow(dds_deseq)- nrow(Filter2)," genes from the ",nrow(dds_deseq)," assessed. ", nrow(Filter2)," genes remaining",sep=""))
+
+
+
+```
+
+
+# Step 4: Extracting transformed values
+```{r}
+vst <- vst(dds_filtered)
+
+vst_mat <- assay(vst)
+vst_cor <- cor(vst_mat)
+```
+
+  
+
+
+# Step 5: Quality control samples: Hierarchical clustering: remover when replicates correlation is < 0.80
+```{r}
+pheatmap(vst_cor, annotation = EUT046_meta[,c("TIME","CONC")], fontsize_row = 3, fontsize_col = 3)
+
+```
+There is in general some samples under 0.8, but maybe they are not replicates.
+The goal now is too see whether these low correlations might be between replicates.
+
+```{r}
+# vector of all the unique treatments
+conc_time <- unique(EUT046_meta$CONC_TIME)
+
+for (i in 1:length(conc_time)){
+  conc_time_temp <- conc_time[i]
+  samples_temp <- rownames(EUT046_meta)[which(EUT046_meta$CONC_TIME == conc_time_temp)]
+  cor_temp <- vst_cor[samples_temp, samples_temp]
+  cor_temp_decision <- cor_temp < 0.8
+  if (sum(cor_temp_decision) > 0) {
+    print(conc_time_temp)
+  }
+  
+}
+
+```
+
+Correlations between replicates are always > 0.8
+
+
+# Step 6: Add other gene id's
+
+```{r}
+manifest <- read.table("Data/Manifests/Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt", header = TRUE)
+```
+
+```{r}
+probes <- data.frame(Probe_ID = rownames(dds_filtered))
+
+probes_annot <- left_join(probes, manifest[, c("Probe_ID", "entrez_id", "gene_symbol")], by = "Probe_ID")
+
+length(unique(probes_annot$entrez_id)) # --> So there are quite some probes with the same entrez id
+
+symbol_entrez <- paste(probes_annot$gene_symbol, probes_annot$entrez_id, sep = "_")
+
+symbol_entrez <- data.frame(symbol_entrez = symbol_entrez)
+
+bio_annot <- cbind(symbol_entrez, probes_annot)
+
+```
+
+
+
+
+# Prepare data for DRomics
+
+I need the raw counts per time point as an input for DRomics
+I will sum over entrez id's!
+
+```{r}
+times <- c(4,8,16,24,48,72)
+
+for (i in 1:length(times)){
+  t <- times[i]
+  temp <- counts(dds_filtered[, dds_filtered$TIME == t], normalized = FALSE)
+  
+  temp2 <- cbind(bio_annot, temp)
+  
+  # Sum the values for genes with the same Entrez ID
+  gene_expression_summed <- temp2 %>%
+  group_by(symbol_entrez) %>%
+  summarise(across(starts_with("S_"), sum))
+  
+  write.table(gene_expression_summed, file = paste0("Output_046/Rawcounts_",t, ".txt"), sep = "\t", col.names = TRUE, row.names = FALSE)
+  write.table(dds_filtered[, dds_filtered$TIME == t]$CONC, file = paste0("Output_046/CONC",t, ".txt"), row.names = FALSE, col.names = FALSE, sep = "\t")
+}
+```
+
+# DRomics
+```{r}
+perc_5_list <- vector("list", length = length(times))
+value_25th_list <- vector("list", length = length(times))
+
+
+for (i in 1:length(times)){
+  t <- times[i]
+  signalmatrix_temp <- read.table(paste0("Output_046/Rawcounts_", t, ".txt"), header = TRUE)
+  rownames(signalmatrix_temp) <- signalmatrix_temp$symbol_entrez
+  signalmatrix_temp$symbol_entrez <- NULL
+  dose_temp <- read.table(paste0("Output_046/CONC", t, ".txt"))
+  dose_temp <- dose_temp[,1]
+  data4DRomics_temp <- formatdata4DRomics(signalmatrix = signalmatrix_temp,
+                                   dose = dose_temp)
+  o.RNAseq_temp <- RNAseqdata(data4DRomics_temp, transfo.method = "vst", backgrounddose = 0)
+  
+  # Selection of significantly responding items
+  s_quad_temp <- itemselect(o.RNAseq_temp, select.method = "quadratic", FDR = 0.01)
+  print(paste0("Items after filter: ", length(s_quad_temp$adjpvalue)))
+  write.table(length(s_quad_temp$adjpvalue), file = paste0("Output_046/Itemselect_Time_", t, ".txt"))
+  
+  # Fit dose-response model
+  f_temp <- drcfit(s_quad_temp, progressbar = FALSE)
+  # Save the results of the fits
+  write.table(f_temp$fitres,file = paste0("Output_046/Fits/Fits_Time_", t, ".txt"))
+  
+  #calculation of bmd
+  r_temp <- bmdcalc(f_temp, z = 1, x = 10)
+  # Save the bmd results
+  write.table(r_temp$res,file = paste0("Output_046/BMDs/BMD_Time_", t, ".txt"), row.names = FALSE)
+  
+  # Calculation of confidence intervals on the BMDs by bootstrap
+  b_temp <- bmdboot(r_temp, niter = 1000, progressbar = TRUE, parallel = "snow", ncpus = 12)
+  # Save the unfiltered bootstrap results
+  write.table(b_temp$res,file = paste0("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_", t, ".txt"), row.names = FALSE)
+  # Filtering BMD according to estimation quality:
+  # I will only keep the items with finite BMD point estimate and CI bounds
+  subres <- bmdfilter(b_temp$res, BMDtype = "zSD", BMDfilter = "finiteCI")
+  #Save the filtered bootstrap results
+  write.table(subres,file = paste0("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_", t, ".txt"), row.names = FALSE)
+  
+  # Calculate the 5th percentile and the 25th lowest ranked gene
+  perc_5 <- quantile(subres$BMD.zSD, 0.05)
+  value_25th <- sort(subres$BMD.zSD)[25]
+  perc_5_list[[i]] <- perc_5
+  value_25th_list[[i]] <- value_25th
+  
+  # Biological interpretation
+  #1) Import the dataframe with DRomics results: the output $res of bmdcalc or bmdboot functions
+  #I will use the subres
+  subres$entrez <- as.numeric(lapply(strsplit(subres$id, split = "_"), function(x) x[2]))
+  #2) Import the dataframe with biological annotation
+  # I will load the hallmark gene sets from the molecular signature database
+  library(msigdbr)
+  h_gene_sets_human <- msigdbr(species = "Homo sapiens", category = "H")
+  #manifest <- read.delim("Data/Manifests/Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt", header = TRUE, stringsAsFactors = FALSE)
+  
+  #3) Merging of both previous dataframes
+  extendedres_temp <- merge(x = subres, y = h_gene_sets_human, by.x = "entrez", by.y = "entrez_gene")
+  
+  # Overrepresentation analysis of the hallmark gene sets: determine p values for each gene sets
+  ora_results <- enricher(subres$entrez, TERM2GENE = h_gene_sets_human[,c("gs_name","entrez_gene")], pvalueCutoff = 0.10, pAdjustMethod = "fdr")
+  ora <- ora_results@result
+
+  
+  tr <- sensitivityplot(extendedres_temp, BMDtype = "zSD", group = "gs_name", 
+                  BMDsummary = "median.and.IQR", BMD_log_transfo = FALSE)
+  
+  # Now I will summarise the information together with the overrepresentation analysis
+  tr_data <- tr$data
+  colnames(tr_data)[1] <- "ID"
+  ora_tot <- left_join(tr_data, ora, by = "ID")
+  # Save these results
+  write.table(ora_tot,file = paste0("Output_046/ORA_HALLMARK_Time_", t, ".txt"), row.names = FALSE)
+  #Now also only save the results with p < 0.10
+  ora_tot_p <- ora_tot[ora_tot$pvalue <= 0.10,]
+  write.table(ora_tot_p,file = paste0("Output_046/ORA_HALLMARK_p0.10_Time_", t, ".txt"), row.names = FALSE)
+}
+
+```
+
+
+# Prepare the output files to be appropriate for the reporting framework
+```{r}
+# sample metadata
+samplemetadata <- read.csv("Data/RPTEC-TERT1_CIS/EUT046_metadata_final.csv", header = TRUE)
+write.table(samplemetadata, file = "input/sample_metadata.txt", row.names = FALSE)
+
+# normalized counts: BMD_output_normalized_counts
+# Question: should this be the filtered counts (after relevance filter)? --> I will create both
+normcounts <- counts(dds_filtered, normalized = TRUE)
+normcounts2 <- cbind(bio_annot, normcounts)
+# Sum the values for genes with the same Entrez ID
+normcounts_summed <- normcounts2 %>%
+  group_by(symbol_entrez) %>%
+  summarise(across(starts_with("S_"), sum))
+normcounts_summed <- data.frame(normcounts_summed)
+colnames(normcounts_summed)[1] <- "gene_symbol_entrez_id"
+
+write.table(normcounts_summed, file = "input/normalized_counts.txt")
+
+
+# pathway overview
+library(msigdbr)
+h_gene_sets_human <- msigdbr(species = "Homo sapiens", category = "H")
+pathoverview <- data.frame(gene_symbol_entrez_id = paste(h_gene_sets_human$gene_symbol, h_gene_sets_human$entrez_gene, sep = "_"), pathway = h_gene_sets_human$gs_name)
+write.table(pathoverview, file = "input/pathway_overview.txt")
+
+
+# BMD output normalized counts
+BMD4 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_4.txt", header = TRUE)
+BMD8 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_8.txt", header = TRUE)
+BMD16 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_16.txt", header = TRUE)
+BMD24 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_24.txt", header = TRUE)
+BMD48 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_48.txt", header = TRUE)
+BMD72 <- read.table("Output_046/Bootstrap_filtered/Bootstrap_filtered_Time_72.txt", header = TRUE)
+BMD4$timepoint <- "4hr"
+BMD8$timepoint <- "8hr"
+BMD16$timepoint <- "16hr"
+BMD24$timepoint <- "24hr"
+BMD48$timepoint <- "48hr"
+BMD72$timepoint <- "72hr"
+BMD_tot <- rbind(BMD4, BMD8, BMD16, BMD24, BMD48, BMD72)
+
+colnames(BMD_tot)[1] <- "gene_symbol_entrez_id"
+write.table(BMD_tot, file = "input/BMD_output_normalized_counts.txt")
+
+# Change some of the colnames of BMD_output_normalized_counts
+BMD_tot <- read.table("input/BMD_output_normalized_counts.txt", header = TRUE)
+BMD_tot_renames <- BMD_tot
+colnames(BMD_tot_renames)[which(colnames(BMD_tot_renames) == "BMD.zSD")] <- "Best.BMD"
+colnames(BMD_tot_renames)[which(colnames(BMD_tot_renames) == "BMD.zSD.lower")] <- "Best.BMDL"
+colnames(BMD_tot_renames)[which(colnames(BMD_tot_renames) == "BMD.zSD.upper")] <- "Best.BMDU"
+write.table(BMD_tot_renames, file = "input/BMD_output_normalized_counts.txt")
+
+# pathways
+# I have the values for all the pathways, but also files with pathways wherefore the p values is below 0.10
+#SAVE UNFILTERED
+HALLMARK4 <- read.table("Output_046/ORA_HALLMARK_Time_4.txt", header = TRUE)
+HALLMARK8 <- read.table("Output_046/ORA_HALLMARK_Time_8.txt", header = TRUE)
+HALLMARK16 <- read.table("Output_046/ORA_HALLMARK_Time_16.txt", header = TRUE)
+HALLMARK24 <- read.table("Output_046/ORA_HALLMARK_Time_24.txt", header = TRUE)
+HALLMARK48 <- read.table("Output_046/ORA_HALLMARK_Time_48.txt", header = TRUE)
+HALLMARK72 <- read.table("Output_046/ORA_HALLMARK_Time_72.txt", header = TRUE)
+HALLMARK4$timepoint <- "4hr"
+HALLMARK8$timepoint <- "8hr"
+HALLMARK16$timepoint <- "16hr"
+HALLMARK24$timepoint <- "24hr"
+HALLMARK48$timepoint <- "48hr"
+HALLMARK72$timepoint <- "72hr"
+HALLMARK_tot <- rbind(HALLMARK4, HALLMARK8, HALLMARK16, HALLMARK24, HALLMARK48, HALLMARK72)
+
+pathwaysBMD <- data.frame(Gene.That.Passed.All.Filters = HALLMARK_tot$nb_of_items, Pathway.Name = HALLMARK_tot$ID, BMD.firstquartile = HALLMARK_tot$firstquartile, BMD.Median = HALLMARK_tot$secondquartile, BMD.thirdquartile = HALLMARK_tot$thirdquartile, GeneRatio = HALLMARK_tot$GeneRatio, BgRatio = HALLMARK_tot$BgRatio, pvalue = HALLMARK_tot$pvalue, p.adjust = HALLMARK_tot$p.adjust, qvalue = HALLMARK_tot$qvalue, nb_of_items = HALLMARK_tot$nb_of_items, timepoint = HALLMARK_tot$timepoint)
+
+write.table(pathwaysBMD, file = "input/medianBMD_pathways_normalized_counts_ALL.txt")
+
+# Now also create file with filtering on p.adjust < 0.10 and nb_of_items >=3
+pathwaysBMD_filtered <- read.table(file = "input/medianBMD_pathways_normalized_counts_ALL.txt") %>% filter(nb_of_items >= 3) %>% filter(p.adjust <= 0.10)
+
+write.table(pathwaysBMD_filtered, file = "input/medianBMD_pathways_normalized_counts_filteredonp0.10andn.txt")
+
+# Now also create file with filtering on nb_of_items >=3
+pathwaysBMD_filtered <- read.table(file = "input/medianBMD_pathways_normalized_counts_ALL.txt") %>% filter(nb_of_items >= 3)
+
+write.table(pathwaysBMD_filtered, file = "input/medianBMD_pathways_normalized_counts_filteredonn.txt")
+
+
+
+```
+I also want to compare how many genes were removed before and after filtering with finiteCI
+
+```{r}
+BMD4_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_4.txt", header = TRUE)
+BMD8_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_8.txt", header = TRUE)
+BMD16_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_16.txt", header = TRUE)
+BMD24_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_24.txt", header = TRUE)
+BMD48_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_48.txt", header = TRUE)
+BMD72_un <- read.table("Output_046/Bootstrap_unfiltered/Bootstrap_unfiltered_Time_72.txt", header = TRUE)
+
+BMD4_n <- nrow(BMD4)
+BMD4_un_n <- nrow(BMD4_un)
+BMD8_n <- nrow(BMD8)
+BMD8_un_n <- nrow(BMD8_un)
+BMD16_n <- nrow(BMD16)
+BMD16_un_n <- nrow(BMD16_un)
+BMD24_n <- nrow(BMD24)
+BMD24_un_n <- nrow(BMD24_un)
+BMD48_n <- nrow(BMD48)
+BMD48_un_n <- nrow(BMD48_un)
+BMD72_n <- nrow(BMD72)
+BMD72_un_n <- nrow(BMD72_un)
+
+
+```
+
+
