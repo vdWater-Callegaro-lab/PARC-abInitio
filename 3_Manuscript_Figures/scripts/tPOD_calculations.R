@@ -19,7 +19,9 @@ tpod_orig_LU <- bind_rows(
   get_LCRD_bmd(LU_norm_BMD_select %>%
                  dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
   get_first_mode_bmd(LU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
+                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode"),
+  get_kneedle_bmd(LU_norm_BMD_select %>%
+                    dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "kneedle")
 )
 
 
@@ -37,7 +39,9 @@ tpod_orig_SC <- bind_rows(
   get_LCRD_bmd(Sciensano_norm_BMD_select %>%
                  dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
   get_first_mode_bmd(Sciensano_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
+                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode"),
+  get_kneedle_bmd(Sciensano_norm_BMD_select %>%
+                    dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "kneedle")
 )
 
 
@@ -50,7 +54,9 @@ tpod_orig_BPI <- bind_rows(
   get_LCRD_bmd(BPI_norm_BMD_select %>%
                  dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
   get_first_mode_bmd(BPI_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
+                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode"),
+  get_kneedle_bmd(BPI_norm_BMD_select %>%
+                    dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "kneedle")
 )
 
 
@@ -63,7 +69,9 @@ tpod_orig_GU <- bind_rows(
   get_LCRD_bmd(GU_norm_BMD_select %>%
                  dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
   get_first_mode_bmd(GU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
+                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode"),
+  get_kneedle_bmd(GU_norm_BMD_select %>%
+                    dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "kneedle")
 )
 
 
@@ -76,7 +84,9 @@ tpod_orig_AU <- bind_rows(
   get_LCRD_bmd(AU_norm_BMD_select %>%
                  dplyr::rename("bmd" = finalBMD))      %>% mutate(method = "LCRD"),
   get_first_mode_bmd(AU_norm_BMD_select %>%
-                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode")
+                       dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "first_mode"),
+  get_kneedle_bmd(AU_norm_BMD_select %>%
+                    dplyr::rename("bmd" = finalBMD)) %>% mutate(method = "kneedle")
 )
 
 
@@ -95,11 +105,11 @@ tpod_orig_all <- list(
   mutate(
     timepoint = factor(timepoint, levels = c("4h","8h","16h","24h","48h","72h")),
     method = factor(method,
-                    levels = c("p5","rank25","LCRD","first_mode"),
-                    labels = c("5th percentile","25th ranked gene","LCRD","First mode")
+                    levels = c("p5","rank25","LCRD","first_mode", "kneedle"),
+                    labels = c("5th percentile","25th ranked gene","LCRD","First mode", "Kneedle")
     )
   ) %>%
-  rename(tpod_orig = tpod)   # adjust if your col has a different name
+  rename(tpod_orig = tpod)
 
 
 data.table::fwrite(tpod_orig_all, file.path(getwd(), "output", "EUT046", "tpod_calculations_alltimepoints.txt"), sep = "\t")

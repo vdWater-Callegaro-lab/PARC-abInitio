@@ -47,9 +47,10 @@ bootstrap_tpods <- function(df_bmd,
     res_25  <- get_nth_ranked_bmd(df_boot, n = 25)       %>% mutate(method = "rank25")
     res_lcrd <- get_LCRD_bmd(df_boot)      %>% mutate(method = "LCRD")
     res_mode <- get_first_mode_bmd(df_boot)%>% mutate(method = "first_mode")
+    res_kneedle <- get_kneedle_bmd(df_boot) %>% mutate(method = "kneedle")
     
     # 3) Stack all methods and tag with bootstrap iteration
-    bind_rows(res_5, res_25, res_lcrd, res_mode) %>%
+    bind_rows(res_5, res_25, res_lcrd, res_mode, res_kneedle) %>%
       mutate(boot = b, .before = 1)
   })
 }
@@ -101,8 +102,8 @@ tpod_ci_all <- boot_all %>%
   ) %>%
   mutate(
     method = factor(method,
-                    levels = c("p5","rank25","LCRD","first_mode"),
-                    labels = c("5th percentile","25th ranked gene","LCRD","First mode"))
+                    levels = c("p5","rank25","LCRD","first_mode", "kneedle"),
+                    labels = c("5th percentile","25th ranked gene","LCRD","First mode", "Kneedle"))
   )
 
 
