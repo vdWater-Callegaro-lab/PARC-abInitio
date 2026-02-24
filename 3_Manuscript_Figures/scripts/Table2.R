@@ -70,11 +70,11 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 
 # dose responsive genes
 drg_afterprefilter = tibble(
-  "AristotleU" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "BPI" = BPI_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "GhentU" = GU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "LeidenU" = LU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "Sciensano" = SC_pref %>% pull(timepoint) %>% table() %>% as.numeric()
+  "DRomics_CPM_QT" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_log2Internal_QT" = BPI_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_VST_QT" = GU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDExpress_log2CPM_noWTT" = LU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDExpress_log2CPM_WTT" = SC_pref %>% pull(timepoint) %>% table() %>% as.numeric()
 ) %>%
   rowwise() %>%
   mutate(
@@ -97,11 +97,11 @@ data.table::fwrite(drg_afterprefilter, file.path(getwd(), "output", "EUT046", "d
 
 # retained after post model filters
 retained_pmf = tibble(
-  "AristotleU" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "BPI" = BPI_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "GhentU" = GU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "LeidenU" = LU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "Sciensano" = Sciensano_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric()
+  "DRomics_CPM_QT" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_log2Internal_QT" = BPI_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_VST_QT" = GU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDExpress_log2CPM_noWTT" = LU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDExpress_log2CPM_WTT" = Sciensano_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric()
 ) %>%
   rowwise() %>%
   mutate(
@@ -147,3 +147,18 @@ print(doc, target = file.path(getwd(), "tables", "table2R.docx"))
 
 
 
+#  create long table
+drg_afterprefilter_long <- drg_afterprefilter %>%
+  select(-mean_cv) %>%
+  pivot_longer(cols = -timepoint, names_to = "analysis_summary", values_to = "value") %>%
+  mutate(step = "DRG")
+
+
+retained_pmf_long <- retained_pmf %>%
+  select(-mean_cv) %>%
+  pivot_longer(cols = -timepoint, names_to = "analysis_summary", values_to = "value") %>%
+  mutate(step = "PMFG")
+
+
+drg_pmf_combined_long = bind_rows(drg_afterprefilter_long, retained_pmf_long)
+data.table::fwrite(drg_pmf_combined_long, file.path(outputDir, "DRG_PMFG_pertimepoint.txt"))
