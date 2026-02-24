@@ -193,7 +193,7 @@ fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_sel
 
 
 fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
-                                                 analysis_summary = "DRomics_CPM_QT",
+                                                 analysis_summary = "DRomics_UQ_QT",
                                                  pathway_oi = "p53 signaling pathway") +
   labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
   theme(plot.title = element_text(color = "firebrick"),
@@ -414,7 +414,7 @@ row_anno <- rowAnnotation(
 raw_cols <- colnames(plotMat)
 friendly_labels <- raw_cols %>%
   sub("_finalBMD$", "", .) %>%
-  dplyr::recode(AU = "DRomics_CPM_QT",
+  dplyr::recode(AU = "DRomics_UQ_QT",
                 GU = "DRomics_VST_QT",
                 LU = "BMDExpress_log2CPM_noWTT",
                 SC = "BMDExpress_log2CPM_WTT",
@@ -423,7 +423,7 @@ friendly_labels <- raw_cols %>%
 partner_cols = c("DRomics_log2Internal_QT" = "gray30", 
                 "DRomics_VST_QT" = "gold1",
                 "BMDExpress_log2CPM_noWTT" = "blue2",
-                "DRomics_CPM_QT" = "firebrick",
+                "DRomics_UQ_QT" = "firebrick",
                 "BMDExpress_log2CPM_WTT" = "forestgreen")
 
 colnames(plotMat) <- friendly_labels
@@ -499,7 +499,7 @@ ggsave(
 
 
 # Arrange total figure 4
-```{r}
+```{r, fig.width=19, fig.height=24}
 figure4 = fig4a_total /
   fig4b_total /
   fig4c_total /

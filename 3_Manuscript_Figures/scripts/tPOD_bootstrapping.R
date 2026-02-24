@@ -81,7 +81,7 @@ boot_all <- list(
   BMDExpress_log2CPM_WTT  = bootstrapped_tpods_SC,
   DRomics_VST_QT     = bootstrapped_tpods_GU,
   DRomics_log2Internal_QT        = bootstrapped_tpods_BPI,
-  DRomics_CPM_QT = bootstrapped_tpods_AU
+  DRomics_UQ_QT = bootstrapped_tpods_AU
 ) %>%
   imap_dfr(~ mutate(.x, analysis_summary = .y))   # add analysis_summary column from list names
 

@@ -144,32 +144,32 @@ norm_BMD_combined_wide_LUmodels = norm_BMD_combined_wide %>%
 p1 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=AU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (AristotleU)", 
+  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
+       y = "BMC (DRomics_UQ_QT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p2 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (BPI)", 
+  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
+       y = "BMC (DRomics_log2Internal_QT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p3 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=GU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (GhentU)", 
+  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
+       y = "BMC (DRomics_VST_QT)", 
        color = "Best Model")+
   scale_color_manual(values = model_cols)
 
 p4 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=SC_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (LeidenU)",
-       y = "BMC (Sciensano)", 
+  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
+       y = "BMC (BMDExpress_log2CPM_WTT)", 
        color = "Best Model")+
   scale_color_manual(values = model_cols)
 
@@ -185,43 +185,67 @@ norm_BMD_combined_wide_SCmodels = norm_BMD_combined_wide %>%
 p5 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=AU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (Sciensano)",
-       y = "BMC (AristotleU)", 
+  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
+       y = "BMC (DRomics_UQ_QT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p6 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (Sciensano)",
-       y = "BMC (BPI)", 
+  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
+       y = "BMC (DRomics_log2Internal_QT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p7 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=GU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (Sciensano)",
-       y = "BMC (GhentU)", 
+  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
+       y = "BMC (DRomics_VST_QT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p8 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=LU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (Sciensano)",
-       y = "BMC (LeidenU)", 
+  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
+       y = "BMC (BMDExpress_log2CPM_noWTT)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 
 
 # combine
-wrap_elements(p1 + p2 + p3 + p4 + plot_layout(nrow = 1) + plot_annotation(title = "LeidenU Models Fit", theme = theme(element_text(size = 23, face = "bold")), tag_levels = "I") + plot_layout(axis = "collect", guides = "collect")) /
-  wrap_elements(p5 + p6 + p7 + p8 + plot_layout(nrow = 1) + plot_annotation(title = "Sciensano Models Fit", theme = theme(element_text(size = 23, face = "bold")), tag_levels = "I") + plot_layout(axis = "collect", guides = "collect"))
+row1 <-
+  wrap_elements(
+    p1 + p2 + p3 + p4 +
+      plot_layout(nrow=1) +
+  plot_annotation(
+    title = "BMDExpress_log2CPM_noWTT Models Fit",
+    tag_levels = "I"
+  ))
 
+row2 <- wrap_elements(
+ p5 + p6 + p7 + p8 +
+   plot_layout(nrow = 1) +
+  plot_annotation(
+    title = "BMDExpress_log2CPM_WTT Models Fit",
+    tag_levels = "I"
+  ))
 
-ggsave(file.path(plotDir, "SupplementalFigure3.pdf"), width = 15, height = 8)
+SupplementalFigure3 <-
+  (row1 / row2) +
+  plot_layout(axis = "collect", guides = "collect")
+
+SupplementalFigure3
+
+ggsave(
+  filename = file.path(plotDir, "SupplementalFigure3.pdf"),
+  plot = SupplementalFigure3,
+  width = 15,
+  height = 8
+)
 
 
 ```

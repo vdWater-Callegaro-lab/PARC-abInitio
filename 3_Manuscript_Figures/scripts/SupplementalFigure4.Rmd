@@ -99,7 +99,7 @@ load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 tpod_original = data.table::fread(file.path(outputDir, "tpod_calculations_alltimepoints.txt")) %>%
   mutate(time_num = as.numeric(gsub("h", "", timepoint)),
          timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-         method = factor(method, levels = c("5th percentile", "25th ranked gene", "LCRD", "First mode")))
+         method = factor(method, levels = c("5th percentile", "25th ranked gene", "First mode", "Kneedle", "LCRD")))
 
 ```
 
@@ -119,31 +119,21 @@ tpod_cols <- c(
   "5th percentile"        = "#1b9e77",
   "25th ranked gene"   = "#d95f02",
   "LCRD"   = "#7570b3",
-  "First mode" =  "#249"
+  "First mode" =  "#249",
+  "Kneedle" = "pink"
 )
 
 
-plot_data = norm_BMD_combined %>%
-  mutate(
-    partner = case_when(
-      partner == "AU" ~ "AristotleU",
-      partner == "BPI" ~ "BPI",
-      partner == "GU" ~ "GhentU",
-      partner == "LU" ~ "LeidenU",
-      partner == "SC" ~ "Sciensano"
-    )
-  )
-
 
 supfig4 <- ggplot() +
-  # ---- densities (per timepoint + partner) ----
+  # ---- densities (per timepoint + analysis_summary) ----
   geom_density(
-    data = plot_data,
+    data = norm_BMD_combined,
     aes(
       x     = finalBMD,
       colour = timepoint,
       fill   = timepoint
-      # if needed, you can add group = interaction(timepoint, partner)
+      # if needed, you can add group = interaction(timepoint, analysis_summary)
     ),
     linewidth = 1,
     alpha     = 0.7
@@ -187,11 +177,11 @@ supfig4 <- ggplot() +
   ) +
   facet_grid(
     rows = vars(timepoint),
-    cols = vars(partner),
+    cols = vars(analysis_summary),
     scales = "free"
   ) +
   theme(
-    strip.text = element_text(size = 15, face = "bold")
+    strip.text = element_text(size = 11, face = "bold")
   ) +
   scale_x_log10()
 

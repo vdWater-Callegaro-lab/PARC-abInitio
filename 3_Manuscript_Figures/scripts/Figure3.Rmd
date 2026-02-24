@@ -120,7 +120,7 @@ fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_selec
   xlim(c(0,50))
 
 
-fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRomics_CPM_QT") +
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRomics_UQ_QT") +
   theme(
     plot.title = element_text(color = "firebrick")
   ) +
@@ -181,7 +181,7 @@ fig3b_cor <- GGally::ggpairs(
   norm_HALLMARK_combined_wide,
   aes(color = timepoint),
   columns = c("LU_medianBMD", "SC_medianBMD", "AU_medianBMD", "BPI_medianBMD", "GU_medianBMD"),
-  columnLabels = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
+  columnLabels = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
   lower = list(continuous = GGally::wrap("points")),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -227,14 +227,14 @@ ggsave(
 pwgene_plot <- pw_gene_cor %>%
   mutate(
     analysis_summary_a = case_when(
-      analysis_summary_a == "DRomics_CPM_QT" ~ "M1",
+      analysis_summary_a == "DRomics_UQ_QT" ~ "M1",
       analysis_summary_a == "DRomics_log2Internal_QT" ~ "M2",
       analysis_summary_a == "DRomics_VST_QT" ~ "M3",
       analysis_summary_a == "BMDExpress_log2CPM_noWTT" ~ "M4",
       analysis_summary_a == "BMDExpress_log2CPM_WTT" ~ "M5"
     ),
     analysis_summary_b = case_when(
-      analysis_summary_b == "DRomics_CPM_QT" ~ "M1",
+      analysis_summary_b == "DRomics_UQ_QT" ~ "M1",
       analysis_summary_b == "DRomics_log2Internal_QT" ~ "M2",
       analysis_summary_b == "DRomics_VST_QT" ~ "M3",
       analysis_summary_b == "BMDExpress_log2CPM_noWTT" ~ "M4",
@@ -324,7 +324,7 @@ ggsave(
 ## Figure 3e
 ```{r}
 
-lvls <- c("DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT",
+lvls <- c("DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT",
           "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")
 
 norm_BMD_combined_HALLMARKp53 <- norm_BMD_combined_HALLMARKp53 %>%
@@ -368,7 +368,7 @@ ggsave(plot = fig3e_total, filename = file.path(plotDir, "fig3e.pdf"), width = 1
 
 ## Create total figure 3
 
-```{r}
+```{r, fig.width=17, fig.height=22}
 
 # figure3 = fig3a_total /
 #   fig3b_total /
