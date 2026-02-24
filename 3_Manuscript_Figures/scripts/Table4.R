@@ -14,36 +14,30 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 
 
 #### HALLMARK
-partner_order = c("AU", "BPI", "GU", "LU", "SC")
+analysis_summary_order = c("BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT")
 timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
 
 
 result_HALLMARK_p53 <- norm_HALLMARK_combined %>%
   filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
-  select(Pathway.Name, timepoint, medianBMD, partner) %>%
+  select(Pathway.Name, timepoint, medianBMD, analysis_summary) %>%
   # enforce factor levels for ordering
   mutate(
-    partner   = factor(partner, levels = partner_order),
+    analysis_summary   = factor(analysis_summary, levels = analysis_summary_order),
     timepoint = factor(timepoint, levels = timepoint_order),
     medianBMD = round(medianBMD, digits = 3)
   ) %>%
-  # ensure all partner–timepoint combinations exist
-  complete(timepoint, partner) %>%
-  # reshape so partners become columns
+  # ensure all analysis_summary–timepoint combinations exist
+  complete(timepoint, analysis_summary) %>%
+  # reshape so analysis_summarys become columns
   pivot_wider(
-    names_from  = partner,
+    names_from  = analysis_summary,
     values_from = medianBMD
   ) %>%
   # order rows explicitly
   arrange(timepoint) %>%
   select(Pathway.Name, everything()) %>%
-  filter(!is.na(Pathway.Name)) %>%
-  dplyr::rename(
-    "AristotleU" = AU,
-    "GhentU" = GU,
-    "LeidenU" = LU,
-    "Sciensano" = SC
-  )
+  filter(!is.na(Pathway.Name)) 
 
 
 # save

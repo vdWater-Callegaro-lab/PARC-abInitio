@@ -187,7 +187,7 @@ AU_norm_BMD_select = AU_norm_BMD %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ),
-analysis_summary = "DRomics_CPM_QT") %>% dplyr::select(
+analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
   "finalBMD" = BMD.zSD,
@@ -265,7 +265,7 @@ BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
 # median BMD HALLMARK
 AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_CPM_QT") %>% dplyr::select(
+  analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
     "medianBMD" = Median,
@@ -343,7 +343,7 @@ BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% mutate(
 # median BMD pathways of choice
 AU_norm_KEGG_select = AU_norm_KEGG %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_CPM_QT") %>% dplyr::select(
+  analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
     "medianBMD" = Median,

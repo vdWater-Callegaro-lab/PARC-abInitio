@@ -70,7 +70,7 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 
 # dose responsive genes
 drg_afterprefilter = tibble(
-  "DRomics_CPM_QT" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_UQ_QT" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRomics_log2Internal_QT" = BPI_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRomics_VST_QT" = GU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "BMDExpress_log2CPM_noWTT" = LU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
@@ -97,7 +97,7 @@ data.table::fwrite(drg_afterprefilter, file.path(getwd(), "output", "EUT046", "d
 
 # retained after post model filters
 retained_pmf = tibble(
-  "DRomics_CPM_QT" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRomics_UQ_QT" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRomics_log2Internal_QT" = BPI_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRomics_VST_QT" = GU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "BMDExpress_log2CPM_noWTT" = LU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),

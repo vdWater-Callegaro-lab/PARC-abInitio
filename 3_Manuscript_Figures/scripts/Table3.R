@@ -12,11 +12,11 @@ library(stringr)
 
 # join original tpod and bootstrapped results
 tpod_joined <- tpods %>% 
-  select(partner, timepoint, method, tpod_orig) %>%
+  select(analysis_summary, timepoint, method, tpod_orig) %>%
   left_join(
     tpod_bootstrapping %>%
-      select(partner, timepoint, method, tpod_lower, tpod_upper),
-    by = c("partner", "timepoint", "method")
+      select(analysis_summary, timepoint, method, tpod_lower, tpod_upper),
+    by = c("analysis_summary", "timepoint", "method")
   )
 
 # format tpods: original (lower - upper)
@@ -30,15 +30,15 @@ tpod_formatted <- tpod_joined %>%
 ## order methods
 method_order <- c("5th percentile",
                   "25th ranked gene",
-                  "LCRD",
-                  "First mode")
+                  "First mode",
+                  "Kneedle",
+                  "LCRD")
 
 
 # order timepoints
 timepoint_order <- c("4h", "8h", "16h", "24h", "48h", "72h") 
 
-# order partners
-partner_order <- c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")
+analysis_summary_order <- c("DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")
 
 tpod_ordered <- tpod_formatted %>%
   mutate(
@@ -56,9 +56,9 @@ tpod_mean <- tpod_joined %>%
 
 # generate final table
 tpod_table_final <- tpod_ordered %>%
-  select(timepoint, method, partner, tpod_ci) %>%
+  select(timepoint, method, analysis_summary, tpod_ci) %>%
   pivot_wider(
-    names_from  = partner,
+    names_from  = analysis_summary,
     values_from = tpod_ci
   ) %>%
   left_join(
@@ -66,7 +66,7 @@ tpod_table_final <- tpod_ordered %>%
     by = c("timepoint", "method")
   ) %>%
   arrange(timepoint, method) %>%
-  select(timepoint, method, all_of(partner_order), mean_tPOD = mean_tpod_fmt)
+  select(timepoint, method, all_of(analysis_summary_order), mean_tPOD = mean_tpod_fmt)
 
 tpod_table_final
 

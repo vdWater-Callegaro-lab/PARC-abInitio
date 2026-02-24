@@ -169,11 +169,11 @@ all_timepoints <- timepoint_levels
 for (time in all_timepoints) {
 
   geneList <- list(
-    AU  = AU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    BPI = BPI_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    GU  = GU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    LU  = LU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    SC  = SC_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+    DRomics_UQ_QT  = AU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    DRomics_log2Internal_QT = BPI_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    DRomics_VST_QT  = GU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BMDExpress_log2CPM_noWTT  = LU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BMDExpress_log2CPM_WTT  = SC_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
   )
 
   all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
@@ -202,11 +202,11 @@ for (time in all_timepoints) {
       ))
   ),
   queries = list(
-    upset_query(set = "AU",  fill = "firebrick"),
-    upset_query(set = "BPI", fill = "gray30"),
-    upset_query(set = "GU",  fill = "gold1"),
-    upset_query(set = "LU",  fill = "blue2"),
-    upset_query(set = "SC",  fill = "forestgreen")
+    upset_query(set = "DRomics_UQ_QT",  fill = "firebrick"),
+    upset_query(set = "DRomics_log2Internal_QT", fill = "gray30"),
+    upset_query(set = "DRomics_VST_QT",  fill = "gold1"),
+    upset_query(set = "BMDExpress_log2CPM_noWTT",  fill = "blue2"),
+    upset_query(set = "BMDExpress_log2CPM_WTT",  fill = "forestgreen")
   )
 )
 
@@ -266,11 +266,11 @@ all_timepoints <- timepoint_levels
 for (time in all_timepoints) {
 
   geneList <- list(
-    AU  = AU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    BPI = BPI_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    GU  = GU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    LU  = LU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
-    SC  = SC_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+    DRomics_UQ_QT  = AU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    DRomics_log2Internal_QT = BPI_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    DRomics_VST_QT  = GU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BMDExpress_log2CPM_noWTT  = LU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    BMDExpress_log2CPM_WTT  = SC_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
   )
 
   all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
@@ -299,11 +299,11 @@ for (time in all_timepoints) {
       ))
   ),
   queries = list(
-    upset_query(set = "AU",  fill = "firebrick"),
-    upset_query(set = "BPI", fill = "gray30"),
-    upset_query(set = "GU",  fill = "gold1"),
-    upset_query(set = "LU",  fill = "blue2"),
-    upset_query(set = "SC",  fill = "forestgreen")
+    upset_query(set = "DRomics_UQ_QT",  fill = "firebrick"),
+    upset_query(set = "DRomics_log2Internal_QT", fill = "gray30"),
+    upset_query(set = "DRomics_VST_QT",  fill = "gold1"),
+    upset_query(set = "BMDExpress_log2CPM_noWTT",  fill = "blue2"),
+    upset_query(set = "BMDExpress_log2CPM_WTT",  fill = "forestgreen")
   )
 )
 
