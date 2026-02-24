@@ -39,14 +39,14 @@ BMDaccumulationPlot_zoom <- function(BMDoutput) {
 
 
 # plot median BMD accumulation of pathways
-BMDaccumulationPlot_pathway <- function(BMDoutput, partner) {
+BMDaccumulationPlot_pathway <- function(BMDoutput, analysis_summary) {
   BMDoutput %>%
     group_by(timepoint) %>%
     arrange(medianBMD) %>%
     mutate(ranked_pathway = row_number()) %>%
     ggplot(aes(medianBMD, y = ranked_pathway)) +
     geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
-    labs(title = partner,
+    labs(title = analysis_summary,
          y = "Accumulation", 
          x = "Median BMC") +
     # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"),
@@ -61,24 +61,24 @@ BMDaccumulationPlot_pathway <- function(BMDoutput, partner) {
 
 
 # plot median BMD accumulation of pathways + highlight pathway_oi
-BMDaccumulationPlot_pathway_highlight <- function(BMDoutput, partner, pathway_oi) {
+BMDaccumulationPlot_pathway_highlight <- function(BMDoutput, analysis_summary, pathway_oi) {
   plot_data =  BMDoutput %>%
     group_by(timepoint) %>%
     arrange(medianBMD) %>%
-    mutate(ranked_pathway = row_number()) 
-  
+    mutate(ranked_pathway = row_number())
+
   highlight_data = plot_data %>% filter(Pathway.Name %in% pathway_oi)
 
     ggplot(plot_data, aes(x= medianBMD, y = ranked_pathway)) +
     geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
     geom_point(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, shape = timepoint), color = "red", size = 3) +
     # geom_text(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, label = Pathway.Name), vjust = -1, hjust = 1, color = "red") +
-    labs(title = partner,
+    labs(title = analysis_summary,
          y = "Accumulation",
          x = "Median BMC") +
     # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
       scale_color_manual(values = timepoint_cols)
-    
+
 }
 
 
@@ -88,21 +88,20 @@ BMDaccumulationPlot_pathway_highlight <- function(BMDoutput, partner, pathway_oi
 BMDaccumulationPlot_pathway_highlight_combined <- function(BMDoutput, timepoint_oi, pathway_oi) {
   plot_data = BMDoutput %>%
     filter(timepoint == timepoint_oi) %>%
-    group_by(partner) %>%
+    group_by(analysis_summary) %>%
     arrange(medianBMD) %>%
     mutate(ranked_pathway = row_number()) 
   
   highlight_data = plot_data %>% filter(Pathway.Name %in% pathway_oi)
   
   ggplot(plot_data, aes(x= medianBMD, y = ranked_pathway)) +
-    geom_point(stat = "identity", aes(color = partner), size = 1.5) +
-    geom_point(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, color = partner), size = 5) +
+    geom_point(stat = "identity", aes(color = analysis_summary), size = 1.5) +
+    geom_point(data = highlight_data, aes(x = medianBMD, y = ranked_pathway, color = analysis_summary), size = 5) +
     labs(y = "Accumulation",
          x = "Median BMC",
          subtitle = timepoint_oi) +
-    scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                       breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                       labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
+    scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gray30", "gold1"),
+                       breaks = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT")) +
     scale_shape_manual(values = c(15, 16, 17, 18, 8)) +
     theme(legend.title = element_blank())
   
@@ -159,7 +158,7 @@ plot_BMD_genes_pathwayoi = function(genes_in_pathway, medianBMD_pathways, time_o
 
 
 # BMD accumulation plot for BMD ran on pw scores
-BMDaccumulationPlot_pwscores_highlight <- function(BMDoutput, HLpw, partner){
+BMDaccumulationPlot_pwscores_highlight <- function(BMDoutput, HLpw, analysis_method){
   plotdata = BMDoutput %>%
     group_by(timepoint) %>%
     arrange(finalBMD) %>%
@@ -170,7 +169,7 @@ BMDaccumulationPlot_pwscores_highlight <- function(BMDoutput, HLpw, partner){
   ggplot(plotdata, aes(finalBMD, y = ranked_pathway)) + 
     geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 1.5) +
     geom_point(data = highlight_data, aes(x = finalBMD, y=ranked_pathway, shape = timepoint), color = "red", size = 3) +
-    labs(title = partner,
+    labs(title = analysis_method,
          y = "Accumulation", 
          x = "BMC") +
     scale_color_manual(values = c(timepoint_cols))
