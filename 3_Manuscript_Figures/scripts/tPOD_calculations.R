@@ -95,13 +95,13 @@ tpod_orig_AU <- bind_rows(
 
 # generate table (NEED TO ADD CI)
 tpod_orig_all <- list(
-  LeidenU    = tpod_orig_LU,
-  Sciensano  = tpod_orig_SC,
-  GhentU     = tpod_orig_GU,
-  BPI        = tpod_orig_BPI,
-  AristotleU = tpod_orig_AU
+  BMDExpress_log2CPM_noWTT    = tpod_orig_LU,
+  BMDExpress_log2CPM_WTT  = tpod_orig_SC,
+  DRomics_VST_QT     = tpod_orig_GU,
+  DRomics_log2Internal_QT        = tpod_orig_BPI,
+  DRomics_CPM_QT = tpod_orig_AU
 ) %>%
-  imap_dfr(~ mutate(.x, partner = .y)) %>%
+  imap_dfr(~ mutate(.x, analysis_summary = .y)) %>%
   mutate(
     timepoint = factor(timepoint, levels = c("4h","8h","16h","24h","48h","72h")),
     method = factor(method,

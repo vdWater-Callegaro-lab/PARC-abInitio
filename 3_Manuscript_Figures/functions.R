@@ -3,14 +3,14 @@
 
 
 # BMD accumulation plot
-BMDaccumulationPlot <- function(BMDoutput, partner) {
+BMDaccumulationPlot <- function(BMDoutput, analysis_summary) {
   BMDoutput %>%
     group_by(timepoint) %>%
     arrange(finalBMD) %>%
     mutate(ranked_gene = row_number()) %>%
     ggplot(aes(finalBMD, y = ranked_gene)) +
     geom_point(stat = "identity", aes(color = timepoint, shape = timepoint), size = 0.8) +
-    labs(title = partner,
+    labs(title = analysis_summary,
          y = "Accumulation",
          x = "BMC") +
     # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
@@ -21,7 +21,7 @@ BMDaccumulationPlot <- function(BMDoutput, partner) {
 
 
 # plot BMD accumulation genes zoomed in
-BMDaccumulationPlot_zoom <- function(BMDoutput, partner) {
+BMDaccumulationPlot_zoom <- function(BMDoutput) {
   BMDoutput %>%
     group_by(timepoint) %>%
     arrange(finalBMD) %>%
