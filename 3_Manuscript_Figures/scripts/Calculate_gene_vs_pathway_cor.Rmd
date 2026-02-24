@@ -30,8 +30,8 @@ pairwise_overlap_cor <- function(df,
                                  id_col,
                                  value_col,
                                  timepoint_col,
-                                 partner_a,
-                                 partner_b,
+                                 method_a,
+                                 method_b,
                                  timepoint,
                                  method = "pearson",
                                  collapse_fun = median,
@@ -39,17 +39,17 @@ pairwise_overlap_cor <- function(df,
   tp <- as.character(timepoint)
   
   # Helper to filter + collapse to one row per id
-  prep_one <- function(d, partner_name, value_name) {
+  prep_one <- function(d, method_name, value_name) {
     d %>%
-      filter(partner == partner_name, as.character(.data[[timepoint_col]]) == tp) %>%
+      filter(method == method_name, as.character(.data[[timepoint_col]]) == tp) %>%
       select(id = .data[[id_col]], val = .data[[value_col]]) %>%
       filter(!is.na(id)) %>%
       group_by(id) %>%
       summarise(!!value_name := collapse_fun(val, na.rm = TRUE), .groups = "drop")
   }
   
-  a <- prep_one(df, partner_a, rlang::sym("val_a"))
-  b <- prep_one(df, partner_b, rlang::sym("val_b"))
+  a <- prep_one(df, method_a, rlang::sym("val_a"))
+  b <- prep_one(df, method_b, rlang::sym("val_b"))
   
   # Explicit overlap set + joined values
   joined <- a %>%
@@ -85,14 +85,14 @@ pairwise_overlap_cor <- function(df,
   list(cor = r, n = n, joined = joined)
 }
 #-----------------------------
-# Main: for one partner pair + one timepoint, compare:
+# Main: for one method pair + one timepoint, compare:
 #  - observed pathway correlation (overlapping pathways)
 #  - bootstrap gene correlation using SAME n as pathway overlap
 #-----------------------------
 compare_pathway_vs_gene_bootstrap <- function(gene_df,
                                               pathway_df,
-                                              partner_a,
-                                              partner_b,
+                                              method_a,
+                                              method_b,
                                               timepoint,
                                               B = 2000,
                                               method = "pearson",
@@ -106,8 +106,8 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
     id_col = "Pathway.Name",
     value_col = "medianBMD",
     timepoint_col = timepoint_col,
-    partner_a = partner_a,
-    partner_b = partner_b,
+    method_a = method_a,
+    method_b = method_b,
     timepoint = timepoint,
     method = method,
     collapse_fun = median,
@@ -123,8 +123,8 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
     return(
       tibble(
         timepoint = timepoint,
-        partner_a = partner_a,
-        partner_b = partner_b,
+        method_a = method_a,
+        method_b = method_b,
         n_pathways = n_pathways,
         r_pathway = r_pathway,
         gene_pool = gene_pool,
@@ -139,12 +139,12 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
   
   # 2) Gene-level paired table, restricted to same timepoint
   ga <- gene_df %>%
-    filter(partner == partner_a,
+    filter(method == method_a,
            !!rlang::sym(timepoint_col) == timepoint) %>%
     select(gene_symbol_entrez_id, BMD_a = finalBMD, sig_a = significant)
   
   gb <- gene_df %>%
-    filter(partner == partner_b,
+    filter(method == method_b,
            !!rlang::sym(timepoint_col) == timepoint) %>%
     select(gene_symbol_entrez_id, BMD_b = finalBMD, sig_b = significant)
   
@@ -162,8 +162,8 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
     return(
       tibble(
         timepoint = timepoint,
-        partner_a = partner_a,
-        partner_b = partner_b,
+        method_a = method_a,
+        method_b = method_b,
         n_pathways = n_pathways,
         r_pathway = r_pathway,
         gene_pool = gene_pool,
@@ -191,8 +191,8 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
   
   tibble(
     timepoint = timepoint,
-    partner_a = partner_a,
-    partner_b = partner_b,
+    method_a = method_a,
+    method_b = method_b,
     n_pathways = n_pathways,
     r_pathway = r_pathway,
     gene_pool = gene_pool,
@@ -205,16 +205,16 @@ compare_pathway_vs_gene_bootstrap <- function(gene_df,
 }
 
 #-----------------------------
-# Run for many partner pairs, across ALL timepoints
+# Run for many method pairs, across ALL timepoints
 #-----------------------------
 run_all_pairs <- function(gene_df,
                           pathway_df,
-                          partners,
+                          methods,
                           B = 2000,
                           method = "pearson",
                           timepoint_col = "timepoint",
                           gene_pool = "overlap_sig_genes") {
-  pairs <- combn(partners, 2, simplify = FALSE)
+  pairs <- combn(methods, 2, simplify = FALSE)
   timepoints <- sort(unique(pathway_df[[timepoint_col]]))
   
   purrr::map_dfr(timepoints, function(tp) {
@@ -222,8 +222,8 @@ run_all_pairs <- function(gene_df,
       compare_pathway_vs_gene_bootstrap(
         gene_df = gene_df,
         pathway_df = pathway_df,
-        partner_a = p[1],
-        partner_b = p[2],
+        method_a = p[1],
+        method_b = p[2],
         timepoint = tp,
         B = B,
         method = method,
@@ -241,12 +241,12 @@ run_all_pairs <- function(gene_df,
 ```{r, warning=FALSE}
 set.seed(42)
 
-partners <- unique(norm_HALLMARK_combined$partner)
+methods <- unique(norm_HALLMARK_combined$method)
 
 res <- run_all_pairs(
   gene_df = norm_BMD_combined %>% mutate(significant = TRUE),  # keep for gene_pool filtering
   pathway_df = norm_HALLMARK_combined,                         # no significant needed
-  partners = partners,
+  methods = methods,
   B = 1000,
   method = "pearson",
   timepoint_col = "timepoint",
@@ -265,7 +265,7 @@ Generate figure
 # If you want an explicit "difference" column too:
 res_plot <- res %>%
   mutate(
-    pair = paste(partner_a, "vs", partner_b),
+    pair = paste(method_a, "vs", method_b),
     diff_pathway_minus_gene = r_pathway - r_gene_mean
   )
 
