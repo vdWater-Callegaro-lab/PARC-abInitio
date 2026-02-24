@@ -155,15 +155,12 @@ fig2a = DRGs %>%
 
 fig2a
 
-
-# generate title
-fig2a_lab <- wrap_elements(panel = textGrob("Number of Dose Responsive Genes", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
-# combine
-fig2a_total = wrap_elements(fig2a_lab /
-  fig2a + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5)))
-
+# combine 
+fig2a_total <- wrap_elements(
+  fig2a + 
+    plot_layout(guides = "collect", axis = "collect") +
+    plot_annotation(title = "Number of Dose Responsive Genes")
+)
 
 fig2a_total
 
@@ -199,8 +196,10 @@ fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary 
 
 
 
-fig2b_row1 = fig2b_LU + fig2b_SC + fig2b_AU + fig2b_BPI + fig2b_GU +plot_layout(nrow = 1, guides = "collect", axis = "collect")
-fig2b_row1
+fig2b_row1 = wrap_plots(
+  fig2b_LU, fig2b_SC, fig2b_AU, fig2b_BPI, fig2b_GU,
+  nrow = 1
+)
 
 # ggsave(plot = fig2b_row1, file.path(plotDir, "fig2b_firstrow.pdf"), width = 15, height = 5)
 
@@ -231,7 +230,10 @@ fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select) +
 
 
 
-fig2b_row2 = fig2b_LU_zoom + fig2b_SC_zoom + fig2b_AU_zoom + fig2b_BPI_zoom + fig2b_GU_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2b_row2 = wrap_plots(
+  fig2b_LU_zoom, fig2b_SC_zoom, fig2b_AU_zoom, fig2b_BPI_zoom, fig2b_GU_zoom,
+  nrow = 1
+)
 fig2b_row2
 
 # ggsave(plot = fig2b_row2, file.path(plotDir, "fig2b_secondrow.pdf"), width = 15, height = 5)
@@ -241,20 +243,23 @@ fig2b_row2
 
 # Generate total figure 2b
 ```{r}
-# generate title
-fig2b_row1_lab <- wrap_elements(panel = textGrob("BMC accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
 # combine
-fig2b_total = wrap_elements(fig2b_row1_lab /
-  fig2b_row1 /
-  fig2b_row2 + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 2.5, 2.5)))
-
+fig2b_total <- wrap_elements(
+  (fig2b_row1 / fig2b_row2) +
+  plot_layout(guides = "collect", axis = "collect") +
+  plot_annotation(title = "BMC Accumulation")) &
+  theme(
+    legend.position = "bottom"
+  )
 
 fig2b_total
-ggsave(plot = fig2b_total, file.path(plotDir, "fig2b.pdf"), width = 15, height = 5.5)
 
-
+ggsave(
+  plot = fig2b_total,
+  filename = file.path(plotDir, "fig2b.pdf"),
+  width = 15,
+  height = 5.5
+)
 ```
 
 
@@ -286,21 +291,27 @@ fig2c_zoom = fig2c_norm +
   xlim(0, 3) 
 
 
-
-# generate title
-fig2c_lab <- wrap_elements(panel = textGrob("BMC accumulation - 24h", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
-
 # combine
-fig2c_total = wrap_elements(fig2c_lab / fig2c_norm / fig2c_zoom + plot_layout(guides = "collect", axis = "collect", heights = c(0.5, 5, 5)))
+fig2c_total <- wrap_elements(
+  (fig2c_norm / fig2c_zoom) +
+  plot_layout(
+    guides  = "collect",
+    axis    = "collect",
+    heights = c(5, 5)
+  ) +
+  plot_annotation(title = "BMC accumulation - 24h")) &
+  theme(
+    legend.position = "bottom"
+  )
+
 fig2c_total
 
-
-# save figure 2c
-ggsave(plot = fig2c_total, file.path(plotDir, "fig2c.pdf"), width = 5, height = 10.5)
-
-# ggsave(plot = fig2c_norm, file.path(plotDir, "fig2c_24hours.pdf"), width=5, height = 3)
+ggsave(
+  plot = fig2c_total,
+  filename = file.path(plotDir, "fig2c.pdf"),
+  width = 5,
+  height = 10.5
+)
 
 ```
 
@@ -331,20 +342,23 @@ fig2d_cor <- GGally::ggpairs(
   theme(strip.background = element_rect(fill = "white", colour = "black"),
         strip.text = element_text(face = "bold", size = 9))
 
-# convert to ggplot
+
+# ggmatrix -> gtable (grob) -> patchwork element
 fig2d_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2d_cor))
 
-# title
-fig2d_lab <- wrap_elements(
-  panel = textGrob("BMC correlations",
-                   gp = gpar(fontface = "bold", fontsize = 18))
+# combine with a patchwork-native title
+fig2d_total <- wrap_elements(
+  fig2d_cor_gg +
+  plot_annotation(title = "BMC correlations"))
+
+fig2d_total
+
+ggsave(
+  plot = fig2d_total,
+  filename = file.path(plotDir, "fig2d.pdf"),
+  width = 10,
+  height = 10.5
 )
-
-# combine
-fig2d_total <- wrap_elements(fig2d_lab / fig2d_cor_gg + plot_layout(heights = c(0.5, 10)))
-
-ggsave(plot = fig2d_total, file.path(plotDir, "fig2d.pdf"), width = 10, height = 10.5)
-
 
 ```
 
@@ -407,18 +421,22 @@ fig2e_bs = ggplot(tpod_plot_df,
 
 fig2e_bs
 
-# title
-fig2e_lab <- wrap_elements(
-  panel = textGrob("tPOD Estimates and Bootstrap Uncertainty",
-                   gp = gpar(fontface = "bold", fontsize = 18))
-)
-
 # combine
-fig2e_bs_total <- wrap_elements(fig2e_lab / fig2e_bs + plot_layout(heights = c(0.5, 5)))
+fig2e_bs_total <- wrap_elements(
+  fig2e_bs +
+  plot_annotation(title = "tPOD Estimates and Bootstrap Uncertainty")) &
+  theme(
+    legend.position = "bottom"
+  )
+
 fig2e_bs_total
 
-ggsave(plot = fig2e_bs_total, file.path(plotDir, "fig2e.pdf"), width = 10, height = 4)
-
+ggsave(
+  plot = fig2e_bs_total,
+  filename = file.path(plotDir, "fig2e.pdf"),
+  width = 10,
+  height = 4
+)
 
 
 ```
@@ -434,7 +452,7 @@ figure2 = fig2a_total /
   fig2b_total /
   (fig2c_total + fig2d_total + plot_layout(widths = c(0.6, 1))) /
   fig2e_bs_total +
-  plot_layout(guides = "collect", axis = "collect", heights = c(4,4,6, 3)) + plot_annotation(tag_levels = "A")
+  plot_layout(guides = "collect", axis = "collect", heights = c(4,4,6, 3)) + plot_annotation(tag_levels = "A") 
 
 figure2
 
