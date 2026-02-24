@@ -77,13 +77,13 @@ bootstrapped_tpods_AU = bootstrap_tpods(df_bmd = AU_norm_BMD_select %>%
 
 ### COMBINE RESULTS
 boot_all <- list(
-  LeidenU    = bootstrapped_tpods_LU,
-  Sciensano  = bootstrapped_tpods_SC,
-  GhentU     = bootstrapped_tpods_GU,
-  BPI        = bootstrapped_tpods_BPI,
-  AristotleU = bootstrapped_tpods_AU
+  BMDExpress_log2CPM_noWTT    = bootstrapped_tpods_LU,
+  BMDExpress_log2CPM_WTT  = bootstrapped_tpods_SC,
+  DRomics_VST_QT     = bootstrapped_tpods_GU,
+  DRomics_log2Internal_QT        = bootstrapped_tpods_BPI,
+  DRomics_CPM_QT = bootstrapped_tpods_AU
 ) %>%
-  imap_dfr(~ mutate(.x, partner = .y))   # add partner column from list names
+  imap_dfr(~ mutate(.x, analysis_summary = .y))   # add analysis_summary column from list names
 
 data.table::fwrite(boot_all, file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_results.txt"), sep = "\t")
 
@@ -93,7 +93,7 @@ data.table::fwrite(boot_all, file.path(getwd(), "output", "EUT046", "tpod_bootst
 
 ### GET CONFIDENCE INTERVALS PER METHOD X PARTNER X TIMEPOINT
 tpod_ci_all <- boot_all %>%
-  group_by(partner, timepoint, method) %>%
+  group_by(analysis_summary, timepoint, method) %>%
   summarise(
     tpod_median = median(tpod, na.rm = TRUE),
     tpod_lower  = quantile(tpod, 0.025, na.rm = TRUE),

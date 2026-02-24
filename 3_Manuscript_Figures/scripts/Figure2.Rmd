@@ -14,13 +14,13 @@ library(ggplot2)
 standard_plotTheme <- theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 15,
+      size = 13,
       face = "bold",
       vjust = 2,
       hjust = 0.5
     ),
     plot.subtitle = element_text(
-      size = 13,
+      size = 11,
       face = "italic",
       vjust = 2,
       hjust = 0.5
@@ -100,13 +100,13 @@ load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
 tpod_original = data.table::fread(file.path(outputDir, "tpod_calculations_alltimepoints.txt")) %>%
   mutate(time_num = as.numeric(gsub("h", "", timepoint)),
          timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-         method = factor(method, levels = c("5th percentile", "25th ranked gene", "LCRD", "First mode")))
+         method = factor(method, levels = c("5th percentile", "25th ranked gene", "LCRD", "First mode", "Kneedle")))
 
 
 tpod_bootstrapping = data.table::fread(file.path(outputDir, "tpod_bootstrapping_ci_median.txt"))
 
 
-DRGs = readxl::read_xlsx(file.path(inputDir, "DRG_PMFG_pertp.xlsx")) %>%
+DRGs = data.table::fread(file.path(outputDir, "DRG_PMFG_pertimepoint.txt")) %>%
   mutate(timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")))
 
 
@@ -118,9 +118,9 @@ DRGs = readxl::read_xlsx(file.path(inputDir, "DRG_PMFG_pertp.xlsx")) %>%
 
 ## Figure 2 
 Here we will have:  
-1. Barplot with Dose Responsive Genes per timepoint per partner + Post Model Filter retained genes.  
-2. The accumulation plot per partner (all timepoints combined in one plot) to determine the most sensitive timepoint.  
-3. A zoom of the accumulation plot per partner (to see the slight differences in the beginning).  
+1. Barplot with Dose Responsive Genes per timepoint per analysis_summary + Post Model Filter retained genes.  
+2. The accumulation plot per analysis_summary (all timepoints combined in one plot) to determine the most sensitive timepoint.  
+3. A zoom of the accumulation plot per analysis_summary (to see the slight differences in the beginning).  
 4. A combined accumulationplot of the most sensitive timepoint (24h).  
 5. Overview of distribution-based tPODs including bootstrapping results.   
 
@@ -137,7 +137,7 @@ label_steps = c(
 
   
 fig2a = DRGs %>%
-  ggplot(aes(x = partner, y = value, fill = value)) +
+  ggplot(aes(x = analysis_summary, y = value, fill = value)) +
   geom_bar(stat = "identity") +
   facet_grid(step ~ timepoint,
              labeller = labeller(step = label_steps)) +
@@ -175,24 +175,24 @@ ggsave(plot = fig2a_total, file.path(plotDir, "fig2a.pdf"), width = 15, height =
 ### Figure 2b
 
 #### Plot first row
-```{r}
-fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") +
+```{r, fig.width=10}
+fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, analysis_summary = "DRomics_CPM_QT") +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
 
-fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, partner = "BPI") +
+fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, analysis_summary = "DRomics_log2Internal_QT") +
   theme(plot.title = element_text(color = "gray30")) +
   ylim(c(0, 6300))
 
-fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
+fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary = "DRomics_VST_QT") + 
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
-fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") +
+fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_noWTT") +
   theme(plot.title = element_text(color = "blue3")) +
   ylim(c(0, 6300))
 
-fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_WTT") + 
   theme(plot.title = element_text(color = "forestgreen")) +
   ylim(c(0, 6300))
 
@@ -211,21 +211,21 @@ Zoom in on first part (250 genes) plot
 
 #### Plot zoom
 ```{r}
-fig2b_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select, partner = "AristotleU") + 
+fig2b_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select) + 
   theme(plot.title = element_text(color = "firebrick"))
 
-fig2b_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select, partner = "BPI") + 
+fig2b_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select) + 
   theme(plot.title = element_text(color = "gray30"))
 
-fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select, partner = "GhentU") + 
+fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select) + 
   theme(plot.title = element_text(color = "gold1"))
 
 
-fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select, partner = "LeidenU") + 
+fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select) + 
   theme(plot.title = element_text(color = "blue3"))
 
 
-fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select, partner = "Sciensano") + 
+fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select) + 
   theme(plot.title = element_text(color = "forestgreen"))
 
 
@@ -266,17 +266,18 @@ Select most sensitive timepoint (now 24h) and combine accumulation plots of part
 
 fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
   filter(timepoint == "24h") %>%
-  group_by(partner) %>%
+  group_by(analysis_summary) %>%
   arrange(finalBMD) %>%
   mutate(ranked_gene = row_number()) %>%
   ggplot(aes(finalBMD, y = ranked_gene)) +
-  geom_point(stat = "identity", aes(color = partner), size = 1) +
+  geom_point(stat = "identity", aes(color = analysis_summary), size = 1) +
   labs(y = "Accumulation", 
        x = "BMC") +
-  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
-  theme(legend.title = element_blank())
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen")) +
+  theme(
+    # legend.title = element_blank()
+    legend.position = "none"
+    )
 
 fig2c_zoom = fig2c_norm +
   ylim(c(0, 250)) +
@@ -313,7 +314,7 @@ fig2d_cor <- GGally::ggpairs(
   norm_BMD_combined_wide,
   aes(color = timepoint),
   columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
-  columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
+  columnLabels = c("DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT"),
   lower = list(continuous = GGally::wrap("points", size = 0.05)),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -326,7 +327,7 @@ fig2d_cor <- GGally::ggpairs(
   scale_fill_manual(values = timepoint_cols) +  # for density fill, if used
   # if densityDiag uses color only, this is harmless but keeps things consistent
   theme(strip.background = element_rect(fill = "white", colour = "black"),
-        strip.text = element_text(face = "bold", size = 13))
+        strip.text = element_text(face = "bold", size = 9))
 
 # convert to ggplot
 fig2d_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2d_cor))
@@ -347,58 +348,18 @@ ggsave(plot = fig2d_total, file.path(plotDir, "fig2d.pdf"), width = 10, height =
 
 
 ### Figure 2e
-tPOD calcuations
-
-```{r}
-# fig2e = ggplot(tpod_original, aes(x = timepoint, y = tpod_orig, color = partner, group = partner)) +
-#   geom_point(size = 3) +
-#   geom_line() +
-#   facet_wrap(~ method, nrow = 1) +
-#   labs(
-#     x = "",
-#     y = "tPOD",
-#     color = "",
-#   ) +
-#   theme_bw() +
-#   theme(
-#     strip.text = element_text(size = 12, face = "bold"),
-#     strip.background = element_rect(fill = "white", colour = "black"),
-#     plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
-#     axis.text = element_text(size = 10),
-#     axis.title = element_text(size = 11),
-#     legend.text = element_text(size = 12)
-#   ) +
-#   scale_color_manual(values = c("firebrick","gray30", "gold1", "blue2", "forestgreen"))
-# 
-# 
-# 
-# 
-# # title
-# fig2e_lab <- wrap_elements(
-#   panel = textGrob("Comparison of tPOD Estimates Across Partners over Time",
-#                    gp = gpar(fontface = "bold", fontsize = 18))
-# )
-# 
-# # combine
-# fig2e_total <- wrap_elements(fig2e_lab / fig2e + plot_layout(heights = c(0.5, 5)))
-# fig2e_total
-# 
-# ggsave(plot = fig2e_total, file.path(plotDir, "fig2e.pdf"), width = 10, height = 4)
-# 
-
-```
 
 
 ## tPOD calculations + bootstrapping results
 ```{r}
 timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
-method_order = c("5th percentile", "25th ranked gene", "LCRD", "First mode")
+method_order = c("5th percentile", "25th ranked gene", "First mode", "Kneedle", "LCRD")
 
 
 ### combine original tpods + bootstrap results
 tpod_plot_df <- tpod_bootstrapping %>%
   left_join(tpod_original,
-            by = c("partner","timepoint","method")) %>%
+            by = c("analysis_summary","timepoint","method")) %>%
   mutate(timepoint = factor(timepoint, levels = timepoint_order),
          method = factor(method, levels = method_order))
 
@@ -408,7 +369,7 @@ tpod_plot_df <- tpod_bootstrapping %>%
 fig2e_bs = ggplot(tpod_plot_df,
        aes(x = timepoint, y = tpod_median,
            ymin = tpod_lower, ymax = tpod_upper,
-           color = partner)) +
+           color = analysis_summary)) +
   geom_pointrange(
     position = position_dodge(width = 0.6)
   ) +
@@ -420,7 +381,7 @@ fig2e_bs = ggplot(tpod_plot_df,
     stroke = 0.6,
     position = position_dodge(width = 0.6)
   ) +
-  geom_line(aes(x=timepoint, y=tpod_orig, group = partner)) +
+  geom_line(aes(x=timepoint, y=tpod_orig, group = analysis_summary)) +
   facet_wrap(~ method, scales = "free_y", nrow = 1) +
   labs(
     x = "",
@@ -434,11 +395,12 @@ fig2e_bs = ggplot(tpod_plot_df,
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     axis.text.x = element_text(size = 12),
     legend.title = element_blank(),
-    legend.text = element_text(size = 12)
+    legend.text = element_text(size = 12),
+    legend.position = "left"
   ) +
   # scale_y_log10() +
   scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
-                     breaks = c("AristotleU", "GhentU", "BPI", "LeidenU", "Sciensano"))
+                     breaks = c("DRomics_CPM_QT", "DRomics_VST_QT", "DRomics_log2Internal_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT"))
 
 
 fig2e_bs
