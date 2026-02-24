@@ -280,7 +280,8 @@ fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
   geom_point(stat = "identity", aes(color = analysis_summary), size = 1) +
   labs(y = "Accumulation", 
        x = "BMC") +
-  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen")) +
+  scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                     breaks = c("DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")) +
   theme(
     # legend.title = element_blank()
     legend.position = "none"
@@ -299,7 +300,8 @@ fig2c_total <- wrap_elements(
     axis    = "collect",
     heights = c(5, 5)
   ) +
-  plot_annotation(title = "BMC accumulation - 24h")) &
+  plot_annotation(title = "BMC Accumulation",
+                  subtitle = "24h")) &
   theme(
     legend.position = "bottom"
   )
@@ -349,7 +351,7 @@ fig2d_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig2d_cor))
 # combine with a patchwork-native title
 fig2d_total <- wrap_elements(
   fig2d_cor_gg +
-  plot_annotation(title = "BMC correlations"))
+  plot_annotation(title = "BMC Correlations"))
 
 fig2d_total
 
@@ -412,7 +414,7 @@ fig2e_bs = ggplot(tpod_plot_df,
     axis.text.x = element_text(size = 12),
     legend.title = element_blank(),
     legend.text = element_text(size = 12),
-    legend.position = "left"
+    legend.position = "none"
   ) +
   # scale_y_log10() +
   scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gold1", "gray30"),
@@ -446,7 +448,7 @@ ggsave(
 
 
 ## Create total figure 2
-```{r}
+```{r, fig.width=17, fig.height=23}
 
 figure2 = fig2a_total /
   fig2b_total /

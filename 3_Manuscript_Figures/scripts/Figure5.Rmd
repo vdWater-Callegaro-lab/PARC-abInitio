@@ -157,7 +157,7 @@ Show BMD accumulation module EGs and HALLMARK NES scores
 
 ```{r}
 fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, analysis_method = "BMDExpress_log2CPM_noWTT", HLpw = "hRPTECTERT1_35") +
-  labs(subtitle = "Eigengene scores (co-expression modules)") +
+  labs(subtitle = "Eigengene scores (WGCNA modules)") +
   theme(plot.title = element_text(color = "blue2")) 
 
 
@@ -174,107 +174,6 @@ fig5a_total <- wrap_elements(
 
 
 ggsave(plot = fig5a_total, file.path(plotDir, "fig5a.pdf"), width = 7.5, height = 10.5)
-
-```
-
-## Figure 5b
-Compare tPODs based on pathway scores vs Median BMCs 
-
-```{r}
-# # correlate pw score BMDs and median BMDs (modules)
-# highlight_hRPTECTERT1_35 = LU_pwScore_medianScore %>% filter(module == "hRPTECTERT1_35")
-# 
-# fig5b_LU = LU_pwScore_medianScore %>%
-#   ggplot() +
-#   geom_point(aes(x=medianBMD, y=pwScore_BMD)) +
-#   geom_point(data = highlight_hRPTECTERT1_35, aes(x=medianBMD, y=pwScore_BMD), color = "red", size = 3) +
-#   geom_abline(lty = 3, color = "red") +
-#   facet_wrap(~timepoint) +
-#   labs(x="Median Pathway BMC",
-#        y="BMC Pathway Scores",
-#        title = "Leiden University",
-#        subtitle = "Eigengene scores (co-expression modules)") +
-#   theme(plot.title = element_text(color = "blue2"))
-# 
-# 
-# 
-# # correlate pw score BMDs and median BMDs (NES)
-# highlight_HALLMARKp53 = Sciensano_pwScore_medianScore %>% filter(HALLMARKpw == "HALLMARK_P53_PATHWAY")
-# 
-# fig5b_SC = Sciensano_pwScore_medianScore %>%
-#   ggplot() +
-#   geom_point(aes(x=medianBMD, y=pwScore_BMD)) +
-#   geom_point(data = highlight_HALLMARKp53, aes(x=medianBMD, y=pwScore_BMD), color = "red", size = 3) +
-#   geom_abline(lty = 3, color = "red") +
-#   facet_wrap(~timepoint) +
-#   labs(x="Median Pathway BMC",
-#        y="BMC Pathway Scores",
-#        title = "Sciensano",
-#        subtitle = "HALLMARK NES scores") +
-#   theme(plot.title = element_text(color = "forestgreen"))
-# 
-# 
-# # generate title
-# fig5b_lab <- wrap_elements(panel = textGrob("Compare BMCs from Pathway Scores with Median BMCs", gp = gpar(fontface = "bold", fontsize = 18)))
-# 
-# 
-# fig5b_total = fig5b_lab / fig5b_LU / fig5b_SC + plot_layout(axis = "collect", guides = "collect", heights = c(0.5, 5, 5))
-# fig5b_total
-# 
-# ggsave(plot = fig5b_total, file.path(plotDir, "fig5b.pdf"), width = 7.5, height = 10.5)
-#     
-
-```
-
-
-
-## Figure 5c
-Violin plots to show the distribution of the BMCs > change
-
-```{r}
-
-
-# fig5c_LU = LU_pwScore_medianScore %>%
-#   pivot_longer(cols = -c(module, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
-#   ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
-#   geom_violin() +
-#   geom_jitter(size = 0.8) +
-#   facet_wrap(~timepoint, nrow = 1) +
-#   labs(title = "Leiden University",
-#        subtitle = "Eigengene scores (co-expression modules)") +
-#   theme(plot.title = element_text(color = "blue2"),
-#         axis.text.x = element_blank(),
-#         axis.title.x = element_blank()) +
-#   scale_color_manual(values = c("red", "gray45"),
-#                      breaks = c("pwScore_BMD", "medianBMD"),
-#                      labels = c("Pathway Score BMC", "Median Pathway BMC"))
-# 
-# 
-# 
-# fig5c_SC = Sciensano_pwScore_medianScore %>%
-#   pivot_longer(cols = -c(HALLMARKpw, timepoint), names_to = "pwScore_median", values_to = "BMC") %>% 
-#   ggplot(aes(x=pwScore_median, y=BMC, color = pwScore_median)) +
-#   geom_violin() +
-#   geom_jitter(size = 0.8) +
-#   facet_wrap(~timepoint, nrow = 1) +
-#   labs(title = "Sciensano",
-#        subtitle = "HALLMARK NES scores") +
-#   theme(plot.title = element_text(color = "forestgreen"),
-#        axis.text.x = element_blank(),
-#        axis.title.x = element_blank()) +
-#   scale_color_manual(values = c("red", "gray45"),
-#                      breaks = c("pwScore_BMD", "medianBMD"),
-#                      labels = c("Pathway Score BMC", "Median Pathway BMC"))
-# 
-# 
-# # generate title
-# fig5c_lab <- wrap_elements(panel = textGrob("Compare distribution BMCs from Pathway Scores & Median BMCs", gp = gpar(fontface = "bold", fontsize = 18)))
-# 
-# 
-# fig5c = fig5c_lab / fig5c_LU / fig5c_SC + plot_layout(axis = "collect", guides = "collect", heights = c(0.5, 3, 3))
-# fig5c
-# 
-# ggsave(plot = fig5c, file.path(plotDir, "fig5c.pdf"), width = 15, height = 6.5)
 
 ```
 
@@ -361,7 +260,9 @@ plot_bland_altman <- function(df,
       y = "Difference (BMC Pathway Score − Median Pathway BMC)",
       title = analysis_summary,
       subtitle = pathwaySource
-    ) 
+    ) +
+    theme(strip.background = element_rect(fill = "white", colour = "white"),
+        strip.text = element_text(face = "italic", size = 14))
 }
 
 
@@ -408,7 +309,9 @@ LU_BMC_distr = LU_pwScore_medianScore %>%
        subtitle = "WGCNA Modules",
        x = "BMC") +
   theme(legend.title = element_blank(),
-        plot.title = element_text(color = "blue2"))
+        plot.title = element_text(color = "blue2")) +
+    theme(strip.background = element_rect(fill = "white", colour = "white"),
+        strip.text = element_text(face = "italic", size = 14))
 
 
 SC_BMC_distr = Sciensano_pwScore_medianScore %>%
@@ -425,7 +328,9 @@ SC_BMC_distr = Sciensano_pwScore_medianScore %>%
        subtitle = "HALLMARK Pathways",
        x = "BMC") +
   theme(legend.title = element_blank(),
-        plot.title = element_text(color = "forestgreen"))
+        plot.title = element_text(color = "forestgreen")) +
+    theme(strip.background = element_rect(fill = "white", colour = "white"),
+        strip.text = element_text(face = "italic", size = 14))
 
 # combine
 fig5c_total <- wrap_elements(
@@ -517,8 +422,10 @@ plot_bmc_diff_vs_pct_overlap <- function(df,
       aes(x = -Inf, y = Inf, label = label),
       inherit.aes = FALSE,
       hjust = -0.05, vjust = 1.05,
-      size = 3
-    )
+      size = 4
+    ) +
+    theme(strip.background = element_rect(fill = "white", colour = "white"),
+        strip.text = element_text(face = "italic", size = 14))
   
   if (log_x) p <- p + scale_x_log10()
   if (log_y) p <- p + scale_y_log10()
