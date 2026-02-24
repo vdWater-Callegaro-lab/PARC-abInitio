@@ -106,91 +106,119 @@ pw_gene_cor = data.table::fread(file.path(outputDir, "pathway_vs_gene_correlatio
 Here we plot the accumulation of the HALLMARK pathways
 
 ```{r}
-fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, partner = "AristotleU") +
-  theme(
-    plot.title = element_text(color = "firebrick")
-  ) +
-  xlim(c(0,50))
-
-
-fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, partner = "BPI") + 
-  theme(
-    plot.title = element_text(color = "gray30")
-  ) +
-  xlim(c(0,50))
-
-
-fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, partner = "GhentU") +
-  theme(
-    plot.title = element_text(color = "gold1")
-  ) +
-  xlim(c(0,50))
-
-fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, partner = "LeidenU") + 
+fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, analysis_summary = "BMDExpress_log2CPM_noWTT") + 
   theme(
     plot.title = element_text(color = "blue2")
   ) +
   xlim(c(0,50))
 
 
-fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, partner = "Sciensano") +
+fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, analysis_summary = "BMDExpress_log2CPM_WTT") +
   theme(
     plot.title = element_text(color = "forestgreen")
   ) +
   xlim(c(0,50))
 
 
-# generate title 
-fig3a_lab = wrap_elements(panel = textGrob("Median BMC Accumulation", gp = gpar(fontface = "bold", fontsize = 18)))
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRomics_CPM_QT") +
+  theme(
+    plot.title = element_text(color = "firebrick")
+  ) +
+  xlim(c(0,50))
 
-fig3a_total = wrap_elements(fig3a_lab / wrap_elements(fig3a_AU + fig3a_BPI + fig3a_GU + fig3a_LU + fig3a_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")) + plot_layout(heights = c(0.5, 5)))
+
+fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, analysis_summary = "DRomics_log2Internal_QT") + 
+  theme(
+    plot.title = element_text(color = "gray30")
+  ) +
+  xlim(c(0,50))
+
+
+fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, analysis_summary = "DRomics_VST_QT") +
+  theme(
+    plot.title = element_text(color = "gold1")
+  ) +
+  xlim(c(0,50))
+
+
+
+library(patchwork)
+
+fig3a_total <-
+  wrap_elements((fig3a_LU + fig3a_SC + fig3a_AU + fig3a_BPI + fig3a_GU) +
+  plot_layout(
+    nrow = 1,
+    guides = "collect",
+    axis = "collect"
+  ) +
+  plot_annotation(
+    title = "Median BMC Accumulation"
+  )) &
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 18,
+      hjust = 0.5  # center the title
+    ),
+    legend.position = "bottom"
+  )
 
 fig3a_total
 
-ggsave(plot = fig3a_total, file.path(plotDir, "fig3a.pdf"), width = 17.5, height = 5.5)
+ggsave(
+  plot = fig3a_total,
+  file.path(plotDir, "fig3a.pdf"),
+  width = 17.5,
+  height = 5.5
+)
 
 ```
 
 
 ## Figure 3b
 ```{r}
-
 fig3b_cor <- GGally::ggpairs(
   norm_HALLMARK_combined_wide,
   aes(color = timepoint),
-  columns = c("AU_medianBMD", "BPI_medianBMD", "GU_medianBMD", "LU_medianBMD", "SC_medianBMD"),
-  columnLabels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"),
-  upper = list(continuous = GGally::wrap("cor", size = 6),
-               mapping = ggplot2::aes(color = timepoint)),
-  diag = list(continuous = GGally::wrap("densityDiag", alpha = 0.5),
-    mapping    = ggplot2::aes(color = timepoint))
-) +
-  scale_color_manual(values = timepoint_cols, 
-                     breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
-  scale_fill_manual(values = timepoint_cols, 
-                     breaks = c("4h", "8h", "16h", "24h", "48h", "72h")) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.text  = element_text(size = 12),
-    strip.background = element_rect(fill = "white", colour = "black")
+  columns = c("LU_medianBMD", "SC_medianBMD", "AU_medianBMD", "BPI_medianBMD", "GU_medianBMD"),
+  columnLabels = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
+  lower = list(continuous = GGally::wrap("points")),
+  diag  = list(
+    continuous = GGally::wrap("densityDiag", alpha = 0.5),
+    mapping    = ggplot2::aes(color = timepoint)
+    # continuous   = GGally::wrap("blankDiag")
   )
+) +
+  theme_bw() +
+  scale_color_manual(values = timepoint_cols) +
+  scale_fill_manual(values = timepoint_cols) +  # for density fill, if used
+  # if densityDiag uses color only, this is harmless but keeps things consistent
+  theme(strip.background = element_rect(fill = "white", colour = "black"),
+        strip.text = element_text(face = "bold", size = 9))
 
 fig3b_cor_gg <- wrap_elements(full = ggmatrix_gtable(fig3b_cor))  # convert to ggplot
 
 # title
-fig3b_lab <- wrap_elements(
-  panel = textGrob(
-    "Median BMC Correlations",
-    gp = gpar(fontface = "bold", fontsize = 18)
+fig3b_total <-
+  wrap_elements(fig3b_cor_gg +
+  plot_annotation(
+    title = "Median BMC Correlations"
+  )) &
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 18,
+      hjust = 0.5
+    )
   )
+
+
+ggsave(
+  plot = fig3b_total,
+  file.path(plotDir, "fig3b.pdf"),
+  width = 13,
+  height = 10.5
 )
-
-fig3b_total <- wrap_elements(fig3b_lab / fig3b_cor_gg + plot_layout(heights = c(0.5, 10)))
-
-fig3b_total
-
-ggsave(plot = fig3b_total, file.path(plotDir, "fig3b.pdf"), width = 13, height = 10.5)
 
 ```
 
@@ -198,7 +226,23 @@ ggsave(plot = fig3b_total, file.path(plotDir, "fig3b.pdf"), width = 13, height =
 ```{r}
 pwgene_plot <- pw_gene_cor %>%
   mutate(
-    pair = paste(partner_a, "vs", partner_b),
+    analysis_summary_a = case_when(
+      analysis_summary_a == "DRomics_CPM_QT" ~ "M1",
+      analysis_summary_a == "DRomics_log2Internal_QT" ~ "M2",
+      analysis_summary_a == "DRomics_VST_QT" ~ "M3",
+      analysis_summary_a == "BMDExpress_log2CPM_noWTT" ~ "M4",
+      analysis_summary_a == "BMDExpress_log2CPM_WTT" ~ "M5"
+    ),
+    analysis_summary_b = case_when(
+      analysis_summary_b == "DRomics_CPM_QT" ~ "M1",
+      analysis_summary_b == "DRomics_log2Internal_QT" ~ "M2",
+      analysis_summary_b == "DRomics_VST_QT" ~ "M3",
+      analysis_summary_b == "BMDExpress_log2CPM_noWTT" ~ "M4",
+      analysis_summary_b == "BMDExpress_log2CPM_WTT" ~ "M5"
+    )
+  ) %>%
+  mutate(
+    pair = paste(analysis_summary_a, "vs", analysis_summary_b),
     diff_pathway_minus_gene = r_pathway - r_gene_mean,
     timepoint = factor(timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h"))
   )
@@ -238,18 +282,41 @@ ggsave(file.path(getwd(), "figures", "EUT046", "fig3c.pdf"), width=4.1, height=1
 ## Figure 3d
 ```{r}
 
-fig3d_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY") 
-fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3d_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY")
+# save legend
+fig3d_24h_leg = fig3d_24h + theme(legend.position = "bottom")
+ggsave(plot = fig3d_24h_leg, filename = file.path(plotDir, "fig3d_legend.pdf"), width = 15, height = 10.5)
+
+fig3d_24h = fig3d_24h + theme(legend.position = "none") 
+fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY") + theme(legend.position = "none")
 
 
 # generate title
-fig3d_lab = wrap_elements(panel = textGrob("Median BMC Accumulation - 24h & 48h", gp = gpar(fontface = "bold", fontsize = 18)))
+fig3d_total <-
+  wrap_elements((fig3d_24h / fig3d_48h) +
+  plot_layout(
+    guides  = "collect",
+    axis    = "collect",
+    heights = c(7.5, 7.5)
+  ) +
+  plot_annotation(
+    title = "Median BMC Accumulation - 24h & 48h"
+  )) &
+  theme(
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    legend.position = "bottom"
+  )
 
-
-fig3d_total = wrap_elements(fig3d_lab / fig3d_24h / fig3d_48h + plot_layout(guides = "collect", axis = "collect", heights = c(0.75, 7.5, 7.5)))
 fig3d_total
 
-ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 7.5, height = 10.5)
+ggsave(
+  plot = fig3d_total,
+  filename = file.path(plotDir, "fig3d.pdf"),
+  width = 7.5,
+  height = 10.5
+)
+
+
 ```
 
 
@@ -257,46 +324,39 @@ ggsave(plot = fig3d_total, filename = file.path(plotDir, "fig3d.pdf"), width = 7
 ## Figure 3e
 ```{r}
 
-fig3e_24h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "24h"), aes(x=partner, y=finalBMD)) +
-  geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
-  geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
-  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
-  labs(subtitle = "24h",
-       y = "BMC") +
-  scale_x_discrete(labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
-  scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
-  scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))  +
-  theme(legend.position = "none")
+lvls <- c("DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT",
+          "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")
+
+norm_BMD_combined_HALLMARKp53 <- norm_BMD_combined_HALLMARKp53 %>%
+  dplyr::mutate(analysis_summary = factor(analysis_summary, levels = lvls))
+
+make_plot <- function(tp) {
+  ggplot(norm_BMD_combined_HALLMARKp53 %>% dplyr::filter(timepoint == tp),
+         aes(x = analysis_summary, y = finalBMD)) +
+    geom_violin(aes(fill = analysis_summary), color = NA, alpha = 0.6) +
+    geom_jitter(width = 0.1, alpha = 0.5, aes(color = analysis_summary)) +
+    geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
+    labs(subtitle = tp, y = "BMC") +
+    scale_x_discrete(drop = FALSE, limits = lvls) +
+    scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+                      breaks = lvls) +
+    scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
+                       breaks = lvls) +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+fig3e_24h <- make_plot("24h") + theme(axis.text.x = element_blank())
+fig3e_48h <- make_plot("48h")
 
 
 
-
-fig3e_48h = ggplot(norm_BMD_combined_HALLMARKp53 %>% filter(timepoint == "48h"), aes(x=partner, y=finalBMD)) +
-  geom_violin(aes(fill = partner), color = NA, alpha = 0.6) +
-  geom_jitter(width = 0.1, alpha = 0.5, aes(color = partner)) +
-  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
-  labs(subtitle = "48h",
-       y = "BMC") +
-  scale_x_discrete(labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
-  scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano")) +
-  scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
-                     breaks = c("AU", "BPI", "GU", "LU", "SC"),
-                     labels = c("AristotleU", "BPI", "GhentU", "LeidenU", "Sciensano"))  +
-  theme(legend.position = "none")
-
-
-# generate title
-fig3e_lab = wrap_elements(panel = textGrob("BMC Distribution of Genes in HALLMARK P53 PATHWAY", gp = gpar(fontface = "bold", fontsize = 18)))
-
-
-# combine
-fig3e_total = wrap_elements(fig3e_lab / fig3e_24h / fig3e_48h + plot_layout(heights = c(0.75, 7.5, 7.5), axis = "collect", guides = "collect"))
+fig3e_total <-
+  wrap_elements((fig3e_24h / fig3e_48h) +
+  plot_layout(heights = c(1, 1), axis = "collect", guides = "collect") +
+  plot_annotation(title = "BMC Distribution of Genes in HALLMARK P53 PATHWAY")) &
+  theme(plot.title = element_text(face = "bold", size = 18))
 
 fig3e_total
 
@@ -324,7 +384,7 @@ ggsave(plot = fig3e_total, filename = file.path(plotDir, "fig3e.pdf"), width = 1
 # combine b, d and e
 fig3bde = wrap_elements(fig3b_total /
   (fig3d_total + fig3e_total) +
-  plot_layout(heights = c(10, 7), widths = c(10, 4, 6))) + plot_layout(guides = "collect")
+  plot_layout(heights = c(10, 7), widths = c(10, 4, 6)) + plot_layout(guides = "collect"))
 
 # add c
 fig3bdec = wrap_elements(fig3bde + fig3c +
@@ -338,7 +398,7 @@ figure3 = fig3a_total /
 
 figure3
 
-ggsave(file.path(plotDir, "Figure3_v2.pdf"), width = 17, height = 22)
+ggsave(file.path(plotDir, "Figure3.pdf"), width = 17, height = 22)
 
 
 

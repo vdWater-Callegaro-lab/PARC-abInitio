@@ -245,7 +245,7 @@ Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
 
 BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
   timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_logInternal_QT"
+  analysis_summary = "DRomics_log2Internal_QT"
 ) %>% dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
