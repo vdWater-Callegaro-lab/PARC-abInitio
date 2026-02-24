@@ -176,6 +176,14 @@ ggsave(plot = fig2a_total, file.path(plotDir, "fig2a.pdf"), width = 15, height =
 
 #### Plot first row
 ```{r, fig.width=10}
+fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_noWTT") +
+  theme(plot.title = element_text(color = "blue3")) +
+  ylim(c(0, 6300))
+
+fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_WTT") + 
+  theme(plot.title = element_text(color = "forestgreen")) +
+  ylim(c(0, 6300))
+
 fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, analysis_summary = "DRomics_CPM_QT") +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
@@ -188,16 +196,10 @@ fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary 
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
-fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_noWTT") +
-  theme(plot.title = element_text(color = "blue3")) +
-  ylim(c(0, 6300))
-
-fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_WTT") + 
-  theme(plot.title = element_text(color = "forestgreen")) +
-  ylim(c(0, 6300))
 
 
-fig2b_row1 = fig2b_AU + fig2b_BPI + fig2b_GU + fig2b_LU + fig2b_SC + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+
+fig2b_row1 = fig2b_LU + fig2b_SC + fig2b_AU + fig2b_BPI + fig2b_GU +plot_layout(nrow = 1, guides = "collect", axis = "collect")
 fig2b_row1
 
 # ggsave(plot = fig2b_row1, file.path(plotDir, "fig2b_firstrow.pdf"), width = 15, height = 5)
@@ -211,6 +213,13 @@ Zoom in on first part (250 genes) plot
 
 #### Plot zoom
 ```{r}
+
+fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select) + 
+  theme(plot.title = element_text(color = "blue3"))
+
+fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select) + 
+  theme(plot.title = element_text(color = "forestgreen"))
+
 fig2b_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select) + 
   theme(plot.title = element_text(color = "firebrick"))
 
@@ -221,15 +230,8 @@ fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select) +
   theme(plot.title = element_text(color = "gold1"))
 
 
-fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select) + 
-  theme(plot.title = element_text(color = "blue3"))
 
-
-fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select) + 
-  theme(plot.title = element_text(color = "forestgreen"))
-
-
-fig2b_row2 = fig2b_AU_zoom + fig2b_BPI_zoom + fig2b_GU_zoom + fig2b_LU_zoom + fig2b_SC_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
+fig2b_row2 = fig2b_LU_zoom + fig2b_SC_zoom + fig2b_AU_zoom + fig2b_BPI_zoom + fig2b_GU_zoom + plot_layout(nrow = 1, guides = "collect", axis = "collect")
 fig2b_row2
 
 # ggsave(plot = fig2b_row2, file.path(plotDir, "fig2b_secondrow.pdf"), width = 15, height = 5)
@@ -313,8 +315,8 @@ BMD correlations
 fig2d_cor <- GGally::ggpairs(
   norm_BMD_combined_wide,
   aes(color = timepoint),
-  columns = c("AU_finalBMD", "BPI_finalBMD", "GU_finalBMD", "LU_finalBMD", "SC_finalBMD"),
-  columnLabels = c("DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT"),
+  columns = c( "LU_finalBMD", "SC_finalBMD", "AU_finalBMD", "BPI_finalBMD", "GU_finalBMD"),
+  columnLabels = c("BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
   lower = list(continuous = GGally::wrap("points", size = 0.05)),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -399,8 +401,8 @@ fig2e_bs = ggplot(tpod_plot_df,
     legend.position = "left"
   ) +
   # scale_y_log10() +
-  scale_color_manual(values = c("firebrick", "gold1", "gray30", "blue2", "forestgreen"),
-                     breaks = c("DRomics_CPM_QT", "DRomics_VST_QT", "DRomics_log2Internal_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT"))
+  scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gold1", "gray30"),
+                     breaks = c("BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_VST_QT", "DRomics_log2Internal_QT"))
 
 
 fig2e_bs
