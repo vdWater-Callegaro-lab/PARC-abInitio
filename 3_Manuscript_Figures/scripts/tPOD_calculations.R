@@ -95,11 +95,11 @@ tpod_orig_AU <- bind_rows(
 
 # generate table (NEED TO ADD CI)
 tpod_orig_all <- list(
-  BMDExpress_log2CPM_noWTT    = tpod_orig_LU,
-  BMDExpress_log2CPM_WTT  = tpod_orig_SC,
-  DRomics_VST_QT     = tpod_orig_GU,
-  DRomics_log2Internal_QT        = tpod_orig_BPI,
-  DRomics_UQ_QT = tpod_orig_AU
+  `BMDE-noWTT-CPM-RF-S5`    = tpod_orig_LU,
+  `BMDE-WTT-CPM-RF-S0`  = tpod_orig_SC,
+  `DRO-Quad-VST-RF-S0`     = tpod_orig_GU,
+  `DRO-Quad-VST-C10-S0`        = tpod_orig_BPI,
+  `DRO-Quad-UQ-RF-S0` = tpod_orig_AU
 ) %>%
   imap_dfr(~ mutate(.x, analysis_summary = .y)) %>%
   mutate(

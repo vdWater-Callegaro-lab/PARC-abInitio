@@ -144,32 +144,32 @@ norm_BMD_combined_wide_LUmodels = norm_BMD_combined_wide %>%
 p1 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=AU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
-       y = "BMC (DRomics_UQ_QT)", 
+  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
+       y = "BMC (DRO-Quad-UQ-RF-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p2 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
-       y = "BMC (DRomics_log2Internal_QT)", 
+  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
+       y = "BMC (DRO-Quad-VST-C10-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p3 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=GU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
-       y = "BMC (DRomics_VST_QT)", 
+  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
+       y = "BMC (DRO-Quad-VST-RF-S0)", 
        color = "Best Model")+
   scale_color_manual(values = model_cols)
 
 p4 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=SC_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_noWTT)",
-       y = "BMC (BMDExpress_log2CPM_WTT)", 
+  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
+       y = "BMC (BMDE-WTT-CPM-RF-S0)", 
        color = "Best Model")+
   scale_color_manual(values = model_cols)
 
@@ -185,32 +185,32 @@ norm_BMD_combined_wide_SCmodels = norm_BMD_combined_wide %>%
 p5 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=AU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
-       y = "BMC (DRomics_UQ_QT)", 
+  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+       y = "BMC (DRO-Quad-UQ-RF-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p6 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
-       y = "BMC (DRomics_log2Internal_QT)", 
+  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+       y = "BMC (DRO-Quad-VST-C10-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p7 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=GU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
-       y = "BMC (DRomics_VST_QT)", 
+  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+       y = "BMC (DRO-Quad-VST-RF-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
 p8 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=LU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDExpress_log2CPM_WTT)",
-       y = "BMC (BMDExpress_log2CPM_noWTT)", 
+  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+       y = "BMC (BMDE-noWTT-CPM-RF-S5)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
 
@@ -222,7 +222,7 @@ row1 <-
     p1 + p2 + p3 + p4 +
       plot_layout(nrow=1) +
   plot_annotation(
-    title = "BMDExpress_log2CPM_noWTT Models Fit",
+    title = "BMDE-noWTT-CPM-RF-S5 Models Fit",
     tag_levels = "I"
   ))
 
@@ -230,7 +230,7 @@ row2 <- wrap_elements(
  p5 + p6 + p7 + p8 +
    plot_layout(nrow = 1) +
   plot_annotation(
-    title = "BMDExpress_log2CPM_WTT Models Fit",
+    title = "BMDE-WTT-CPM-RF-S0 Models Fit",
     tag_levels = "I"
   ))
 

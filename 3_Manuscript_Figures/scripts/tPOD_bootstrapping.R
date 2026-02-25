@@ -2,6 +2,9 @@
 
 # BOOTSTRAPPING TO IDENTIFY CONFIDENCE INTERVAL IN TPOD CALCULATIONS
 
+## LOAD PACKAGES
+library(tidyverse)
+library(purrr)
 
 ## LOAD FUNCTION TO CALUCATE TPODS
 source(file.path(getwd(), "functions.R"))
@@ -77,11 +80,11 @@ bootstrapped_tpods_AU = bootstrap_tpods(df_bmd = AU_norm_BMD_select %>%
 
 ### COMBINE RESULTS
 boot_all <- list(
-  BMDExpress_log2CPM_noWTT    = bootstrapped_tpods_LU,
-  BMDExpress_log2CPM_WTT  = bootstrapped_tpods_SC,
-  DRomics_VST_QT     = bootstrapped_tpods_GU,
-  DRomics_log2Internal_QT        = bootstrapped_tpods_BPI,
-  DRomics_UQ_QT = bootstrapped_tpods_AU
+  `BMDE-noWTT-CPM-RF-S5`    = bootstrapped_tpods_LU,
+  `BMDE-WTT-CPM-RF-S0`  = bootstrapped_tpods_SC,
+  `DRO-Quad-VST-RF-S0`     = bootstrapped_tpods_GU,
+  `DRO-Quad-VST-C10-S0`        = bootstrapped_tpods_BPI,
+  `DRO-Quad-UQ-RF-S0` = bootstrapped_tpods_AU
 ) %>%
   imap_dfr(~ mutate(.x, analysis_summary = .y))   # add analysis_summary column from list names
 

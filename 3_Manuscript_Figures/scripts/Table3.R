@@ -38,7 +38,7 @@ method_order <- c("5th percentile",
 # order timepoints
 timepoint_order <- c("4h", "8h", "16h", "24h", "48h", "72h") 
 
-analysis_summary_order <- c("DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")
+analysis_summary_order <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
 
 tpod_ordered <- tpod_formatted %>%
   mutate(

@@ -187,7 +187,7 @@ AU_norm_BMD_select = AU_norm_BMD %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
 ),
-analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
+analysis_summary = "DRO-Quad-UQ-RF-S0") %>% dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
   "finalBMD" = BMD.zSD,
@@ -200,7 +200,7 @@ analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
 GU_norm_BMD_select = GU_norm_BMD %>%
   mutate(
     timepoint = factor(gsub("hr", "h", timepoint), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-    analysis_summary = "DRomics_VST_QT"
+    analysis_summary = "DRO-Quad-VST-RF-S0"
   ) %>% 
   dplyr::select(
   gene_symbol_entrez_id,
@@ -217,7 +217,7 @@ LU_norm_BMD_select = LU_norm_BMD %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"), 
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
   ),
-  analysis_summary = "BMDExpress_log2CPM_noWTT") %>% dplyr::select(
+  analysis_summary = "BMDE-noWTT-CPM-RF-S5") %>% dplyr::select(
     "gene_symbol_entrez_id" = Probe.ID, 
     timepoint, 
     "finalBMD" = Best.BMD,
@@ -232,7 +232,7 @@ Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"), 
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
   ),
-  analysis_summary = "BMDExpress_log2CPM_WTT") %>% dplyr::select(
+  analysis_summary = "BMDE-WTT-CPM-RF-S0") %>% dplyr::select(
     gene_symbol_entrez_id,
     timepoint, 
     "finalBMD" = Best.BMD,
@@ -245,7 +245,7 @@ Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
 
 BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
   timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_log2Internal_QT"
+  analysis_summary = "DRO-Quad-VST-C10-S0"
 ) %>% dplyr::select(
   gene_symbol_entrez_id,
   timepoint,
@@ -265,7 +265,7 @@ BPI_norm_BMD_select = BPI_norm_BMD %>% mutate(timepoint = factor(
 # median BMD HALLMARK
 AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
+  analysis_summary = "DRO-Quad-UQ-RF-S0") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
     "medianBMD" = Median,
@@ -277,7 +277,7 @@ AU_norm_HALLMARK_select = AU_norm_HALLMARK %>% mutate(
 
 GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% mutate(
   timepoint = factor(gsub("hr", "h", timepoint), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_VST_QT") %>% dplyr::select(
+  analysis_summary = "DRO-Quad-VST-RF-S0") %>% dplyr::select(
     Pathway.Name,
     timepoint,
     "medianBMD" = BMD.Median,
@@ -290,7 +290,7 @@ GU_norm_HALLMARK_select = GU_norm_HALLMARK %>% mutate(
 
 LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "BMDExpress_log2CPM_noWTT"
+  analysis_summary = "BMDE-noWTT-CPM-RF-S5"
 ) %>% dplyr::select(
   "Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, 
   timepoint,
@@ -307,7 +307,7 @@ LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% mutate(
 Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-), analysis_summary = "BMDExpress_log2CPM_WTT") %>%
+), analysis_summary = "BMDE-WTT-CPM-RF-S0") %>%
   dplyr::select(
     Pathway.Name,
     timepoint,
@@ -322,7 +322,7 @@ Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% mutate(timepoint = 
 
 BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% mutate(
   timepoint = factor(Timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_log2Internal_QT"
+  analysis_summary = "DRO-Quad-VST-C10-S0"
 ) %>% dplyr::select(
   "Pathway.Name" = Description,
   timepoint,
@@ -343,7 +343,7 @@ BPI_norm_HALLMARK_select = BPI_norm_HALLMARK %>% mutate(
 # median BMD pathways of choice
 AU_norm_KEGG_select = AU_norm_KEGG %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_UQ_QT") %>% dplyr::select(
+  analysis_summary = "DRO-Quad-UQ-RF-S0") %>% dplyr::select(
     "Pathway.Name" = Description,
     timepoint,
     "medianBMD" = Median,
@@ -357,7 +357,7 @@ AU_norm_KEGG_select = AU_norm_KEGG %>% mutate(
 
 LU_norm_modules_select = LU_norm_modules %>% mutate(
   timepoint = factor(str_extract(Analysis, "\\d{1,2}h"), levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "BMDExpress_log2CPM_noWTT"
+  analysis_summary = "BMDE-noWTT-CPM-RF-S5"
 ) %>% dplyr::select(
   "Pathway.Name" = GO.Pathway.Gene.Set.Gene.Name, 
   timepoint,
@@ -373,7 +373,7 @@ LU_norm_modules_select = LU_norm_modules %>% mutate(
 Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-), analysis_summary = "BMDExpress_log2CPM_WTT") %>%
+), analysis_summary = "BMDE-WTT-CPM-RF-S0") %>%
   dplyr::select(
     Pathway.Name,
     timepoint,
@@ -387,7 +387,7 @@ Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% mutate(
 
 BPI_norm_WIKIPATHWAYS_select = BPI_norm_WIKIPATHWAYS %>% mutate(
   timepoint = factor(Timepoint, levels = c("4h", "8h", "16h", "24h", "48h", "72h")),
-  analysis_summary = "DRomics_log2Internal_QT"
+  analysis_summary = "DRO-Quad-VST-C10-S0"
 ) %>% dplyr::select(
   "Pathway.Name" = Description,
   timepoint,

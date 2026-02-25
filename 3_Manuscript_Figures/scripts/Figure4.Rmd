@@ -192,14 +192,6 @@ fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_sel
   xlim(c(0,50))
 
 
-fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
-                                                 analysis_summary = "DRomics_UQ_QT",
-                                                 pathway_oi = "p53 signaling pathway") +
-  labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
-  theme(plot.title = element_text(color = "firebrick"),
-        plot.subtitle = element_text(color = "red")) + 
-  xlim(0,50)
-
 
 
 fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHWAYS_select,
@@ -209,6 +201,15 @@ fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHW
   theme(plot.title = element_text(color = "gray30"),
         plot.subtitle = element_text(color = "red")) +
   xlim(c(0,50))
+
+fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
+                                                 analysis_summary = "DRomics_UQ_QT",
+                                                 pathway_oi = "p53 signaling pathway") +
+  labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
+  theme(plot.title = element_text(color = "firebrick"),
+        plot.subtitle = element_text(color = "red")) + 
+  xlim(0,50)
+
 
 
 
@@ -237,7 +238,7 @@ fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_se
 
 
 fig4b_total <- wrap_elements(
-  ( fig4b_LU + fig4b_AU + fig4b_BPI + fig4b_GU) +
+  ( fig4b_LU  + fig4b_BPI + fig4b_AU + fig4b_GU) +
   plot_layout(nrow = 1, guides = "collect", axis = "collect") +
   plot_annotation(title = "Median BMC Accumulation")) &
   theme(
@@ -291,6 +292,16 @@ fig4c_SC_td = Sciensano_norm_BMD_select %>% separate(gene_symbol_entrez_id, into
   theme(axis.title.x = element_blank())
 
 
+
+fig4c_BPI = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% WP_p53) %>%
+  ggplot(aes(x = timepoint, y = finalBMD)) +
+  geom_violin(fill = "gray30", color = NA, alpha = 0.6) +
+  geom_jitter(width = 0.1, alpha = 0.5, color = "gray1") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
+  labs(subtitle = "WikiPathways", y = "BMC") +
+  coord_cartesian(ylim = c(0, 50)) +
+  theme(axis.title.x = element_blank())
+
 fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>%
   mutate(ratio = finalBMDU/finalBMDL) %>% filter(ratio <= 40) %>% # add filter to include genes in pathway BMC calculation
   filter(gene_symbol %in% KEGG_p53) %>%
@@ -302,15 +313,6 @@ fig4c_AU = AU_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene
   coord_cartesian(ylim = c(0, 50)) +
   theme(axis.title.x = element_blank())
 
-
-fig4c_BPI = BPI_norm_BMD_select %>% separate(gene_symbol_entrez_id, into = c("gene_symbol", "entrez_id"), sep = "_") %>% filter(gene_symbol %in% WP_p53) %>%
-  ggplot(aes(x = timepoint, y = finalBMD)) +
-  geom_violin(fill = "gray30", color = NA, alpha = 0.6) +
-  geom_jitter(width = 0.1, alpha = 0.5, color = "gray1") +
-  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +  # median = thick line
-  labs(subtitle = "WikiPathways", y = "BMC") +
-  coord_cartesian(ylim = c(0, 50)) +
-  theme(axis.title.x = element_blank())
 
 
 fig4c_GU <- GU_norm_BMD_select %>% 
@@ -328,8 +330,7 @@ fig4c_GU <- GU_norm_BMD_select %>%
 
 
 fig4c_total <- wrap_elements(
-  (fig4c_LU + fig4c_SC_gm + fig4c_SC_td +
-   fig4c_AU + fig4c_BPI + fig4c_GU) +
+  (fig4c_LU + fig4c_SC_gm + fig4c_SC_td + fig4c_BPI + fig4c_AU + fig4c_GU) +
   plot_layout(
     nrow   = 1,
     guides = "collect",
@@ -387,8 +388,6 @@ max_val <- max(plotMat, na.rm = TRUE)
 col_fun <- circlize::colorRamp2(c(0, 5, max_val), c("#B2182B", "#FEE08B", "#2166AC"))
 
 # partner annotation
-sets <- c("KEGG","WikiPathways","HALLMARK","Modules","GENOMARK84","TGxDDI64")
-
 sets <- c("WikiPathways", "HALLMARK", "KEGG", "Modules", "GENOMARK84", "TGxDDI64")
 
 # logical membership per set for each gene (row)

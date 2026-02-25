@@ -18,7 +18,7 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 ## create table
 table5 = tibble(timepoint = timepoint_levels) %>% left_join(
   LU_norm_modules_select %>% filter(Pathway.Name == "hRPTECTERT1_35") %>%
-    select(timepoint, "Median BMC (BMDExpress_log2CPM_noWTT)" = medianBMD)
+    select(timepoint, "Median BMC (BMDE-noWTT-CPM_RF_S5)" = medianBMD)
 ) %>%
   left_join(
     LU_BMD_pathway_select %>% filter(pathway == "hRPTECTERT1_35") %>%
@@ -26,7 +26,7 @@ table5 = tibble(timepoint = timepoint_levels) %>% left_join(
   ) %>%
   left_join(
     Sciensano_norm_HALLMARK_select %>% filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
-      select(timepoint, "Median BMC (BMDExpress_log2CPM_WTT)" = medianBMD)
+      select(timepoint, "Median BMC (BMDE-WTT-CPM-RF-S0)" = medianBMD)
   ) %>%
   left_join(
     Sciensano_BMD_pathway_select %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>%
