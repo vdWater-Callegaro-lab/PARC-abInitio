@@ -173,23 +173,23 @@ ggsave(plot = fig2a_total, file.path(plotDir, "fig2a.pdf"), width = 15, height =
 
 #### Plot first row
 ```{r, fig.width=10}
-fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_noWTT") +
+fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDE-noWTT-CPM-RF-S5") +
   theme(plot.title = element_text(color = "blue3")) +
   ylim(c(0, 6300))
 
-fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDExpress_log2CPM_WTT") + 
+fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDE-WTT-CPM-RF-S0") + 
   theme(plot.title = element_text(color = "forestgreen")) +
   ylim(c(0, 6300))
 
-fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, analysis_summary = "DRomics_UQ_QT") +
+fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, analysis_summary = "DRO-Quad-UQ-RF-S0") +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
 
-fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, analysis_summary = "DRomics_log2Internal_QT") +
+fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, analysis_summary = "DRO-Quad-VST-C10-S0") +
   theme(plot.title = element_text(color = "gray30")) +
   ylim(c(0, 6300))
 
-fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary = "DRomics_VST_QT") + 
+fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary = "DRO-Quad-VST-RF-S0") + 
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
@@ -281,7 +281,7 @@ fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
   labs(y = "Accumulation", 
        x = "BMC") +
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT", "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")) +
+                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0")) +
   theme(
     # legend.title = element_blank()
     legend.position = "none"
@@ -328,8 +328,8 @@ BMD correlations
 fig2d_cor <- GGally::ggpairs(
   norm_BMD_combined_wide,
   aes(color = timepoint),
-  columns = c( "LU_finalBMD", "SC_finalBMD", "AU_finalBMD", "BPI_finalBMD", "GU_finalBMD"),
-  columnLabels = c("BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
+  columns = c( "LU_finalBMD", "SC_finalBMD",  "AU_finalBMD","BPI_finalBMD", "GU_finalBMD"),
+  columnLabels = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
   lower = list(continuous = GGally::wrap("points", size = 0.05)),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -418,7 +418,7 @@ fig2e_bs = ggplot(tpod_plot_df,
   ) +
   # scale_y_log10() +
   scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gold1", "gray30"),
-                     breaks = c("BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_UQ_QT", "DRomics_VST_QT", "DRomics_log2Internal_QT"))
+                     breaks = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "DRO-Quad-VST-C10-S0"))
 
 
 fig2e_bs

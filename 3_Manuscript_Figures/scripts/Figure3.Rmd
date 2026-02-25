@@ -106,35 +106,35 @@ pw_gene_cor = data.table::fread(file.path(outputDir, "pathway_vs_gene_correlatio
 Here we plot the accumulation of the HALLMARK pathways
 
 ```{r}
-fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, analysis_summary = "BMDExpress_log2CPM_noWTT") + 
+fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, analysis_summary = "BMDE-noWTT-CPM-RF-S5") + 
   theme(
     plot.title = element_text(color = "blue2")
   ) +
   xlim(c(0,50))
 
 
-fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, analysis_summary = "BMDExpress_log2CPM_WTT") +
+fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, analysis_summary = "BMDE-WTT-CPM-RF-S0") +
   theme(
     plot.title = element_text(color = "forestgreen")
   ) +
   xlim(c(0,50))
 
-
-fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRomics_UQ_QT") +
+fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRO-Quad-UQ-RF-S0") +
   theme(
     plot.title = element_text(color = "firebrick")
   ) +
   xlim(c(0,50))
 
 
-fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, analysis_summary = "DRomics_log2Internal_QT") + 
+fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, analysis_summary = "DRO-Quad-VST-C10-S0") + 
   theme(
     plot.title = element_text(color = "gray30")
   ) +
   xlim(c(0,50))
 
 
-fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, analysis_summary = "DRomics_VST_QT") +
+
+fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, analysis_summary = "DRO-Quad-VST-RF-S0") +
   theme(
     plot.title = element_text(color = "gold1")
   ) +
@@ -145,7 +145,7 @@ fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, anal
 library(patchwork)
 
 fig3a_total <-
-  wrap_elements((fig3a_LU + fig3a_SC + fig3a_AU + fig3a_BPI + fig3a_GU) +
+  wrap_elements((fig3a_LU + fig3a_SC +  fig3a_AU  + fig3a_BPI + fig3a_GU) +
   plot_layout(
     nrow = 1,
     guides = "collect",
@@ -181,7 +181,7 @@ fig3b_cor <- GGally::ggpairs(
   norm_HALLMARK_combined_wide,
   aes(color = timepoint),
   columns = c("LU_medianBMD", "SC_medianBMD", "AU_medianBMD", "BPI_medianBMD", "GU_medianBMD"),
-  columnLabels = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT"),
+  columnLabels = c( "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
   lower = list(continuous = GGally::wrap("points")),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -227,18 +227,18 @@ ggsave(
 pwgene_plot <- pw_gene_cor %>%
   mutate(
     analysis_summary_a = case_when(
-      analysis_summary_a == "DRomics_UQ_QT" ~ "M1",
-      analysis_summary_a == "DRomics_log2Internal_QT" ~ "M2",
-      analysis_summary_a == "DRomics_VST_QT" ~ "M3",
-      analysis_summary_a == "BMDExpress_log2CPM_noWTT" ~ "M4",
-      analysis_summary_a == "BMDExpress_log2CPM_WTT" ~ "M5"
+      analysis_summary_a == "DRO-Quad-UQ-RF-S0" ~ "M3",
+      analysis_summary_a == "DRO-Quad-VST-C10-S0" ~ "M4",
+      analysis_summary_a == "DRO-Quad-VST-RF-S0" ~ "M5",
+      analysis_summary_a == "BMDE-noWTT-CPM-RF-S5" ~ "M1",
+      analysis_summary_a == "BMDE-WTT-CPM-RF-S0" ~ "M2"
     ),
     analysis_summary_b = case_when(
-      analysis_summary_b == "DRomics_UQ_QT" ~ "M1",
-      analysis_summary_b == "DRomics_log2Internal_QT" ~ "M2",
-      analysis_summary_b == "DRomics_VST_QT" ~ "M3",
-      analysis_summary_b == "BMDExpress_log2CPM_noWTT" ~ "M4",
-      analysis_summary_b == "BMDExpress_log2CPM_WTT" ~ "M5"
+      analysis_summary_b == "DRO-Quad-UQ-RF-S0" ~ "M3",
+      analysis_summary_b == "DRO-Quad-VST-C10-S0" ~ "M4",
+      analysis_summary_b == "DRO-Quad-VST-RF-S0" ~ "M5",
+      analysis_summary_b == "BMDE-noWTT-CPM-RF-S5" ~ "M1",
+      analysis_summary_b == "BMDE-WTT-CPM-RF-S0" ~ "M2"
     )
   ) %>%
   mutate(
@@ -263,7 +263,7 @@ fig3c = ggplot(pwgene_plot, aes(x = pair)) +
     x = NULL,
     y = "Correlation",
     title = "Pathway vs Gene Correlations",
-    subtitle = "same #n"
+    subtitle = "same n"
   ) +
   theme_bw() +
   theme(
@@ -291,7 +291,7 @@ fig3d_24h = fig3d_24h + theme(legend.position = "none")
 fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY") + theme(legend.position = "none")
 
 
-# generate title
+# combine
 fig3d_total <-
   wrap_elements((fig3d_24h / fig3d_48h) +
   plot_layout(
@@ -324,8 +324,7 @@ ggsave(
 ## Figure 3e
 ```{r}
 
-lvls <- c("DRomics_UQ_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT",
-          "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT")
+lvls <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
 
 norm_BMD_combined_HALLMARKp53 <- norm_BMD_combined_HALLMARKp53 %>%
   dplyr::mutate(analysis_summary = factor(analysis_summary, levels = lvls))
@@ -338,9 +337,9 @@ make_plot <- function(tp) {
     geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.7) +
     labs(subtitle = tp, y = "BMC") +
     scale_x_discrete(drop = FALSE, limits = lvls) +
-    scale_fill_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
+    scale_fill_manual(values = c( "blue2", "forestgreen", "firebrick", "gray30","gold1"),
                       breaks = lvls) +
-    scale_color_manual(values = c("red4", "gray1", "gold4", "blue4", "darkgreen"),
+    scale_color_manual(values = c( "blue4", "darkgreen", "red4","gray1", "gold4"),
                        breaks = lvls) +
     theme(legend.position = "none",
           axis.title.x = element_blank(),

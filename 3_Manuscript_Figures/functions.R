@@ -100,8 +100,8 @@ BMDaccumulationPlot_pathway_highlight_combined <- function(BMDoutput, timepoint_
     labs(y = "Accumulation",
          x = "Median BMC",
          subtitle = timepoint_oi) +
-    scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gray30", "gold1"),
-                       breaks = c( "BMDExpress_log2CPM_noWTT", "BMDExpress_log2CPM_WTT", "DRomics_CPM_QT", "DRomics_log2Internal_QT", "DRomics_VST_QT")) +
+    scale_color_manual(values = c("blue2", "forestgreen","firebrick", "gray30", "gold1"),
+                       breaks = c( "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")) +
     scale_shape_manual(values = c(15, 16, 17, 18, 8)) +
     theme(legend.title = element_blank())
   
