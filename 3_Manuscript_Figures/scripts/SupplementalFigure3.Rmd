@@ -123,7 +123,7 @@ Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normaliz
 
 # Generate figure
 
-```{r}
+```{r, fig.width=15, fig.height=8}
 library(RColorBrewer)
 model_cols <- c(
   "Exp 3"   = brewer.pal(7, "Set1")[1],
@@ -220,7 +220,7 @@ p8 = norm_BMD_combined_wide_SCmodels %>%
 row1 <-
   wrap_elements(
     p1 + p2 + p3 + p4 +
-      plot_layout(nrow=1) +
+      plot_layout(nrow=1, axis = "collect", guides = "collect") +
   plot_annotation(
     title = "BMDE-noWTT-CPM-RF-S5 Models Fit",
     tag_levels = "I"
@@ -228,7 +228,7 @@ row1 <-
 
 row2 <- wrap_elements(
  p5 + p6 + p7 + p8 +
-   plot_layout(nrow = 1) +
+   plot_layout(nrow = 1, axis = "collect", guides = "collect") +
   plot_annotation(
     title = "BMDE-WTT-CPM-RF-S0 Models Fit",
     tag_levels = "I"
