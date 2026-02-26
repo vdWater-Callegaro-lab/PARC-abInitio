@@ -156,12 +156,12 @@ Sciensano_pwScore_medianScore = tibble(
 Show BMD accumulation module EGs and HALLMARK NES scores
 
 ```{r}
-fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, analysis_method = "BMDExpress_log2CPM_noWTT", HLpw = "hRPTECTERT1_35") +
+fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, analysis_method = "BMDE-noWTT-CPM-RF-S5", HLpw = "hRPTECTERT1_35") +
   labs(subtitle = "Eigengene scores (WGCNA modules)") +
   theme(plot.title = element_text(color = "blue2")) 
 
 
-fig5a_SC = BMDaccumulationPlot_pwscores_highlight(BMDoutput = Sciensano_BMD_pathway_select, analysis_method = "BMDExpress_log2CPM_WTT", HLpw = "HALLMARK_P53_PATHWAY") +
+fig5a_SC = BMDaccumulationPlot_pwscores_highlight(BMDoutput = Sciensano_BMD_pathway_select, analysis_method = "BMDE-WTT-CPM-RF-S0", HLpw = "HALLMARK_P53_PATHWAY") +
   labs(subtitle = "HALLMARK NES scores") + 
   theme(plot.title = element_text(color = "forestgreen"))
 
@@ -268,10 +268,10 @@ plot_bland_altman <- function(df,
 
 
 # plot LU
-LU_BAplot = plot_bland_altman(LU_pwScore_medianScore %>% dplyr::rename("pathway" = module), analysis_summary = "BMDExpress_log2CPM_noWTT", pathwaySource = "WGCNA Modules", highlight_pathway = "hRPTECTERT1_35") +
+LU_BAplot = plot_bland_altman(LU_pwScore_medianScore %>% dplyr::rename("pathway" = module), analysis_summary = "BMDE-noWTT-CPM-RF-S5", pathwaySource = "WGCNA Modules", highlight_pathway = "hRPTECTERT1_35") +
   theme(plot.title = element_text(color = "blue2"))
 
-SC_BAplot = plot_bland_altman(Sciensano_pwScore_medianScore %>% dplyr::rename("pathway" = HALLMARKpw), analysis_summary = "BMDExpress_log2CPM_WTT", pathwaySource = "HALLMARK Pathways", highlight_pathway = "HALLMARK_P53_PATHWAY") +
+SC_BAplot = plot_bland_altman(Sciensano_pwScore_medianScore %>% dplyr::rename("pathway" = HALLMARKpw), analysis_summary = "BMDE-WTT-CPM-RF-S0", pathwaySource = "HALLMARK Pathways", highlight_pathway = "HALLMARK_P53_PATHWAY") +
   theme(plot.title = element_text(color = "forestgreen"))
 
 fig5b_total <- wrap_elements(
@@ -305,7 +305,7 @@ LU_BMC_distr = LU_pwScore_medianScore %>%
   scale_fill_manual(values = c("lightgreen", "orchid1"),
                     breaks = c("medianBMD", "pwScore_BMD"),
                     labels = c("Median Pathway BMC", "BMC Pathway Score")) +
-  labs(title = "BMDExpress_log2CPM_noWTT",
+  labs(title = "BMDE-noWTT-CPM-RF-S5",
        subtitle = "WGCNA Modules",
        x = "BMC") +
   theme(legend.title = element_blank(),
@@ -324,7 +324,7 @@ SC_BMC_distr = Sciensano_pwScore_medianScore %>%
   scale_fill_manual(values = c("lightgreen", "orchid1"),
                     breaks = c("medianBMD", "pwScore_BMD"),
                     labels = c("Median Pathway BMC", "BMC Pathway Score")) +
-  labs(title = "BMDExpress_log2CPM_WTT",
+  labs(title = "BMDE-WTT-CPM-RF-S0",
        subtitle = "HALLMARK Pathways",
        x = "BMC") +
   theme(legend.title = element_blank(),
@@ -436,10 +436,10 @@ plot_bmc_diff_vs_pct_overlap <- function(df,
 
 
 
-LU_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = LU_pwScore_medianScore, log_x = F, analysis_summary = "BMDExpress_log2CPM_noWTT", pathwaySource = "WGCNA Modules") +
+LU_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = LU_pwScore_medianScore, log_x = F, analysis_summary = "BMDE-noWTT-CPM-RF-S5", pathwaySource = "WGCNA Modules") +
   theme(plot.title = element_text(color = "blue2"))
 
-SC_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = Sciensano_pwScore_medianScore, log_x = F, analysis_summary = "BMDExpress_log2CPM_WTT", pathwaySource = "HALLMARK Pathways") + 
+SC_pwSize_BMC = plot_bmc_diff_vs_pct_overlap(df = Sciensano_pwScore_medianScore, log_x = F, analysis_summary = "BMDE-WTT-CPM-RF-S0", pathwaySource = "HALLMARK Pathways") + 
   theme(plot.title = element_text(color = "forestgreen"))
 
 # combine
@@ -459,7 +459,7 @@ ggsave(plot = fig5d_total, file.path(plotDir, "fig5d.pdf"), width = 15, height =
 
 
 ## Generate total figure 5
-```{r}
+```{r, fig.width=18, fig.height=22}
 
 
 fig5 = (fig5a_total + fig5b_total + plot_layout(widths = c(1.4, 2.1), ncol = 2)) /

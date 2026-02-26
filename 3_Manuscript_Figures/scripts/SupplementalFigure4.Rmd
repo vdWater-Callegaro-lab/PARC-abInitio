@@ -112,7 +112,7 @@ tpod_original = data.table::fread(file.path(outputDir, "tpod_calculations_alltim
 ## BMC distribution + tPOD calculations
 Only for the most sensitive timepoint (24 hours)
 
-```{r}
+```{r, fig.height=13, fig.width=15}
 library(ggnewscale)
 
 tpod_cols <- c(
@@ -163,12 +163,12 @@ supfig4 <- ggplot() +
   ) +
   scale_color_manual(
     values = tpod_cols,
-    labels = c("5th percentile", "first mode", "LCRD", "25th ranked gene"),
+    labels = c("5th percentile", "25th ranked gene", "First mode", "Kneedle", "LCRD"),
     name   = "tPOD measure"
   ) +
   scale_linetype_discrete(
     name   = "tPOD measure",
-    breaks = c("5th percentile", "25th ranked gene", "LCRD", "First mode")
+    breaks = c("5th percentile", "25th ranked gene","First mode","Kneedle", "LCRD")
   ) +
   # scale_x_log10() +
   labs(
