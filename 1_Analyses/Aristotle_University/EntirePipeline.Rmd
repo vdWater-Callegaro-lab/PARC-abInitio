@@ -1,0 +1,636 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Pipeline for *limma-voom* & *DRomics* analysis of EUT046
+
+---
+title: "PARC WP 5.3.1 Ab Initio"
+author: "D.R. Schultz"
+date: "03 July 2024"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Settings {.tabset}
+
+## Study information
+* Cell culture: RPTEC/TERT1
+* Compounds: Cisplatin 
+Formulation preparation: 
+* Cisplatin: cisplatin reconstituted in DMEM
+Dose levels: 
+* Cisplatin: 0, 0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 50 uM
+* Time points: 0, 4, 8, 16, 24, 48, 72 hours
+Transcriptome analysis: at the specified timepoints, monolayers were lysed using lysis buffer and collected, samples were then snap frozen and send to BioClavis for TempO-seq analysis
+
+
+## Perform differential expression analysis using *limma-voom*
+### Load required libraries
+pacman::p_load(
+  BiocManager, limma, edgeR, biobroom, janitor, ggplot2, dplyr, tidyverse, clusterProfiler, broom, 
+  ggrepel, ggforce, RSQLite, Biobase, GO.db, pvclust, BiocParallel, 
+  pheatmap, RColorBrewer, reshape2, DOSE, purrr, tibble, skimr, doRNG, stringr
+)
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+suppressPackageStartupMessages({
+  if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman", quiet = TRUE)
+  pacman::p_load(
+    BiocManager, limma, Glimma, edgeR, biobroom, pca3d, magick, 
+    EnhancedVolcano, janitor, ggplot2, dplyr, tidyverse, clusterProfiler, broom, 
+    ggrepel, ggforce, RSQLite, Biobase, ggvenn, GO.db, pvclust, BiocParallel, 
+    pheatmap, RColorBrewer, reshape2, DOSE, purrr, tibble, missForest, skimr, doRNG, 
+    stringr, msigdbr
+  )
+})
+```
+
+### Read in files: 
+```{r, echo=FALSE}
+inputDir = "C:/Users/HERACLES-admin/Desktop/WindowsNewShare/Bioinformatics/Transcriptomics/TempOSeq/Data/Human_EUT046 RPTEC-TERT1_CIS/Limma"
+```
+
+1.    Raw count data from TempoSeq
+
+2.    Manifest file with sample information
+
+3.    Sample data relationship file
+
+  
+```{r, class.source='fold-show', results = FALSE, message=FALSE}
+Countsx <- read.csv("EUT046_counts_per_gene_per_sample_raw_final.csv")
+Manifest <- read.delim("Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt")
+SDRF <- read.delim("Targets.txt", check.names=FALSE, stringsAsFactors=FALSE)
+
+```
+
+
+```{r, echo=FALSE}
+#reformat
+entrez_id <-Manifest[,c(9,1)]
+Countsy <- left_join(Countsx, entrez_id, by = c("Column1" = "Probe_ID"))
+Counts <- Countsy[,c(206, 2:205)]
+
+#Format SDRF
+SDRF[,c("Sample", "Timepoint", "Treatment", "Replicate", "TrtGroup")]
+
+Treatment <-SDRF[,"Treatment"]
+Sample <- SDRF[, "Sample"]
+Timepoint <- SDRF[, "Timepoint"]
+Replicate <- SDRF[, "Replicate"]
+TrtGroup <- SDRF[, "TrtGroup"] 
+
+
+levels_trt <- unique(SDRF[,"Treatment"])
+levels_time <- unique(SDRF[, "Timepoint"])
+replicate <- unique(SDRF[, "Replicate"])
+trtgrp <- unique(SDRF[, "TrtGroup"])
+
+Treatment2 <- factor(Treatment, levels=levels_trt)
+Replicate2 <- factor(Replicate, levels = replicate)
+Timepoint2 <- factor(Timepoint, levels = levels_time)
+TrtGroup <- factor(TrtGroup, levels=trtgrp)
+```
+
+
+```{r, echo=FALSE, results = FALSE}
+countData <- as.matrix(Counts) # Each column represents a sample, and each row represents a gene
+
+librarySizes <- numeric(ncol(countData))
+
+for (i in 1:ncol(countData)) {
+  # Convert counts to numeric
+  counts <- as.numeric(countData[, i])
+  
+  # Calculate the library size for the current sample
+  librarySize <- sum(counts)
+  
+  # Store the library size value in the vector or data frame
+  librarySizes[i] <- librarySize
+  
+  # Print the library size for the current sample
+  cat("Sample", i, "library size:", librarySize, "\n")
+}
+
+librarySizeObj <- librarySizes[c(2:205)]
+
+librarySizeData <- data.frame(Sample = Sample, LibrarySize = librarySizes[c(2:205)],
+                              Timepoint = Timepoint, Treatment = Treatment)
+
+threshold1 <- as.numeric(quantile(librarySizeObj, probs = 0.1))
+threshold25 <- as.numeric(quantile(librarySizeObj, probs = 0.25))
+
+```
+
+### Calculate and visualise library sizes to check for poor quality samples
+
+```{r, class.source='fold-show'}
+
+ggplot(librarySizeData, aes(x = Sample, y = LibrarySize)) +
+  geom_jitter(aes (colour = Treatment, shape = Timepoint)) +
+  xlab("Sample") +
+  ylab("Library Size") +
+  ggtitle("Library Size Distribution")+
+  geom_hline(yintercept = threshold25) +
+  scale_shape_manual(values = c(16, 17, 18, 19, 20, 21, 22))  # Specify shapes for each timepoint 
+
+```
+
+### Preprocess data (normalise (upper quartile), relevance filter, combine duplicate genes (based on EntrezID)
+
+```{r, echo=FALSE, results = FALSE}
+x <- as.data.frame(Countsy)
+dim(x) 
+geneid <- x$entrez_id
+
+rownames(x) <- x$Column1
+x <- x[,c(2:205)]
+group <- paste0(SDRF$Treatment, "_", SDRF$Timepoint)
+dge <- DGEList(counts = x, group = group, genes = x$Column1)
+
+dim(dge)
+
+#Upper quartile was found to perform better by Li et al 2020
+
+```
+
+```{r, class.source='fold-show'}
+dge.norm <- calcNormFactors(dge,
+                       method = "upperquartile",
+                       p = 0.75)
+
+
+cpm_values <- edgeR::cpm(dge.norm, normalized.lib.sizes = TRUE, log = FALSE)
+min_replicates_threshold <- ceiling(0.75 * 3)
+relevance_filtered_data <- cpm_values[rowSums(cpm_values >= 1) >= min_replicates_threshold, ]
+relevance_filtered_data <- rownames_to_column(as.data.frame(relevance_filtered_data))
+
+dim(relevance_filtered_data)
+```
+
+```{r, echo = FALSE}
+entrez_data <- left_join(relevance_filtered_data, entrez_id, by = c("rowname" = "Probe_ID"))
+entrez_data2 <- entrez_data[,c(206, 2:205)]
+colnames(entrez_data2)[1] <- "geneid"
+```
+
+```{r, class.source='fold-show'}
+dge.norm.sum <- aggregate(entrez_data2[, -1], by = list(entrez_data2$geneid), sum)
+dim(dge.norm.sum)
+```
+
+
+```{r, echo = FALSE}
+
+```
+
+### Check and apply pseudocount for DRomics analysis
+
+```{r, class.source='fold-show'}
+df <- dge.norm.sum[,-1]
+smallest_non_zero <- df %>%
+  select_if(is.numeric) %>%  # Select only numeric columns
+  unlist() %>%  # Convert to a vector
+  .[. > 0] %>%  
+  min()  # 
+```
+
+```{r,echo=FALSE}
+largest_non_zero <- df %>%
+  select_if(is.numeric) %>%  # Select only numeric columns
+  unlist() %>% 
+  .[. > 0] %>%  
+  max()  # 
+
+# range of rows with lowest count
+rows_with_0_155 <- apply(df, 1, function(x) any(x == smallest_non_zero))
+range_values <- apply(df[rows_with_0_155, ], 1, function(x) max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+names(range_values) <- which(rows_with_0_155)
+range_values <- as.data.frame(range_values)
+```
+
+```{r,class.source='fold-show'}
+pseudocount <- smallest_non_zero * 0.1 # 10% of lowest
+dge.norm.sum2 <- column_to_rownames(dge.norm.sum, "Group.1")
+pseudo_count_data <- dge.norm.sum2 + pseudocount
+dge.norm.sum.log <- log2(pseudo_count_data)
+
+```
+
+### Visualise to check efficacy using MDS, PCA, correlations, densities, and boxplots
+
+```{r, echo = FALSE, results = FALSE, warning=FALSE}
+#MDS
+cpm_values <- edgeR::cpm(dge.norm.sum[,-1], normalized.lib.sizes = TRUE)
+plot(log(cpm_values))
+
+num_groups <- length(levels_trt)
+color_palette <- colorRampPalette(c("blue", "red"))(num_groups)
+group_colors <- setNames(color_palette, levels_trt)
+plotMDS(dge.norm.sum[,-1], labels = dge.norm.sum$samples$group, col = group_colors, main = "MDS")
+
+#Correlations
+DMEM <- cpm_values[, grepl("DMEM", colnames(cpm_values))]
+corr_mat <- round(cor(DMEM),5) 
+melted_corr_mat <- melt(corr_mat)
+
+ggplot(data = melted_corr_mat, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  labs(x = "Variable 1", y = "Variable 2", fill = "Correlation") +
+  ggtitle("Correlation Matrix Plot") +
+  theme_minimal()
+
+corr_mat <- round(cor(cpm_values),5) 
+melted_corr_mat <- melt(corr_mat)
+ggplot(data = melted_corr_mat, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  labs(x = "Variable 1", y = "Variable 2", fill = "Correlation") +
+  ggtitle("Correlation Matrix Plot") +
+  theme_minimal(base_size = 10) +  # Adjusts the base text size for theme_minimal
+  theme(
+    plot.title = element_text(size = 12),  # Adjust title size if needed
+    axis.title = element_text(size = 11),  # Adjust axis titles size if needed
+    axis.text = element_text(size = 8)     # Adjust axis text size if needed
+  )
+
+#PCA
+
+data <- dge.norm.sum %>% 
+  as.data.frame() %>% 
+  dplyr::select(!Group.1)
+
+#data <- column_to_rownames(data, "genes")
+
+pca_matrix <- data %>% 
+  as.matrix() %>% 
+  t()
+
+sample_pca <- prcomp(pca_matrix)
+#pca_matrix[1:24, 1:5]
+as_tibble(pca_matrix, rownames = "Sample")
+pc_eigenvalues <- sample_pca$sdev^2
+pc_eigenvalues <- tibble(PC = factor(1:length(pc_eigenvalues)),
+                         variance = pc_eigenvalues) %>% 
+  mutate(pct = variance/sum(variance)*100) %>% 
+  mutate(pct_cum = cumsum(pct))
+
+#pc_eigenvalues
+
+pc_eigenvalues %>% 
+  ggplot(aes(x = PC)) +
+  geom_col(aes(y = pct)) + 
+  geom_line(aes(y = pct_cum, group = 1)) +
+  geom_point(aes(y = pct_cum)) +
+  theme(panel.background = element_rect(fill = "lightgray", colour = "white")) +
+  labs(x = "Principal Component", y = "Fraction of Variance Explained")
+
+pc_scores <- sample_pca$x
+
+pc_scores <- pc_scores %>% 
+  as_tibble(rownames = "Sample")
+
+pc_scores
+
+suppressWarnings({
+  # Assuming this is where the warning is generated
+  my_colors <- brewer.pal(15, "Paired")
+})
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+pc_scores %>% 
+  ggplot(aes(x = PC1, y = PC2, 
+             colour = Sample, shape = Timepoint2, size = 1)) +
+  scale_shape_manual(values=1:nlevels(Timepoint2)) +
+  ggtitle("PCA Plot of Preprocessed Count Data") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        panel.background = element_rect(fill = "lightgray", colour = "white")) +
+  geom_point(aes(colour = Sample), size = 3) +
+  geom_label_repel(aes(label = Sample),
+                   size = 2.5,
+                   box.padding = 0.35,
+                   point.padding = 0.5,
+                   segment.color = 'grey50',
+                   max.overlaps = 10) +
+  theme_light() +
+  guides(size = "none") +
+  theme(legend.position="none")
+
+dge.norm.sum3 <- DGEList(counts = dge.norm.sum2, group = group, genes = rownames(dge.norm.sum2))
+
+L <- mean(dge.norm.sum3$samples$lib.size) * 1e-6
+M <- median(dge.norm.sum3$samples$lib.size) * 1e-6
+
+lcpm_raw <- cpm(dge, log = TRUE)
+lcpm.cutoff <- log2(10/M + 3/L)
+nsamples <- ncol(dge)
+col <- brewer.pal(nsamples, "Paired")
+par(mfrow=c(1,2))
+plot(density(lcpm_raw[,1]), col=col[1], lwd=2, ylim=c(0,0.6), las=2, main="", xlab="")
+title(main="A. Raw data", xlab="Log-cpm")
+abline(v=lcpm.cutoff, lty=3)
+for (i in 2:nsamples){
+  den <- density(lcpm_raw[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+
+#legend("topright", samplenames, text.col=col, bty="n")
+
+lcpm <- cpm(dge.norm.sum3, log=TRUE)
+plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.6), las=2, main="", xlab="")
+title(main="B. Preprocessed Data", xlab="Log-cpm")
+abline(v=lcpm.cutoff, lty=3)
+for (i in 2:nsamples){
+  den <- density(lcpm[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+#legend("topright", samplenames, text.col=col, bty="n")
+par(mfrow=c(1,1))
+
+boxplot(lcpm_raw, las=2, col=col, main="")
+title(main="A. Raw data",ylab="Log-cpm")
+
+boxplot(lcpm, las=2, col=col, main="")
+title(main="A. Preprocessed data",ylab="Log-cpm")
+```
+
+### Continue with limma-voom with weights on separate time points
+
+## Perform Benchmark Dose Analysis using *DRomics*
+### Load libraries 
+pacman::p_load(DRomics, dplyr, ggplot2, tidydr, tidyverse)
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
+suppressPackageStartupMessages({
+  if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman", quiet = TRUE)
+  pacman::p_load(DRomics, dplyr, ggplot2, tidydr, tidyverse, enrichR, knitr, clusterProfiler, org.Hs.eg.db,
+                 enrichplot, DOSE, ggplot2, tinytex)
+})
+
+```
+### Import data for benchmark dose analysis 
+1.    Preprocessed universe data from limma (separated by timepoint, pseudocount, log base 2)
+
+### Read in file and set initial conditions
+```{r, echo=FALSE}
+inputDir = "C:/Users/HERACLES-admin/Desktop/WindowsNewShare/Bioinformatics/Transcriptomics/TempOSeq/Data/Human_EUT046 RPTEC-TERT1_CIS/BMD/DRomics/8h"
+```
+
+
+```{r, class.source='fold-show', warning=FALSE, error=FALSE, message=FALSE}
+o <- continuousomicdata("C:/Users/HERACLES-admin/Desktop/WindowsNewShare/Bioinformatics/Transcriptomics/TempOSeq/Data/Human_EUT046 RPTEC-TERT1_CIS/BMD/DRomics/8h/Preprocessed_Pseudo_Count_Log2_8h.txt", backgrounddose = 0, check = TRUE)
+print(o)
+```
+
+```{r, echo=FALSE}
+plot(o, col = "darkgreen")
+```
+
+### Select responsive items 
+```{r, class.source = 'fold-show'}
+s <- itemselect(o, FDR = 0.01) #select.method = 'quadratic', 
+print(s)
+```
+
+### Fit dose-response models to responsive items
+```{r, class.source = 'fold-show', warning=FALSE, error=FALSE, message=FALSE}
+f <- drcfit(s, progressbar = TRUE, parallel = 'snow', ncpus = 6)
+print(f)
+```
+
+```{r,echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+plot(f, plot.type = 'dose_fitted')
+
+plot(f, plot.type = "dose_residuals")
+
+plot(f, items = 12) #plot top 12 most responsive items
+
+```
+
+### Calculate BMD
+
+```{r, class.source = 'fold-show'}
+r <- bmdcalc(f, z = 1, x = 10)
+head(r$res, 10)
+
+```
+
+
+```{r, echo=FALSE}
+bmdplotwithgradient(r$res, BMDtype = 'zSD', BMD_log_transfo = FALSE, add.label = FALSE, facetby = 'typology', xmax = 50)
+
+plot(f, plot.type = 'dose_fitted', BMDoutput = r, BMDtype = 'zSD', dose_log_transfo = FALSE)
+plot(r, BMDtype = "zSD", plottype = "ecdf") + theme_bw() # plottype = "hist", "density"
+
+```
+
+### Bootstrap confidence intervals
+```{r, class.source = 'fold-show'}
+b <- bmdboot(r, niter = 1000, progressbar = TRUE, parallel = 'snow', ncpus = 6)
+plot(b)
+
+```
+
+
+```{r,echo=FALSE}
+subres <- bmdfilter(b$res, BMDfilter = "definedBMD")
+bmdplot(subres, BMDtype = "zSD", 
+        add.CI = TRUE,
+        colorby = "trend", 
+        point.size = 2,
+        point.alpha = 0.5,
+        line.size = 0.8,
+        line.alpha = 0.5)
+
+tested.doses <- unique(f$omicdata$dose)
+g <- curvesplot(r$res, xmax = max(tested.doses), colorby = "trend",
+                line.size = 0.8, line.alpha = 0.3) +
+  geom_vline(xintercept = tested.doses, linetype = 2) + theme_bw()
+print(g)
+```
+
+### Calculate Gene Set BMD
+
+```{r, echo = FALSE}
+bres <- bmdfilter(b$res, BMDfilter = "definedCI")
+bres$id <- as.numeric(bres$id)
+
+```
+Include only genes with BMD upper:BMD lower ratios less than 40
+```{r, class.source = 'fold-show'}
+BMDresults <- bres %>% 
+  mutate(BMDRatio = BMD.zSD.upper/BMD.zSD.lower) %>% 
+  filter(BMDRatio <= 40)
+```
+
+Perform KEGG enrichment analysis. Then, extract genesets that are at least 5% populated and have at least 3 genes.
+```{r, class.source = 'fold-show'}
+universe <- as.character(o$item)
+
+kegg <- enrichKEGG(gene = BMDresults$id, 
+                   organism = 'hsa', 
+                   keyType="kegg", 
+                   universe = universe,
+                   qvalueCutoff = 1,
+                   pvalueCutoff = 1)
+```
+
+```{r,echo=FALSE}
+kegg_results <- kegg@result
+
+#Extract the gene set information
+genesets <- kegg@geneSets
+get_size <- function(x) {
+  if (is.data.frame(x)) {
+    return(nrow(x))  # Number of rows for data frames
+  } else if (is.matrix(x)) {
+    return(nrow(x))  # Number of rows for matrices
+  } else {
+    return(length(x))  # Length for other types
+  }
+}
+
+geneset_size <- data.frame(
+  Name = names(genesets),
+  Size = sapply(genesets, get_size)
+)
+
+kegg_all <- left_join(kegg_results, geneset_size, by = c("ID" = "Name"))
+
+kegg_all <- kegg_all %>% 
+  mutate(Ratio = Count / Size) 
+
+kegg_all2 <- kegg_all %>% 
+  filter(Ratio >= 0.05) %>% 
+  filter(Count >=3)
+
+split_cols <- strsplit(kegg_all2$geneID, "/")
+max_splits <- max(lengths(split_cols))
+
+new_cols <- paste0("col", 1:max_splits)
+
+kegg_all2[new_cols] <- t(sapply(split_cols, `length<-`, max_splits))
+
+
+key <- bres[,c(1,20)]
+
+for (col in 14:ncol(kegg_all2)) {
+  matched_values <- key$BMD.zSD[match(kegg_all2[[col]], key$id)]
+  kegg_all2[[col]] <- ifelse(is.na(matched_values), kegg_all2[[col]], matched_values)
+}
+for (i in 14:81) {
+  # Convert each column to numeric, coercing problematic values to NA
+  kegg_all2[[i]] <- as.numeric(as.character(kegg_all2[[i]]))
+}
+
+kegg_geneset_BMD <- kegg_all2 %>% 
+  rowwise() %>%  
+  mutate(
+    Mean = mean(c_across(14:81), na.rm = TRUE),
+    Min = min(c_across(14:81), na.rm = TRUE),
+    Max = max(c_across(14:81), na.rm = TRUE),
+    Median = median(c_across(14:81), na.rm = TRUE),
+    SD = sd(c_across(14:81), na.rm = TRUE),
+    Range_Min = min(c_across(14:81), na.rm = TRUE),
+    Range_Max = max(c_across(14:81), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+kegg_geneset_BMD_trim <- kegg_geneset_BMD[,c(1:13, 82:88)]
+```
+
+Calculate Mean, Min, Max, Median, Standard Deviation, Minimum Range, and Maximum Range
+```{r, class.source = 'fold-show'}
+print(kegg_geneset_BMD_trim)
+```
+Perform MSig BROAD enrichment analysis. Then, extract genesets that are at least 5% populated and have at least 3 genes.
+```{r, echo = FALSE}
+msig_h <- msigdbr(species = "Homo sapiens", category = "H")%>%
+  dplyr::select(gs_name, entrez_gene) %>%
+  dplyr::rename(ont = gs_name, gene = entrez_gene)
+msig_h
+
+BMDresults$id <- as.character(BMDresults$id)
+
+msig_ora <- enricher(gene = BMDresults$id,
+                     pvalueCutoff = 1,
+                     qvalueCutoff = 1,
+                     universe = universe,
+                     TERM2GENE = msig_h) %>%
+  as_tibble
+msig_ora
+
+msig_all <- msig_ora %>% 
+  mutate(Size = as.numeric(str_extract(BgRatio, "^[^/]+"))) %>% 
+  mutate(Ratio = Count / Size) 
+
+msig_all2 <- msig_all %>% 
+  filter(Ratio >= 0.05) %>% 
+  filter(Count >=3)
+
+split_cols <- strsplit(msig_all2$geneID, "/")
+max_splits <- max(lengths(split_cols))
+
+new_cols <- paste0("col", 1:max_splits)
+
+msig_all2[new_cols] <- t(sapply(split_cols, `length<-`, max_splits))
+
+
+key <- bres[,c(1,20)]
+
+for (col in 12:ncol(msig_all2)) {
+  matched_values <- key$BMD.zSD[match(msig_all2[[col]], key$id)]
+  msig_all2[[col]] <- ifelse(is.na(matched_values), msig_all2[[col]], matched_values)
+}
+
+for (i in 12:53) {
+  # Convert each column to numeric, coercing problematic values to NA
+  msig_all2[[i]] <- as.numeric(as.character(msig_all2[[i]]))
+}
+
+msig_geneset_BMD <- msig_all2 %>% 
+  rowwise() %>%  
+  mutate(
+    Mean = mean(c_across(12:53), na.rm = TRUE),
+    Min = min(c_across(12:53), na.rm = TRUE),
+    Max = max(c_across(12:53), na.rm = TRUE),
+    Median = median(c_across(12:53), na.rm = TRUE),
+    SD = sd(c_across(12:53), na.rm = TRUE),
+    Range_Min = min(c_across(12:53), na.rm = TRUE),
+    Range_Max = max(c_across(12:53), na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+msig_geneset_BMD_trim <- msig_geneset_BMD[,c(1:11, 54:60)]
+```
+
+Calculate Mean, Min, Max, Median, Standard Deviation, Minimum Range, and Maximum Range
+```{r, class.source = 'fold-show'}
+print(msig_geneset_BMD_trim)
+```
+
+Calculate the first mode for genes and pathways
+```{r, echo = FALSE}
+dens_gene <- density(bres$BMD.zSD)
+
+first_derivative <- diff(dens_gene$y) / diff(dens_gene$x)
+second_derivative <- diff(first_derivative) / diff(dens_gene$x[-length(dens_gene$x)])
+
+first_derivative_full <- c(first_derivative, NA)
+second_derivative_full <- c(NA, second_derivative, NA)
+
+first_mode_index <- which(first_derivative_full[-1] < 0 & first_derivative_full[-length(first_derivative_full)] > 0 & second_derivative_full[-c(1, length(second_derivative_full))] < 0)[1]
+
+first_mode <- dens_gene$x[first_mode_index + 1]
+
+# Plot the density and first mode
+plot(dens_gene, main = "Density Estimation with First Mode")
+abline(v = first_mode, col = "red", lwd = 2, lty = 2)
+text(first_mode, max(dens_gene$y), labels = paste("First Mode:", round(first_mode, 2)), pos = 4, col = "red")
+```
