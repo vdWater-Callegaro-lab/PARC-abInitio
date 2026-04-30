@@ -61,7 +61,13 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, data.table, ComplexUpset, patchwork, purrr, grid, here)
+library(tidyverse)
+library(data.table)
+library(ComplexUpset)
+library(patchwork)
+library(purrr)
+library(grid)
+library(here)
 ```
 
 

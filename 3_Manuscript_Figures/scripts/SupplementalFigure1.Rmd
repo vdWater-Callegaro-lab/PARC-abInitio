@@ -62,7 +62,9 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, patchwork, purrr)
+library(tidyverse)
+library(patchwork)
+library(purrr)
 ```
 
 

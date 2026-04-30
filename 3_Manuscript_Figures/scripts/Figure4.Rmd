@@ -61,7 +61,15 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, patchwork, here, ComplexUpset, UpSetR, purrr, pheatmap, ggplotify, grid)
+library(tidyverse)
+library(patchwork)
+library(here)
+library(ComplexUpset)
+library(UpSetR)
+library(purrr)
+library(pheatmap)
+library(ggplotlify)
+library(grid)
 
 # biomanager
 library(ComplexHeatmap)
