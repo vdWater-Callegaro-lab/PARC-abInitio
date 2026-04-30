@@ -63,7 +63,13 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify)
+library(tidyverse)
+library(here)
+library(ggpubr)
+library(patchwork)
+library(grid)
+library(GGally)
+library(ggplotlify)
 ```
 
 

@@ -22,7 +22,10 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, ActivePathways, here, data.table)
+library(tidyverse)
+library(ActivePathways)
+library(here)
+library(data.table)
 ```
 
 
