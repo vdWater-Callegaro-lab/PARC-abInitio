@@ -23,7 +23,7 @@ tpod_joined <- tpods %>%
 tpod_formatted <- tpod_joined %>%
   mutate(
     tpod_ci = str_glue(
-      "{round(tpod_orig, 2)} ({round(tpod_lower, 2)}–{round(tpod_upper, 2)})"
+      "{round(tpod_orig, 1)} ({round(tpod_lower, 1)}–{round(tpod_upper, 1)})"
     )
   )
 
@@ -50,7 +50,7 @@ tpod_ordered <- tpod_formatted %>%
 tpod_mean <- tpod_joined %>%
   group_by(timepoint, method) %>%
   summarise(mean_tpod = mean(tpod_orig, na.rm = TRUE), .groups = "drop") %>%
-  mutate(mean_tpod_fmt = sprintf("%.2f", mean_tpod),
+  mutate(mean_tpod_fmt = sprintf("%.1f", mean_tpod),
          timepoint = factor(timepoint, levels = timepoint_order))
 
 
@@ -80,6 +80,6 @@ ft = autofit(ft)
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table3R.docx"))
+print(doc, target = file.path(getwd(), "tables", "table4R.docx"))
 
 

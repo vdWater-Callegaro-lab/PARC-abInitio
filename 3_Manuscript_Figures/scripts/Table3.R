@@ -145,7 +145,7 @@ ft = autofit(ft)
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table2R.docx"))
+print(doc, target = file.path(getwd(), "tables", "table3R.docx"))
 
 
 

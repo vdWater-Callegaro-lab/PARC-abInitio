@@ -1,5 +1,5 @@
 
-# Table 4
+# Table 5
 ## Include obtained BMCs for HALLMARK p53 & p53 pathways of choice
 
 ### Load packages
@@ -25,7 +25,7 @@ result_HALLMARK_p53 <- norm_HALLMARK_combined %>%
   mutate(
     analysis_summary   = factor(analysis_summary, levels = analysis_summary_order),
     timepoint = factor(timepoint, levels = timepoint_order),
-    medianBMD = round(medianBMD, digits = 3)
+    medianBMD = round(medianBMD, digits = 1)
   ) %>%
   # ensure all analysis_summary–timepoint combinations exist
   complete(timepoint, analysis_summary) %>%
@@ -48,12 +48,12 @@ ft = autofit(ft)
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table4aR.docx"))
+print(doc, target = file.path(getwd(), "tables", "table5aR.docx"))
 
 
 
 ### Pathway of choice
-p53_pathways = c("p53 signaling pathway", "p53 transcriptional gene network", "HALLMARK_P53_PATHWAY", "hRPTECTERT1_35", "GENOMARK84", "TGxDDI64")
+p53_pathways = c("hRPTECTERT1_35",  "GENOMARK84", "TGxDDI64", "p53 signaling pathway", "p53 transcriptional gene network", "HALLMARK_P53_PATHWAY") 
 
 result_p53_choice = norm_pathwaysChoice_combined %>%
   filter(Pathway.Name %in% p53_pathways) %>%
@@ -61,7 +61,7 @@ result_p53_choice = norm_pathwaysChoice_combined %>%
   mutate(
     timepoint = factor(timepoint, levels = timepoint_order),
     Pathway.Name = factor(Pathway.Name, levels = p53_pathways),
-    medianBMD = round(medianBMD, digits = 3)
+    medianBMD = round(medianBMD, digits = 1)
   ) %>%
   complete(timepoint, Pathway.Name) %>%
   pivot_wider(
@@ -80,7 +80,7 @@ ft = autofit(ft)
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table4bR.docx"))
+print(doc, target = file.path(getwd(), "tables", "table5bR.docx"))
 
 
 
