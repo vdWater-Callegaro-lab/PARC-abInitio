@@ -1,86 +1,85 @@
 
-# Table 4
-## Include obtained BMCs for HALLMARK p53 & p53 pathways of choice
 
-### Load packages
+tpods = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_calculations_alltimepoints.txt"))
+
+tpod_bootstrapping = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_ci_median.txt"))
+
+
+# generate table 3
+
 library(tidyverse)
+library(stringr)
+
+# join original tpod and bootstrapped results
+tpod_joined <- tpods %>% 
+  select(analysis_summary, timepoint, method, tpod_orig) %>%
+  left_join(
+    tpod_bootstrapping %>%
+      select(analysis_summary, timepoint, method, tpod_lower, tpod_upper),
+    by = c("analysis_summary", "timepoint", "method")
+  )
+
+# format tpods: original (lower - upper)
+tpod_formatted <- tpod_joined %>%
+  mutate(
+    tpod_ci = str_glue(
+      "{round(tpod_orig, 2)} ({round(tpod_lower, 2)}–{round(tpod_upper, 2)})"
+    )
+  )
+
+## order methods
+method_order <- c("5th percentile",
+                  "25th ranked gene",
+                  "First mode",
+                  "Kneedle",
+                  "LCRD")
+
+
+# order timepoints
+timepoint_order <- c("4h", "8h", "16h", "24h", "48h", "72h") 
+
+analysis_summary_order <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
+
+tpod_ordered <- tpod_formatted %>%
+  mutate(
+    method    = factor(method, levels = method_order),
+    timepoint = factor(timepoint, levels = timepoint_order)
+  ) %>%
+  arrange(timepoint, method)
+
+tpod_mean <- tpod_joined %>%
+  group_by(timepoint, method) %>%
+  summarise(mean_tpod = mean(tpod_orig, na.rm = TRUE), .groups = "drop") %>%
+  mutate(mean_tpod_fmt = sprintf("%.2f", mean_tpod),
+         timepoint = factor(timepoint, levels = timepoint_order))
+
+
+# generate final table
+tpod_table_final <- tpod_ordered %>%
+  select(timepoint, method, analysis_summary, tpod_ci) %>%
+  pivot_wider(
+    names_from  = analysis_summary,
+    values_from = tpod_ci
+  ) %>%
+  left_join(
+    tpod_mean %>% select(timepoint, method, mean_tpod_fmt),
+    by = c("timepoint", "method")
+  ) %>%
+  arrange(timepoint, method) %>%
+  select(timepoint, method, all_of(analysis_summary_order), mean_tPOD = mean_tpod_fmt)
+
+tpod_table_final
+
+
 library(flextable)
 library(officer)
 
-### Load data
-load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData")) # = filtered data 
-
-
-
-
-#### HALLMARK
-analysis_summary_order = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
-timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
-
-
-result_HALLMARK_p53 <- norm_HALLMARK_combined %>%
-  filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
-  select(Pathway.Name, timepoint, medianBMD, analysis_summary) %>%
-  # enforce factor levels for ordering
-  mutate(
-    analysis_summary   = factor(analysis_summary, levels = analysis_summary_order),
-    timepoint = factor(timepoint, levels = timepoint_order),
-    medianBMD = round(medianBMD, digits = 3)
-  ) %>%
-  # ensure all analysis_summary–timepoint combinations exist
-  complete(timepoint, analysis_summary) %>%
-  # reshape so analysis_summarys become columns
-  pivot_wider(
-    names_from  = analysis_summary,
-    values_from = medianBMD
-  ) %>%
-  # order rows explicitly
-  arrange(timepoint) %>%
-  select(Pathway.Name, everything()) %>%
-  filter(!is.na(Pathway.Name)) 
-
-
-# save
-
-ft = flextable(result_HALLMARK_p53)
+ft = flextable(tpod_table_final)
 ft = autofit(ft)
 
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table4aR.docx"))
-
-
-
-### Pathway of choice
-p53_pathways = c("p53 signaling pathway", "p53 transcriptional gene network", "HALLMARK_P53_PATHWAY", "hRPTECTERT1_35", "GENOMARK84", "TGxDDI64")
-
-result_p53_choice = norm_pathwaysChoice_combined %>%
-  filter(Pathway.Name %in% p53_pathways) %>%
-  select(Pathway.Name, timepoint, medianBMD) %>%
-  mutate(
-    timepoint = factor(timepoint, levels = timepoint_order),
-    Pathway.Name = factor(Pathway.Name, levels = p53_pathways),
-    medianBMD = round(medianBMD, digits = 3)
-  ) %>%
-  complete(timepoint, Pathway.Name) %>%
-  pivot_wider(
-    names_from = Pathway.Name, 
-    values_from = medianBMD
-  ) %>%
-  arrange(timepoint)
-
-
-
-
-
-ft = flextable(result_p53_choice)
-ft = autofit(ft)
-
-doc = read_docx()
-doc = body_add_flextable(doc, ft)
-
-print(doc, target = file.path(getwd(), "tables", "table4bR.docx"))
-
+print(doc, target = file.path(getwd(), "tables", "table3R.docx"))
 
 

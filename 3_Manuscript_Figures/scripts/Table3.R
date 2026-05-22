@@ -1,85 +1,166 @@
 
+# Generate table with Dose Responsive Genes + Retained genes after Post Model Filters
 
-tpods = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_calculations_alltimepoints.txt"))
+# Settings
 
-tpod_bootstrapping = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_ci_median.txt"))
-
-
-# generate table 3
-
+## Libraries
 library(tidyverse)
-library(stringr)
+library(data.table)
+library(here)
 
-# join original tpod and bootstrapped results
-tpod_joined <- tpods %>% 
-  select(analysis_summary, timepoint, method, tpod_orig) %>%
-  left_join(
-    tpod_bootstrapping %>%
-      select(analysis_summary, timepoint, method, tpod_lower, tpod_upper),
-    by = c("analysis_summary", "timepoint", "method")
-  )
 
-# format tpods: original (lower - upper)
-tpod_formatted <- tpod_joined %>%
+## Directories
+studyNR = "EUT046"
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+
+## Load data
+
+timepoint_levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+
+### Prefilter output
+AU_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE) %>% 
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = timepoint_levels)
+  ) %>%
+  filter(adjpvalue < 0.01)
+
+BPI_pref = fread(file.path(inputDir, "BPI", "All_UnfilteredDRomicV3.txt"), check.names = TRUE) %>%
+  filter(adjpvalue < 0.01) %>%
+  mutate(timepoint = factor(timepoint, levels = timepoint_levels)) 
+
+
+folder_path_GU <- "input/EUT046/Ghent/Ab_initio_UGent/Output_046/Bootstrap_unfiltered"
+GU_pref <- list.files(folder_path_GU, pattern = "\\.txt$", full.names = TRUE) %>%
+  map_dfr(~ {
+    fread(.x, check.names = TRUE) %>%
+      mutate(
+        timepoint = factor(paste0(
+          stringr::str_extract(basename(.x), "(?<=Time_)\\d+"),
+          "h"
+        ), levels = timepoint_levels
+      )
+      )
+  }) %>%
+  filter(adjpvalue < 0.01)
+
+
+LU_pref = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_WTT_output.txt")), check.names = TRUE) %>% 
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels)
+  ) %>% filter(Adjusted.P.Value < 0.05) %>%
+  filter(Probe.ID != "NA_NA")
+
+
+SC_pref = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>% 
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels)
+)
+
+
+
+### After post model filters
+load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData")) # = filtered data 
+
+
+
+
+# dose responsive genes
+drg_afterprefilter = tibble(
+  "BMDE-noWTT-CPM-RF-S5" = LU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDE-WTT-CPM-RF-S0" = SC_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-UQ-RF-S0" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-VST-C10-S0" = BPI_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-VST-RF-S0" = GU_pref %>% pull(timepoint) %>% table() %>% as.numeric()
+ 
+) %>%
+  rowwise() %>%
   mutate(
-    tpod_ci = str_glue(
-      "{round(tpod_orig, 2)} ({round(tpod_lower, 2)}–{round(tpod_upper, 2)})"
+    mean_cv = sprintf(
+      "%.2f (%.1f%%)",
+      mean(c_across(1:5), na.rm = TRUE),
+      sd(c_across(1:5), na.rm = TRUE) /
+        mean(c_across(1:5), na.rm = TRUE) * 100
     )
-  )
+  ) %>%
+  ungroup() %>%
+  mutate(timepoint = factor(timepoint_levels))
 
-## order methods
-method_order <- c("5th percentile",
-                  "25th ranked gene",
-                  "First mode",
-                  "Kneedle",
-                  "LCRD")
+drg_afterprefilter
+
+data.table::fwrite(drg_afterprefilter, file.path(getwd(), "output", "EUT046", "drg_afterprefilter.txt"))
 
 
-# order timepoints
-timepoint_order <- c("4h", "8h", "16h", "24h", "48h", "72h") 
 
-analysis_summary_order <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
 
-tpod_ordered <- tpod_formatted %>%
+# retained after post model filters
+retained_pmf = tibble(
+  "BMDE-noWTT-CPM-RF-S5" = LU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDE-WTT-CPM-RF-S0" = Sciensano_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-VST-C10-S0" = BPI_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-UQ-RF-S0" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "DRO-Quad-VST-RF-S0" = GU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric()
+) %>%
+  rowwise() %>%
   mutate(
-    method    = factor(method, levels = method_order),
-    timepoint = factor(timepoint, levels = timepoint_order)
+    mean_cv = sprintf(
+      "%.2f (%.1f%%)",
+      mean(c_across(1:5), na.rm = TRUE),
+      sd(c_across(1:5), na.rm = TRUE) /
+        mean(c_across(1:5), na.rm = TRUE) * 100
+    )
   ) %>%
-  arrange(timepoint, method)
-
-tpod_mean <- tpod_joined %>%
-  group_by(timepoint, method) %>%
-  summarise(mean_tpod = mean(tpod_orig, na.rm = TRUE), .groups = "drop") %>%
-  mutate(mean_tpod_fmt = sprintf("%.2f", mean_tpod),
-         timepoint = factor(timepoint, levels = timepoint_order))
+  ungroup() %>%
+  mutate(timepoint = factor(timepoint_levels))
 
 
-# generate final table
-tpod_table_final <- tpod_ordered %>%
-  select(timepoint, method, analysis_summary, tpod_ci) %>%
-  pivot_wider(
-    names_from  = analysis_summary,
-    values_from = tpod_ci
-  ) %>%
-  left_join(
-    tpod_mean %>% select(timepoint, method, mean_tpod_fmt),
-    by = c("timepoint", "method")
-  ) %>%
-  arrange(timepoint, method) %>%
-  select(timepoint, method, all_of(analysis_summary_order), mean_tPOD = mean_tpod_fmt)
 
-tpod_table_final
+retained_pmf
+
+data.table::fwrite(retained_pmf, file.path(getwd(), "output", "EUT046", "retained_after_postmodelfilters.txt"))
+
+
+
+
+# combine
+DRG_PMF_table2 = bind_rows(
+  drg_afterprefilter,
+  retained_pmf
+) %>%
+  select(timepoint, everything())
+
+
 
 
 library(flextable)
 library(officer)
 
-ft = flextable(tpod_table_final)
+ft = flextable(DRG_PMF_table2)
 ft = autofit(ft)
 
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table3R.docx"))
+print(doc, target = file.path(getwd(), "tables", "table2R.docx"))
 
 
+
+#  create long table
+drg_afterprefilter_long <- drg_afterprefilter %>%
+  select(-mean_cv) %>%
+  pivot_longer(cols = -timepoint, names_to = "analysis_summary", values_to = "value") %>%
+  mutate(step = "DRG")
+
+
+retained_pmf_long <- retained_pmf %>%
+  select(-mean_cv) %>%
+  pivot_longer(cols = -timepoint, names_to = "analysis_summary", values_to = "value") %>%
+  mutate(step = "PMFG")
+
+
+drg_pmf_combined_long = bind_rows(drg_afterprefilter_long, retained_pmf_long)
+data.table::fwrite(drg_pmf_combined_long, file.path(outputDir, "DRG_PMFG_pertimepoint.txt"))

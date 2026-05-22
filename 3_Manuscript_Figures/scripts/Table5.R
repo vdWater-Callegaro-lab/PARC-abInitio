@@ -1,47 +1,86 @@
 
+# Table 4
+## Include obtained BMCs for HALLMARK p53 & p53 pathways of choice
 
-# Generate table 5 (pathway-based modeling vs median BMC aggregation)
-
-# Settings
-
-## Libraries
+### Load packages
 library(tidyverse)
-library(data.table)
-
-
-## Load data
-timepoint_levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-
-load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData")) # = filtered data 
-
-
-## create table
-table5 = tibble(timepoint = timepoint_levels) %>% left_join(
-  LU_norm_modules_select %>% filter(Pathway.Name == "hRPTECTERT1_35") %>%
-    select(timepoint, "Median BMC (BMDE-noWTT-CPM_RF_S5)" = medianBMD)
-) %>%
-  left_join(
-    LU_BMD_pathway_select %>% filter(pathway == "hRPTECTERT1_35") %>%
-      select(timepoint, "Pathway Score (EGs) Based" = finalBMD)
-  ) %>%
-  left_join(
-    Sciensano_norm_HALLMARK_select %>% filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
-      select(timepoint, "Median BMC (BMDE-WTT-CPM-RF-S0)" = medianBMD)
-  ) %>%
-  left_join(
-    Sciensano_BMD_pathway_select %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>%
-      select(timepoint, "Pathway Score (NES) Based" = finalBMD)
-  )
-
-
-
 library(flextable)
 library(officer)
 
-ft = flextable(table5)
+### Load data
+load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.RData")) # = filtered data 
+
+
+
+
+#### HALLMARK
+analysis_summary_order = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
+timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
+
+
+result_HALLMARK_p53 <- norm_HALLMARK_combined %>%
+  filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
+  select(Pathway.Name, timepoint, medianBMD, analysis_summary) %>%
+  # enforce factor levels for ordering
+  mutate(
+    analysis_summary   = factor(analysis_summary, levels = analysis_summary_order),
+    timepoint = factor(timepoint, levels = timepoint_order),
+    medianBMD = round(medianBMD, digits = 3)
+  ) %>%
+  # ensure all analysis_summary–timepoint combinations exist
+  complete(timepoint, analysis_summary) %>%
+  # reshape so analysis_summarys become columns
+  pivot_wider(
+    names_from  = analysis_summary,
+    values_from = medianBMD
+  ) %>%
+  # order rows explicitly
+  arrange(timepoint) %>%
+  select(Pathway.Name, everything()) %>%
+  filter(!is.na(Pathway.Name)) 
+
+
+# save
+
+ft = flextable(result_HALLMARK_p53)
 ft = autofit(ft)
 
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table5R.docx"))
+print(doc, target = file.path(getwd(), "tables", "table4aR.docx"))
+
+
+
+### Pathway of choice
+p53_pathways = c("p53 signaling pathway", "p53 transcriptional gene network", "HALLMARK_P53_PATHWAY", "hRPTECTERT1_35", "GENOMARK84", "TGxDDI64")
+
+result_p53_choice = norm_pathwaysChoice_combined %>%
+  filter(Pathway.Name %in% p53_pathways) %>%
+  select(Pathway.Name, timepoint, medianBMD) %>%
+  mutate(
+    timepoint = factor(timepoint, levels = timepoint_order),
+    Pathway.Name = factor(Pathway.Name, levels = p53_pathways),
+    medianBMD = round(medianBMD, digits = 3)
+  ) %>%
+  complete(timepoint, Pathway.Name) %>%
+  pivot_wider(
+    names_from = Pathway.Name, 
+    values_from = medianBMD
+  ) %>%
+  arrange(timepoint)
+
+
+
+
+
+ft = flextable(result_p53_choice)
+ft = autofit(ft)
+
+doc = read_docx()
+doc = body_add_flextable(doc, ft)
+
+print(doc, target = file.path(getwd(), "tables", "table4bR.docx"))
+
+
+
