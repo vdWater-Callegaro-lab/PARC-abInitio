@@ -49,14 +49,21 @@ Users can use the repository to:
 - generate HTML reports for BMD result evaluation;
 - reproduce manuscript figures.
 
-## Citation
 
-If you use or refer to this repository, please cite the associated manuscript and the archived Zenodo release.
+## Citation and archived version
+
+The version of this repository associated with the manuscript submission is archived on Zenodo.
 
 ```text
-Citation details will be added after manuscript submission and Zenodo archiving.
+- GitHub release: `v1.0.0-submission`
+- Zenodo version DOI: `DOI to be added after Zenodo archiving`
 ```
+
+Please cite the Zenodo version DOI when referring to the repository version used for the submitted manuscript.
+
+The GitHub repository may be updated over time. Archival versions associated with the manuscript are preserved on Zenodo. Each GitHub release archived on Zenodo receives a version-specific DOI.
+
 
 ## License
 
-License information will be added before public release.
+This repository is licensed under the MIT License. See the [`LICENSE`](LICENSE) file for details.
