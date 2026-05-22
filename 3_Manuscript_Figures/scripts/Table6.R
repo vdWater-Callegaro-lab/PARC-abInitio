@@ -1,6 +1,6 @@
 
 
-# Generate table 5 (pathway-based modeling vs median BMC aggregation)
+# Generate table 6 (pathway-based modeling vs median BMC aggregation)
 
 # Settings
 
@@ -16,7 +16,7 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 
 
 ## create table
-table5 = tibble(timepoint = timepoint_levels) %>% left_join(
+table6 = tibble(timepoint = timepoint_levels) %>% left_join(
   LU_norm_modules_select %>% filter(Pathway.Name == "hRPTECTERT1_35") %>%
     select(timepoint, "Median BMC (BMDE-noWTT-CPM_RF_S5)" = medianBMD)
 ) %>%
@@ -33,15 +33,16 @@ table5 = tibble(timepoint = timepoint_levels) %>% left_join(
       select(timepoint, "Pathway Score (NES) Based" = finalBMD)
   )
 
-
+table6_round = table6 %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1)))
 
 library(flextable)
 library(officer)
 
-ft = flextable(table5)
+ft = flextable(table6_round)
 ft = autofit(ft)
 
 doc = read_docx()
 doc = body_add_flextable(doc, ft)
 
-print(doc, target = file.path(getwd(), "tables", "table5R.docx"))
+print(doc, target = file.path(getwd(), "tables", "table6R.docx"))
