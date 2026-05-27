@@ -54,10 +54,10 @@ Users can use the repository to:
 
 The version of this repository associated with the manuscript submission is archived on Zenodo.
 
-```text
+
 - GitHub release: `v1.0.0-submission`
-- Zenodo version DOI: `DOI to be added after Zenodo archiving`
-```
+- Zenodo version DOI: https://doi.org/10.5281/zenodo.20413136 
+
 
 Please cite the Zenodo version DOI when referring to the repository version used for the submitted manuscript.
 
