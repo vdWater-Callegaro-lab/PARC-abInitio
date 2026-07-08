@@ -5,7 +5,7 @@ tpods = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_calculati
 tpod_bootstrapping = data.table::fread(file.path(getwd(), "output", "EUT046", "tpod_bootstrapping_ci_median.txt"))
 
 
-# generate table 3
+# generate table 4
 
 library(tidyverse)
 library(stringr)
