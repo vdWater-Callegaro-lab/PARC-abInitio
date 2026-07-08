@@ -1,10 +1,9 @@
 ---
 title: "Supplemental Figure 1"
 author: "Imke Bruns"
-date: "2025-12-16"
+date: "2026-07-08"
 output: html_document
 ---
-
 
 # Set up script
 ```{r setup, include=FALSE}
@@ -65,6 +64,8 @@ studyNR = "EUT046"
 library(tidyverse)
 library(patchwork)
 library(purrr)
+library(here)
+library(ComplexHeatmap)
 ```
 
 
@@ -95,68 +96,194 @@ if(!dir.exists(plotDir)){
 
 # Load data
 ```{r}
-LU_WTT = data.table::fread(file.path(inputDir, "Leiden", "EUT046_log2cpm_WTT_output.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}h"), 
-  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-  ))
+cytotox2 <- data.table::fread(file.path(inputDir, "tmp_cis_CD_rep4 1.txt")) %>% select(-V1)
 
-LU_BMD = data.table::fread(file.path(inputDir, "Leiden", "EUT046_log2cpm_BMD_output.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}h"), 
-  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-  ))
+LU_deg <- read_rds(file.path(inputDir, "Leiden", "deseq_output.rds"))
+```
 
-LU_total_input = data.table::fread(file.path(inputDir, "Leiden", "BMD_input_72hr_log2cpmcounts.txt"))
-LU_total_input = LU_total_input[-1,]
+
+# Wrangle
+```{r}
+cytotox2_cis <- cytotox2 %>%
+  filter(
+    treatment == "Cis",
+    cell_line == "RPTEC_TERT1_WT",
+    variable != "imageCountParentObj"
+  ) %>%
+  mutate(
+    variable = recode(
+      variable,
+      "count_AnV_masked_primaryID_AreaShape_Area.DIV.Nuclei_AreaShape_Area_larger_0_" = "AnV",
+      "count_PI_masked_primaryID_AreaShape_Area.DIV.Nuclei_AreaShape_Area_larger_0_" = "PI"
+    )
+  ) %>%
+  dplyr::rename(time_h = timeAfterExposure)
 
 ```
 
 
-# Generate figure
-We generate a Venn diagram to show the overlap of genes removed by the prefilter & by the post model filters. This also shows which genes are removed by the prefilter, but retained after model filters. 
+
+# Plot
+
+## PI & Annexin V positive
 
 ```{r}
-library(ggVennDiagram)
+study_timepoints <- c(4, 8, 16, 24, 48, 72)
 
-all_timepoints = LU_BMD %>% pull(timepoint) %>% unique()
-venn_output = NULL
+plot_df <- cytotox2_cis %>%
+  mutate(
+    variable = recode(
+      variable,
+      AnV = "Annexin V positive",
+      PI = "PI positive"
+    )
+  ) %>%
+  group_by(variable, time_h, dose_uM) %>%
+  summarise(
+    mean_value = mean(value, na.rm = TRUE),
+    sd_value = sd(value, na.rm = TRUE),
+    n = sum(!is.na(value)),
+    se_value = sd_value / sqrt(n),
+    .groups = "drop"
+  )
 
-
-for(time in all_timepoints){
-  
-  LU_WTT_retained = LU_WTT %>% filter(timepoint == time) %>% filter(Adjusted.P.Value <= 0.05) %>% pull(Probe.ID)
-
-  x <- list(prefilter_removed = LU_total_input %>% filter(!gene_symbol_entrez_id %in% LU_WTT_retained) %>% pull(gene_symbol_entrez_id),
-            postmodel_removed = LU_BMD %>% filter(timepoint == time) %>% filter(Best.BMD < 0.01 | Best.BMD > 50 | Best.BMD.BMDL > 20 | Best.BMDU.BMD > 20 | Best.RSquared < 0.8) %>% pull(Probe.ID))
-  
-  p1 = ggVennDiagram(x, category.names = c("Removed by pre-filter\n (WTT padj < 0.05)", "Removed by post-model filters")) +
-  scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
-  labs(
-    # caption = "Top: Removed by post-model filters; Bottom: Removed by pre-filter (padj < 0.05)",
-    subtitle = time
-  ) +
-    theme(plot.subtitle = element_text(
-      size = 13,
-      face = "italic",
-      vjust = 2,
-      hjust = 0.5
-    ))
-  
-  print(p1)
-  
-  venn_output[[time]] = p1
-
+# Convert fractions to percentages if needed
+if (max(plot_df$mean_value, na.rm = TRUE) <= 1.5) {
+  plot_df <- plot_df %>%
+    mutate(
+      mean_value = mean_value * 100,
+      se_value = se_value * 100
+    )
 }
 
+plot_df <- plot_df %>%
+  mutate(
+    dose_label = factor(
+      dose_uM,
+      levels = sort(unique(dose_uM)),
+      labels = paste0(sort(unique(dose_uM)), " µM")
+    )
+  )
 
-reduce(venn_output, `+`) + plot_layout(nrow =3) 
+p <- ggplot(plot_df, aes(x = time_h, y = mean_value, color = dose_label, group = dose_label)) +
+  geom_vline(
+    xintercept = study_timepoints,
+    linetype = "dashed",
+    linewidth = 0.3,
+    color = "grey70"
+  ) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(~ variable, ncol = 1, scales = "free_y") +
+  scale_x_continuous(
+    breaks = seq(0, 75, 10),
+    minor_breaks = seq(0, 75, 5),
+    limits = c(0, 75)
+  ) +
+  labs(
+    x = "Time after exposure (h)",
+    y = "% positive cells",
+    color = "Cisplatin concentration",
+    title = "Cisplatin-induced Annexin V and PI positivity over time"
+  ) +
+  theme(
+    legend.position = "right",
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+  ) 
 
-ggsave(file.path(plotDir, "SupplementalFigure1.pdf"), width = 15, height = 15)
+p
 
-
+ggsave(file.path(plotDir, "supplementalFigureX_cytotox.pdf"), width=10, height=7)
 
 ```
 
 
+
+## DEGs per treatment
+
+```{r}
+
+fc_cutoff <- log2(1.5)
+
+deg_counts <- LU_deg %>%
+  mutate(
+    time_h = as.numeric(str_match(MEAN_ID_experiment, "_([0-9]+(?:\\.[0-9]+)?)hr(?:_|$)")[, 2]),
+    dose_uM = as.numeric(str_match(MEAN_ID_experiment, "_([0-9]+(?:\\.[0-9]+)?)uM(?:_|$)")[, 2]),
+    regulation = case_when(
+      !is.na(padj) & padj < 0.05 & log2FoldChange >= fc_cutoff  ~ "Upregulated",
+      !is.na(padj) & padj < 0.05 & log2FoldChange <= -fc_cutoff ~ "Downregulated",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(time_h), !is.na(dose_uM), !is.na(regulation)) %>%
+  group_by(time_h, dose_uM, regulation) %>%
+  summarise(
+    n_genes = n_distinct(gene_symbol_entrez_id),
+    .groups = "drop"
+  ) %>%
+  complete(
+    time_h,
+    dose_uM,
+    regulation = c("Upregulated", "Downregulated"),
+    fill = list(n_genes = 0)
+  ) %>%
+  mutate(
+    n_plot = if_else(regulation == "Downregulated", -n_genes, n_genes),
+    dose_label = factor(
+      dose_uM,
+      levels = sort(unique(dose_uM)),
+      labels = paste0(sort(unique(dose_uM)), " µM")
+    ),
+    time_label = factor(
+      paste0(time_h, " h"),
+      levels = paste0(sort(unique(time_h)), " h")
+    )
+  )
+
+
+p_deg <- ggplot(deg_counts, aes(x = dose_label, y = n_plot, fill = regulation)) +
+  geom_col(width = 0.75) +
+  geom_hline(yintercept = 0, linewidth = 0.3) +
+  facet_wrap(~ time_label, ncol = 3) +
+  scale_y_continuous(
+    labels = function(x) abs(x)
+  ) +
+  labs(
+    x = "Cisplatin concentration",
+    y = "Number of differentially expressed genes",
+    fill = NULL,
+    title = "Number of Differentially Expressed Genes per Treatment"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    legend.position = "top"
+  ) +
+  scale_fill_manual(values = c("blue2", "firebrick2"),
+                     breaks = c("Downregulated", "Upregulated"))
+
+p_deg
+
+ggsave(
+  file.path(plotDir, "SupplementalFigureX_DEG_counts_by_concentration_timepoint.pdf"),
+  p_deg,
+  width = 10,
+  height = 6
+)
+```
+
+
+# Combine
+```{r}
+library(patchwork)
+
+p /
+  p_deg +
+  plot_annotation(tag_levels = "A")
+
+ggsave(file.path(plotDir, "SupplementalFigure1_cytotox_numberDEGS_combined.pdf"), width=10, height=13)
+```
 
 
 

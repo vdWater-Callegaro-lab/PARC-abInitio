@@ -1,8 +1,9 @@
 ---
-title: "SupplementalFigure2_new"
+title: "Supplemental Figure 3"
 output: html_document
-date: "2025-12-15"
+date: "2025-12-08"
 ---
+
 
 # Set up script
 ```{r setup, include=FALSE}
@@ -34,46 +35,40 @@ standard_plotTheme <- theme_minimal() +
 
 theme_set(standard_plotTheme)
 
+
 # define 6 custom colors
 timepoint_cols <- c(
-  "#1f77b4",  # blue 
+  "#1f77b4",  # blue (replacing teal)
   "#d95f02",  # orange
   "#7570b3",  # violet
   "#e7298a",  # magenta/pink
   "#66a61e",  # green
   "#e6ab02"   # mustard yellow
 )
-
 ```
 
 
+SUPPLEMENTAL FIGURE 2
+Check overlap of genes passing pre-filter
 
-MANUSCRIPT FIGURE 2
-Here, we will generate figure 2 from the PARC ab initio manuscript
 
-# Settings
-
-## Set studyNR
+## Manual settings
 ```{r}
 studyNR = "EUT046"
+
 ```
 
 
 ## Load packages
 ```{r}
-
 library(tidyverse)
-library(here)
-library(patchwork)
 library(data.table)
+library(ComplexUpset)
+library(patchwork)
+library(purrr)
+library(grid)
+library(here)
 ```
-
-
-## Load functions
-```{r}
-source(here("functions.R"), local = knitr::knit_global())
-```
-
 
 
 ## Directories
@@ -93,164 +88,267 @@ if(!dir.exists(plotDir)){
 ```
 
 
-
 # Load data
 ```{r}
+timepoint_levels = c("4h", "8h", "16h", "24h", "48h", "72h")
+
+# manifest
+manifest = fread("input/Temposeq_manifest_Human_WT_1.2_realignment_96percent_2023-05-15.txt")
+
+# load data after prefilter but before post model filters
+## BMD normalized counts
+AU_norm_BMD_pref = fread(file.path(inputDir, "Aristotle", paste0(studyNR, "_log2cpm_All_BMD_output.txt")), check.names = TRUE) %>%
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"),
+  levels = timepoint_levels
+))
+
+BPI_norm_BMD_pref = fread(file.path(inputDir, "BPI" , "All_UnfilteredDRomicV3.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  timepoint, levels = timepoint_levels)) %>% dplyr::rename("Probe_ID" = id) %>%
+  unite(c("gene_symbol", "entrez_id"), col = "gene_symbol_entrez_id")
+
+
+folder_path_GU <- "input/EUT046/Ghent/Ab_initio_UGent/Output_046/Bootstrap_unfiltered"
+GU_norm_BMD_pref <- list.files(folder_path_GU, pattern = "\\.txt$", full.names = TRUE) %>%
+  map_dfr(~ {
+    fread(.x, check.names = TRUE) %>%
+      mutate(
+        timepoint = factor(paste0(
+          stringr::str_extract(basename(.x), "(?<=Time_)\\d+"),
+          "h"
+        ), levels = timepoint_levels
+      )
+      )
+  }) %>%
+  filter(adjpvalue < 0.01) %>%
+  dplyr::rename("gene_symbol_entrez_id" = id)
+
+LU_WTT = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_WTT_output.txt")), check.names = TRUE) %>%
+  mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels
+  )) 
+
+
+Sciensano_norm_BMD_pref = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>% mutate(timepoint = factor(
+  str_extract(Analysis, "\\d{1,2}h"), 
+  levels = timepoint_levels
+  ))
+
+
+
+# load data after filering post model filters
 load(file.path(outputDir, "WrangledInput", "WrangledInputData.RData"))
-
-LU_norm_BMD = fread(file.path(inputDir, "Leiden", paste0(studyNR, "_log2cpm_BMD_output.txt")), check.names = TRUE) %>%
-  filter(Best.BMD >= 0.1*0.1 & Best.BMD <= 50,
-         Best.BMD.BMDL < 20,
-         Best.BMDU.BMD < 20,
-         Best.RSquared >= 0.8) %>% # for Leiden filter needs te be applied; this is the direct output from BMDExpress
-  mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}h"), 
-  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-  ))
-
-
-Sciensano_norm_BMD = fread(file.path(inputDir, "Sciensano", "BMD_output_normalized_counts.txt"), check.names = TRUE) %>%
-  filter(Best.BMD <= 50,
-         Best.BMD.BMDL <= 20,
-         Best.BMDU.BMDL <= 40,
-         Best.RSquared >= 0.8) %>% # for Sciensano filter needs te be applied; copied from OECD reporting table
-  mutate(timepoint = factor(
-  str_extract(Analysis, "\\d{1,2}h"), 
-  levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-  ))
 
 
 
 ```
 
 
-
 # Generate figure
+Generate UpSet plot to show overlap between dose responsive genes
 
-```{r, fig.width=15, fig.height=8}
-library(RColorBrewer)
-model_cols <- c(
-  "Exp 3"   = brewer.pal(7, "Set1")[1],
-  "Exp 5"   = brewer.pal(7, "Set1")[2],
-  "Hill"    = brewer.pal(7, "Set1")[3],
-  "Linear"  = brewer.pal(7, "Set1")[4],
-  "Poly 2"  = brewer.pal(7, "Set1")[5],
-  "Poly 3"  = brewer.pal(7, "Set1")[6],
-  "Power"   = brewer.pal(7, "Set1")[7]
+## Dose responsive genes (pre-filter)
+
+### Get dose responsive genes per timepoint
+```{r}
+AU_genes_pref = AU_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+BPI_genes_pref = BPI_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+GU_genes_pref = GU_norm_BMD_pref %>% filter(adjpvalue < 0.01) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+LU_genes_pref = LU_WTT %>% filter(Adjusted.P.Value < 0.05) %>% dplyr::select(timepoint, "gene_symbol_entrez_id" = Probe.ID)
+SC_genes_pref = Sciensano_norm_BMD_pref %>% filter(Prefilter.P.Value < 0.01 & Max.Fold.Change.Absolute.Value >= 1.5) %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+
+```
+
+
+### Generate plot per timepoint
+```{r}
+
+# ---- collapse ComplexUpset 1.3.3 theme *lists* into single theme objects ----
+themes_fixed <- lapply(ComplexUpset::upset_themes, function(ths) {
+  Reduce(`+`, ths)   # combine theme_minimal() + theme(...) etc into one theme
+})
+
+UpSetOutput <- list()
+all_timepoints <- timepoint_levels
+
+for (time in all_timepoints) {
+
+  geneList <- list(
+    `DRO-Quad-UQ-RF-S0`  = AU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `DRO-Quad-VST-C10-S0` = BPI_genes_pref %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `DRO-Quad-VST-RF-S0`  = GU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `BMDE-noWTT-CPM-RF-S5`  = LU_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `BMDE-WTT-CPM-RF-S0`  = SC_genes_pref  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+  )
+
+  all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
+
+  membership_df <- tibble(
+    Gene = all_genes,
+    !!!lapply(geneList, function(v) all_genes %in% v)
+  ) %>%
+    mutate(across(-Gene, ~ as.logical(.x) & !is.na(.x)))
+
+  supfig1a <- ComplexUpset::upset(
+  membership_df,
+  names(geneList),
+  min_size = 1,
+  themes = themes_fixed,
+
+  # keep the bars, remove the numbers
+  base_annotations = list(
+    "Intersection size" = intersection_size(counts = FALSE)
+  ),
+
+  matrix = (
+    intersection_matrix() +
+      scale_color_manual(values = c(
+        AU="firebrick", BPI="gray30", GU="gold1", LU="blue2", SC="forestgreen"
+      ))
+  ),
+  queries = list(
+    upset_query(set = "DRO-Quad-UQ-RF-S0",  fill = "firebrick"),
+    upset_query(set = "DRO-Quad-VST-C10-S0", fill = "gray30"),
+    upset_query(set = "DRO-Quad-VST-RF-S0",  fill = "gold1"),
+    upset_query(set = "BMDE-noWTT-CPM-RF-S5",  fill = "blue2"),
+    upset_query(set = "BMDE-WTT-CPM-RF-S0",  fill = "forestgreen")
+  )
 )
 
-# LeidenU
-norm_BMD_combined_wide_LUmodels = norm_BMD_combined_wide %>%
-  left_join(LU_norm_BMD %>% select("gene_symbol_entrez_id" = Probe.ID, Best.Model, timepoint), by = c("gene_symbol_entrez_id", "timepoint")) %>%
-  filter(!is.na(Best.Model)) 
 
 
-p1 = norm_BMD_combined_wide_LUmodels %>%
-  ggplot(aes(x=LU_finalBMD, y=AU_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
-       y = "BMC (DRO-Quad-UQ-RF-S0)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+  print(supfig1a)
+  UpSetOutput[[as.character(time)]] <- patchwork::wrap_elements(full = supfig1a)
+}
 
-p2 = norm_BMD_combined_wide_LUmodels %>%
-  ggplot(aes(x=LU_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
-       y = "BMC (DRO-Quad-VST-C10-S0)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+```
 
-p3 = norm_BMD_combined_wide_LUmodels %>%
-  ggplot(aes(x=LU_finalBMD, y=GU_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
-       y = "BMC (DRO-Quad-VST-RF-S0)", 
-       color = "Best Model")+
-  scale_color_manual(values = model_cols)
 
-p4 = norm_BMD_combined_wide_LUmodels %>%
-  ggplot(aes(x=LU_finalBMD, y=SC_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
-       y = "BMC (BMDE-WTT-CPM-RF-S0)", 
-       color = "Best Model")+
-  scale_color_manual(values = model_cols)
+## Generate final supplemental figure 2a
+```{r}
+
+supfig2a_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow = 6) + plot_annotation(tag_levels = "A"))
+supfig2a_combined
+
+# generate title
+supfig2a_lab = wrap_elements(panel = textGrob("Overlap Genes after Prefilter", gp = gpar(fontface = "bold", fontsize = 24)))
+
+
+# create total supfig2a
+supfig2a_total = wrap_elements(supfig2a_lab / supfig2a_combined + plot_layout(heights = c(0.2, 10)))
+
+ggsave(plot = supfig2a_total, file.path(plotDir, "supfig2a.pdf"), width=10, height = 20)
+
+```
 
 
 
 
-# Sciensano
-norm_BMD_combined_wide_SCmodels = norm_BMD_combined_wide %>%
-  left_join(Sciensano_norm_BMD %>% select(gene_symbol_entrez_id, Best.Model, timepoint), by = c("gene_symbol_entrez_id", "timepoint")) %>%
-  filter(!is.na(Best.Model))
+
+## Retained genes after post model filter
+
+### Get dose responsive genes per timepoint
+```{r}
+AU_genes_pmf = AU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+BPI_genes_pmf = BPI_norm_BMD_select  %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+GU_genes_pmf = GU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+LU_genes_pmf = LU_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+SC_genes_pmf = Sciensano_norm_BMD_select %>% dplyr::select(timepoint, gene_symbol_entrez_id)
+
+```
 
 
-p5 = norm_BMD_combined_wide_SCmodels %>%
-  ggplot(aes(x=SC_finalBMD, y=AU_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
-       y = "BMC (DRO-Quad-UQ-RF-S0)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+### Generate plot per timepoint
+```{r}
 
-p6 = norm_BMD_combined_wide_SCmodels %>%
-  ggplot(aes(x=SC_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
-       y = "BMC (DRO-Quad-VST-C10-S0)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+themes_fixed <- lapply(ComplexUpset::upset_themes, function(ths) {
+  Reduce(`+`, ths)   # combine theme_minimal() + theme(...) etc into one theme
+})
 
-p7 = norm_BMD_combined_wide_SCmodels %>%
-  ggplot(aes(x=SC_finalBMD, y=GU_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
-       y = "BMC (DRO-Quad-VST-RF-S0)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+UpSetOutput <- list()
+all_timepoints <- timepoint_levels
 
-p8 = norm_BMD_combined_wide_SCmodels %>%
-  ggplot(aes(x=SC_finalBMD, y=LU_finalBMD, color = Best.Model)) +
-  geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
-       y = "BMC (BMDE-noWTT-CPM-RF-S5)", 
-       color = "Best Model") +
-  scale_color_manual(values = model_cols)
+for (time in all_timepoints) {
 
+  geneList <- list(
+    `DRO-Quad-UQ-RF-S0`  = AU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `DRO-Quad-VST-C10-S0` = BPI_genes_pmf %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `DRO-Quad-VST-RF-S0`  = GU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `BMDE-noWTT-CPM-RF-S5`  = LU_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id),
+    `BMDE-WTT-CPM-RF-S0`  = SC_genes_pmf  %>% filter(timepoint == time) %>% pull(gene_symbol_entrez_id)
+  )
 
+  all_genes <- sort(unique(unlist(geneList, use.names = FALSE)))
 
-# combine
-row1 <-
-  wrap_elements(
-    p1 + p2 + p3 + p4 +
-      plot_layout(nrow=1, axis = "collect", guides = "collect") +
-  plot_annotation(
-    title = "BMDE-noWTT-CPM-RF-S5 Models Fit",
-    tag_levels = "I"
-  ))
+  membership_df <- tibble(
+    Gene = all_genes,
+    !!!lapply(geneList, function(v) all_genes %in% v)
+  ) %>%
+    mutate(across(-Gene, ~ as.logical(.x) & !is.na(.x)))
 
-row2 <- wrap_elements(
- p5 + p6 + p7 + p8 +
-   plot_layout(nrow = 1, axis = "collect", guides = "collect") +
-  plot_annotation(
-    title = "BMDE-WTT-CPM-RF-S0 Models Fit",
-    tag_levels = "I"
-  ))
+  supfig1b <- ComplexUpset::upset(
+  membership_df,
+  names(geneList),
+  min_size = 1,
+  themes = themes_fixed,
 
-SupplementalFigure3 <-
-  (row1 / row2) +
-  plot_layout(axis = "collect", guides = "collect")
+  # keep the bars, remove the numbers
+  base_annotations = list(
+    "Intersection size" = intersection_size(counts = FALSE)
+  ),
 
-SupplementalFigure3
-
-ggsave(
-  filename = file.path(plotDir, "SupplementalFigure3.pdf"),
-  plot = SupplementalFigure3,
-  width = 15,
-  height = 8
+  matrix = (
+    intersection_matrix() +
+      scale_color_manual(values = c(
+        AU="firebrick", BPI="gray30", GU="gold1", LU="blue2", SC="forestgreen"
+      ))
+  ),
+  queries = list(
+    upset_query(set = "DRO-Quad-UQ-RF-S0",  fill = "firebrick"),
+    upset_query(set = "DRO-Quad-VST-C10-S0", fill = "gray30"),
+    upset_query(set = "DRO-Quad-VST-RF-S0",  fill = "gold1"),
+    upset_query(set = "BMDE-noWTT-CPM-RF-S5",  fill = "blue2"),
+    upset_query(set = "BMDE-WTT-CPM-RF-S0",  fill = "forestgreen")
+  )
 )
 
+
+
+  print(supfig1b)
+  UpSetOutput[[as.character(time)]] <- patchwork::wrap_elements(full = supfig1b)
+}
+
+```
+
+
+## Generate final supplemental figure 2b
+```{r}
+
+supfig2b_combined <- wrap_elements(reduce(UpSetOutput, `+`) + plot_layout(nrow =6) + plot_annotation(tag_levels = "A"))
+
+supfig2b_combined
+
+# generate title
+supfig2b_lab = wrap_elements(panel = textGrob("Overlap Genes after Post Model Filters", gp = gpar(fontface = "bold", fontsize = 24)))
+
+
+# create total supfig2a
+supfig2b_total = wrap_elements(supfig2b_lab / supfig2b_combined + plot_layout(heights = c(0.2, 10)))
+
+ggsave(plot = supfig2b_total, file.path(plotDir, "supfig2b.pdf"), width=10, height = 20)
+
+```
+
+
+
+## Generate final supplemental figure 2
+```{r}
+supfig2_total = supfig2a_total + supfig2b_total + plot_layout(ncol = 2, widths = c(0.8, 1))
+
+supfig2_total
+
+ggsave(plot = supfig2_total, file.path(plotDir, "SupplementalFigure3.pdf"), width = 20, height = 20)
 
 ```
 
