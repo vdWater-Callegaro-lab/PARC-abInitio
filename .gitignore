@@ -74,7 +74,12 @@ data/
 
 # renv
 .renvignore
+<<<<<<< HEAD
 
 
 # mac
 .DS_Store
+=======
+.DS_Store
+*.docx
+>>>>>>> 13cf6e1 (restructured directories)

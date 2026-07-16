@@ -53,23 +53,22 @@ studyNR = "EUT046"
 
 ### CRAN
 ```{r}
-if(!require(pacman, quietly = TRUE)){
-  install.packages("pacman")
-}
-
-pacman::p_load(tidyverse, data.table, ggfortify, here)
+library(tidyverse)
+library(data.table)
+library(ggfortify)
+library(here)
 ```
 
 
 ### BioManager
 ```{r}
-if (!require("BiocManager", quietly = TRUE)){
-    install.packages("BiocManager")
-}
-
-if (!require(DESeq2, quietly = TRUE)){
-  BiocManager::install("DESeq2")
-}
+# if (!require("BiocManager", quietly = TRUE)){
+#     install.packages("BiocManager")
+# }
+# 
+# if (!require(DESeq2, quietly = TRUE)){
+#   BiocManager::install("DESeq2")
+# }
 
 library(DESeq2)
 
@@ -81,7 +80,7 @@ library(DESeq2)
 ## Load functions
 Load manual functions we need in the script.
 ```{r}
-source(file.path(here(), "functions.R"), local = knitr::knit_global())
+source(file.path(here(), "functions_new.R"), local = knitr::knit_global())
 ```
 
 
@@ -127,19 +126,25 @@ if(!dir.exists(paste0("input/", studyNR, "/"))){
 inputDir <- file.path(here(), "input", studyNR)
 
 # output directory
-if(!dir.exists(paste0("output/updatedVersion/", studyNR, "/"))){
-  dir.create(path = file.path(here(), "output", "updatedVersion", studyNR))
+if(!dir.exists(paste0("output/", studyNR, "updatedVersion"))){
+  dir.create(path = file.path(here(), "output", studyNR, "updatedVersion"))
 }
-outputDir <- file.path(here(), "output", "updatedVersion", studyNR)
+outputDir <- file.path(here(), "output", studyNR, "updatedVersion")
 
 # plot directory
-if(!dir.exists(paste0("figures/updatedVersion/", studyNR, "/"))){
-  dir.create(path = file.path(here(), "figures", "updatedVersion", studyNR))
+if(!dir.exists(paste0("figures/", studyNR, "updatedVersion/"))){
+  dir.create(path = file.path(here(), "figures", studyNR, "updatedVersion"))
 }
-plotDir <- file.path(here(), "figures", "updatedVersion", studyNR)
+plotDir <- file.path(here(), "figures", studyNR, "updatedVersion")
 
 
 ```
+
+## Load data
+```{r}
+load(file.path(outputDir, paste0(studyNR, "_dataAfterSampleQC_3IQR_repfilter.RData")))
+```
+
 
 # Differential gene expression {.tabset}
 
