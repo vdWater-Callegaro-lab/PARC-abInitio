@@ -63,7 +63,7 @@ studyNR = "EUT046"
 
 ## Load packages
 ```{r}
-pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify)
+# pacman::p_load(tidyverse, here, ggpubr, patchwork, grid, GGally, ggplotify)
 
 library(tidyverse)
 library(here)
@@ -71,7 +71,7 @@ library(ggpubr)
 library(patchwork)
 library(grid)
 library(GGally)
-library(ggplotlify)
+# library(ggplotlify)
 ```
 
 
@@ -182,22 +182,27 @@ ggsave(plot = fig2a_total, file.path(plotDir, "fig2a.pdf"), width = 15, height =
 #### Plot first row
 ```{r, fig.width=10}
 fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary = "BMDE-noWTT-CPM-RF-S5") +
+  scale_x_log10() +
   theme(plot.title = element_text(color = "blue3")) +
   ylim(c(0, 6300))
 
 fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDE-WTT-CPM-RF-S0") + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "forestgreen")) +
   ylim(c(0, 6300))
 
 fig2b_AU = BMDaccumulationPlot(BMDoutput = AU_norm_BMD_select, analysis_summary = "DRO-Quad-UQ-RF-S0") +
+  scale_x_log10() +
   theme(plot.title = element_text(color = "firebrick")) +  
   ylim(c(0, 6300))
 
 fig2b_BPI = BMDaccumulationPlot(BMDoutput = BPI_norm_BMD_select, analysis_summary = "DRO-Quad-VST-C10-S0") +
+  scale_x_log10() +
   theme(plot.title = element_text(color = "gray30")) +
   ylim(c(0, 6300))
 
 fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary = "DRO-Quad-VST-RF-S0") + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "gold1")) +
   ylim(c(0, 6300))
 
@@ -207,9 +212,9 @@ fig2b_GU = BMDaccumulationPlot(BMDoutput = GU_norm_BMD_select, analysis_summary 
 fig2b_row1 = wrap_plots(
   fig2b_LU, fig2b_SC, fig2b_AU, fig2b_BPI, fig2b_GU,
   nrow = 1
-)
+) + plot_layout(guides = "collect")
 
-# ggsave(plot = fig2b_row1, file.path(plotDir, "fig2b_firstrow.pdf"), width = 15, height = 5)
+ggsave(plot = fig2b_row1, file.path(plotDir, "fig2b_firstrow.pdf"), width = 15, height = 5)
 
 ```
 
@@ -222,18 +227,23 @@ Zoom in on first part (250 genes) plot
 ```{r}
 
 fig2b_LU_zoom = BMDaccumulationPlot_zoom(BMDoutput = LU_norm_BMD_select) + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "blue3"))
 
 fig2b_SC_zoom = BMDaccumulationPlot_zoom(Sciensano_norm_BMD_select) + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "forestgreen"))
 
 fig2b_AU_zoom = BMDaccumulationPlot_zoom(BMDoutput = AU_norm_BMD_select) + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "firebrick"))
 
 fig2b_BPI_zoom = BMDaccumulationPlot_zoom(BMDoutput = BPI_norm_BMD_select) + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "gray30"))
 
 fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select) + 
+  scale_x_log10() +
   theme(plot.title = element_text(color = "gold1"))
 
 
@@ -241,10 +251,11 @@ fig2b_GU_zoom = BMDaccumulationPlot_zoom(BMDoutput = GU_norm_BMD_select) +
 fig2b_row2 = wrap_plots(
   fig2b_LU_zoom, fig2b_SC_zoom, fig2b_AU_zoom, fig2b_BPI_zoom, fig2b_GU_zoom,
   nrow = 1
-)
+) + plot_layout(guides = "collect")
+
 fig2b_row2
 
-# ggsave(plot = fig2b_row2, file.path(plotDir, "fig2b_secondrow.pdf"), width = 15, height = 5)
+ggsave(plot = fig2b_row2, file.path(plotDir, "fig2b_secondrow.pdf"), width = 15, height = 5)
 
 ```
 
@@ -288,6 +299,7 @@ fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
   geom_point(stat = "identity", aes(color = analysis_summary), size = 1) +
   labs(y = "Accumulation", 
        x = "BMC") +
+  scale_x_log10() +
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
                      breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0")) +
   theme(
@@ -296,8 +308,7 @@ fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
     )
 
 fig2c_zoom = fig2c_norm +
-  ylim(c(0, 250)) +
-  xlim(0, 3) 
+  ylim(c(0, 250))
 
 
 # combine
@@ -380,6 +391,7 @@ ggsave(
 ```{r}
 timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
 method_order = c("5th percentile", "25th ranked gene", "First mode", "Kneedle", "LCRD")
+ymax <- tpod_bootstrapping %>% select(where(is.numeric)) %>% max() + 1
 
 
 ### combine original tpods + bootstrap results
@@ -426,7 +438,8 @@ fig2e_bs = ggplot(tpod_plot_df,
   ) +
   # scale_y_log10() +
   scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gold1", "gray30"),
-                     breaks = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "DRO-Quad-VST-C10-S0"))
+                     breaks = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "DRO-Quad-VST-C10-S0")) +
+  ylim(0, ymax)
 
 
 fig2e_bs
@@ -434,7 +447,7 @@ fig2e_bs
 # combine
 fig2e_bs_total <- wrap_elements(
   fig2e_bs +
-  plot_annotation(title = "tPOD Estimates and Bootstrap Uncertainty")) &
+  plot_annotation(title = "tPOD Estimates and Bootstrap Stability")) &
   theme(
     legend.position = "bottom"
   )
@@ -465,7 +478,7 @@ figure2 = fig2a_total /
 
 figure2
 
-ggsave(plot = figure2, file.path(plotDir, "Figure2.pdf"), width = 17, height = 23)
+ggsave(plot = figure2, file.path(plotDir, "Figure2_revis.pdf"), width = 17, height = 23)
 
 
 ```

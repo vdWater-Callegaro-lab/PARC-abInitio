@@ -31,8 +31,6 @@ BMDaccumulationPlot_zoom <- function(BMDoutput) {
     labs(y = "Accumulation", 
          x = "BMC") +
     ylim(c(0, 250)) + 
-    xlim(c(0, 2)) +
-    # scale_color_manual(values = c("#E6E6E6", "#D1D1D1","#BBBBBB","#A0A0A0","#7F7F7F","#4D4D4D"))
     scale_color_manual(values = timepoint_cols)
 }
 
