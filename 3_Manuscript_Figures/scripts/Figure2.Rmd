@@ -392,6 +392,7 @@ ggsave(
 timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
 method_order = c("5th percentile", "25th ranked gene", "First mode", "Kneedle", "LCRD")
 ymax <- tpod_bootstrapping %>% select(where(is.numeric)) %>% max() + 1
+lowest_conc <- 0.1
 
 
 ### combine original tpods + bootstrap results
@@ -399,33 +400,108 @@ tpod_plot_df <- tpod_bootstrapping %>%
   left_join(tpod_original,
             by = c("analysis_summary","timepoint","method")) %>%
   mutate(timepoint = factor(timepoint, levels = timepoint_order),
-         method = factor(method, levels = method_order))
+         method = factor(method, levels = method_order),
+         bootstrap_range = if_else(
+           tpod_median < lowest_conc,
+           "< 0.1",
+           ">= 0.1"
+         ),
+         original_range = if_else(
+           tpod_orig < lowest_conc,
+           "< 0.1",
+           ">= 0.1"
+         ))
 
 
 
 ### OPTION 1: FACET BY TPOD METHOD
-fig2e_bs = ggplot(tpod_plot_df,
-       aes(x = timepoint, y = tpod_median,
-           ymin = tpod_lower, ymax = tpod_upper,
-           color = analysis_summary)) +
+dodge_pos <- position_dodge(width = 0.6)
+
+
+fig2e_bs <- ggplot(
+  tpod_plot_df,
+  aes(
+    x = timepoint,
+    color = analysis_summary,
+    group = analysis_summary
+  )
+) +
   geom_pointrange(
-    position = position_dodge(width = 0.6)
+    aes(
+      y = tpod_median,
+      ymin = tpod_lower,
+      ymax = tpod_upper,
+      shape = bootstrap_range,
+      fill = analysis_summary
+    ),
+    size = 0.5,
+    stroke = 0.7,
+    position = dodge_pos
   ) +
   geom_point(
-    aes(y = tpod_orig),
-    shape = 21,
+    aes(
+      y = tpod_orig,
+      shape = original_range
+    ),
     fill = "white",
     size = 2.3,
     stroke = 0.6,
-    position = position_dodge(width = 0.6)
+    position = dodge_pos
   ) +
-  geom_line(aes(x=timepoint, y=tpod_orig, group = analysis_summary)) +
-  facet_wrap(~ method, scales = "free_y", nrow = 1) +
+  geom_line(
+    aes(y = tpod_orig),
+    position = dodge_pos
+  ) +
+  facet_wrap(~method, scales = "free_y", nrow = 1) +
   labs(
     x = "",
     y = "tPOD",
-    color = ""
+    color = "",
+    shape = "tPOD estimate"
   ) +
+  scale_shape_manual(
+    values = c(
+      ">= 0.1" = 21,  # circle
+      "< 0.1"  = 24   # triangle
+    ),
+    labels = c(
+      ">= 0.1" = expression(tPOD >= 0.1),
+      "< 0.1"  = expression(tPOD < 0.1)
+    )
+  ) +
+  scale_color_manual(
+    values = c(
+      "blue2",
+      "forestgreen",
+      "firebrick",
+      "gold1",
+      "gray30"
+    ),
+    breaks = c(
+      "BMDE-noWTT-CPM-RF-S5",
+      "BMDE-WTT-CPM-RF-S0",
+      "DRO-Quad-UQ-RF-S0",
+      "DRO-Quad-VST-RF-S0",
+      "DRO-Quad-VST-C10-S0"
+    )
+  ) +
+  scale_fill_manual(
+    values = c(
+      "blue2",
+      "forestgreen",
+      "firebrick",
+      "gold1",
+      "gray30"
+    ),
+    breaks = c(
+      "BMDE-noWTT-CPM-RF-S5",
+      "BMDE-WTT-CPM-RF-S0",
+      "DRO-Quad-UQ-RF-S0",
+      "DRO-Quad-VST-RF-S0",
+      "DRO-Quad-VST-C10-S0"
+    )
+  ) +
+  coord_cartesian(ylim = c(0, ymax)) +
   theme_bw(base_size = 12) +
   theme(
     strip.background = element_rect(fill = "white", color = "black"),
@@ -435,12 +511,7 @@ fig2e_bs = ggplot(tpod_plot_df,
     legend.title = element_blank(),
     legend.text = element_text(size = 12),
     legend.position = "none"
-  ) +
-  # scale_y_log10() +
-  scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gold1", "gray30"),
-                     breaks = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "DRO-Quad-VST-C10-S0")) +
-  ylim(0, ymax)
-
+  )
 
 fig2e_bs
 
