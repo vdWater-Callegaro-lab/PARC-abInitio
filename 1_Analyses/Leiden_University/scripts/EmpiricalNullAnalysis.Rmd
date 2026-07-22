@@ -1,0 +1,256 @@
+---
+title: "Permutation-based empirical null-positive analysis"
+subtitle: "EUT046 - Version 2"
+date: "2026-07-21"
+author: 
+  Imke Bruns (0000-0001-9681-6693)
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    theme: cosmo
+    highlight: tango
+    df_print: paged
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 4
+---
+
+```{r, include=FALSE}
+
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+
+# load ggplot
+pacman::p_load(ggplot2)
+
+# set standard plot theme
+standard_plotTheme <- theme_minimal() +
+  theme(
+    plot.title = element_text(
+      size = 18,
+      face = "bold",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    plot.subtitle = element_text(
+      size = 14,
+      face = "italic",
+      vjust = 2,
+      hjust = 0.5
+    ),
+    axis.title.x = element_text(size = 12, vjust = 0.25),
+    axis.title.y = element_text(size = 12, vjust = 1),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+
+theme_set(standard_plotTheme)
+
+# choose project
+studyNR = "EUT046"
+
+```
+
+
+
+
+# Set up analysis {.tabset}
+
+## Load packages
+
+### CRAN
+Install and load CRAN packages.
+```{r warning=FALSE, message=FALSE}
+# if(!require(pacman, quietly = TRUE)){
+#   install.packages("pacman")
+# }
+
+library(tidyverse)
+library(data.table)
+library(purrr)
+library(here)
+```
+
+
+## Load data
+```{r}
+original_metadata <- fread("data/EUT046/EUT046_metadata_final.csv")
+original_metadata_f <- fread("output/EUT046/updatedVersion/sample_metadata.txt")
+original_log2cpmcounts_f <- fread("/Volumes/LACDR/TOX/VDWATER/Imke_Bruns/05_GitHub/PARC-abInitio/1_Analyses/Leiden_University/output/EUT046/updatedVersion/normalized_counts.txt")
+```
+
+
+
+# Quality Control on permutated metadata
+
+## Set originally removed samples
+```{r}
+removed_samples <- original_metadata %>%
+  filter(!SAMPLE_ID %in% original_metadata_f$SAMPLE_ID) %>%
+  pull(SAMPLE_ID)
+
+removed_samples
+```
+
+
+
+## Remove from permutated metadata
+```{r}
+# Folder containing all permuted metadata files
+metadata_dir <- file.path("output", studyNR, "permuted_metadata")
+
+# Find all permuted metadata files
+metadata_files <- list.files(
+  metadata_dir,
+  pattern = "^metadata_perm_.*\\.csv$",
+  full.names = TRUE
+)
+
+# Load and remove originally excluded samples
+permuted_metadata_clean <- metadata_files %>%
+  set_names(basename(.)) %>%
+  map(~ read_csv(.x, show_col_types = FALSE) %>%
+        filter(!SAMPLE_ID %in% removed_samples))
+
+```
+
+
+
+## Save files
+```{r}
+output_dir <- file.path("output", studyNR, "permuted_metadata_clean")
+dir.create(output_dir, showWarnings = FALSE)
+
+iwalk(permuted_metadata_clean, ~ {
+  write_csv(.x, file.path(output_dir, .y))
+})
+```
+
+
+# Generate BMDExpress files
+
+## Set folders
+```{r}
+
+# Folder with permuted metadata files
+perm_dir <- file.path("output", studyNR, "permuted_metadata_clean")
+
+# Output folder
+out_base <- file.path(
+  here(),
+  "BMD_analysis",
+  studyNR,
+  "updatedVersion",
+  "input",
+  "log2cpm_3IQR_repfilter_permuted"
+)
+
+dir.create(out_base, recursive = TRUE, showWarnings = FALSE)
+
+# Find permuted metadata files
+perm_files <- list.files(
+  perm_dir,
+  pattern = "^metadata_perm_.*\\.csv$",
+  full.names = TRUE
+)
+
+```
+
+
+## Generate files
+```{r}
+create_bmdexpress_inputs_for_permutation <- function(
+  perm_file,
+  counts_df,
+  out_base
+) {
+  
+  perm_id <- tools::file_path_sans_ext(basename(perm_file)) %>%
+    stringr::str_replace("^metadata_", "")
+  
+  message("Processing ", perm_id)
+  
+  metadata_perm <- readr::read_csv(perm_file, show_col_types = FALSE)
+  
+  metadata_perm <- metadata_perm %>%
+    dplyr::mutate(
+      COMPOUND_TIME = paste0(COMPOUND_ABBR, "_", TIME),
+      
+      # Use the permuted concentration as dose
+      DOSE = as.character(permuted_concentration),
+      DOSE = gsub(",", ".", DOSE),
+      DOSE = gsub("uM", "", DOSE),
+      DOSE = as.numeric(DOSE),
+      
+      # Re-rank dose levels based on permuted dose
+      DOSE_LEVEL = dplyr::dense_rank(DOSE)
+    )
+  
+  timepoints <- metadata_perm %>%
+    dplyr::pull(TIME) %>%
+    unique() %>%
+    sort()
+  
+  genes <- counts_df %>%
+    dplyr::pull(gene_symbol_entrez_id)
+  
+  for (i in timepoints) {
+    
+    metadata_subset <- metadata_perm %>%
+      dplyr::filter(TIME == i) %>%
+      dplyr::filter(SAMPLE_ID %in% colnames(counts_df))
+    
+    countdata_subset <- counts_df %>%
+      dplyr::select(gene_symbol_entrez_id, dplyr::all_of(metadata_subset$SAMPLE_ID)) %>%
+      tibble::column_to_rownames("gene_symbol_entrez_id") %>%
+      t() %>%
+      as.data.frame() %>%
+      tibble::rownames_to_column("SAMPLE_ID") %>%
+      dplyr::left_join(
+        metadata_subset %>%
+          dplyr::select(SAMPLE_ID, COMPOUND_ABBR, DOSE, DOSE_LEVEL, REPLICATE),
+        by = "SAMPLE_ID"
+      ) %>%
+      dplyr::arrange(DOSE_LEVEL, REPLICATE) %>%
+      dplyr::select(SAMPLE_ID, DOSE, dplyr::all_of(genes)) %>%
+      tibble::column_to_rownames("SAMPLE_ID") %>%
+      t() %>%
+      as.data.frame() %>%
+      tibble::rownames_to_column("gene_symbol_entrez_id")
+    
+    # Save all permutations for the same timepoint in the same folder
+    out_dir_tp <- file.path(out_base, paste0(i, "h"))
+    dir.create(out_dir_tp, recursive = TRUE, showWarnings = FALSE)
+    
+    data.table::fwrite(
+      countdata_subset,
+      file.path(
+        out_dir_tp,
+        paste0("BMD_input_", i, "h_", perm_id, "_log2cpmcounts.txt")
+      ),
+      row.names = FALSE,
+      sep = "\t"
+    )
+  }
+  
+  invisible(TRUE)
+}
+```
+
+
+## Run for all permutation files
+```{r}
+walk(
+  perm_files,
+  create_bmdexpress_inputs_for_permutation,
+  counts_df = original_log2cpmcounts_f,
+  out_base = out_base
+)
+```
+
