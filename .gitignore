@@ -70,11 +70,12 @@ data/
 *.html
 *.txt
 *.tsv
+*.bm2
+BMD_analysis/
 
 
 # renv
 .renvignore
-<<<<<<< HEAD
 
 
 # mac
