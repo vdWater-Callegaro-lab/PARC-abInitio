@@ -162,12 +162,14 @@ Show BMD accumulation module EGs and HALLMARK NES scores
 ```{r}
 fig5a_LU = BMDaccumulationPlot_pwscores_highlight(BMDoutput = LU_BMD_pathway_select, analysis_method = "BMDE-noWTT-CPM-RF-S5", HLpw = "hRPTECTERT1_35") +
   labs(subtitle = "Eigengene scores (WGCNA modules)") +
-  theme(plot.title = element_text(color = "blue2")) 
+  theme(plot.title = element_text(color = "blue2")) +
+  scale_x_log10()
 
 
 fig5a_SC = BMDaccumulationPlot_pwscores_highlight(BMDoutput = Sciensano_BMD_pathway_select, analysis_method = "BMDE-WTT-CPM-RF-S0", HLpw = "HALLMARK_P53_PATHWAY") +
   labs(subtitle = "HALLMARK NES scores") + 
-  theme(plot.title = element_text(color = "forestgreen"))
+  theme(plot.title = element_text(color = "forestgreen")) +
+  scale_x_log10()
 
 
 # combine
@@ -473,7 +475,7 @@ fig5 = (fig5a_total + fig5b_total + plot_layout(widths = c(1.4, 2.1), ncol = 2))
 
 fig5
 
-ggsave(plot = fig5, file.path(plotDir, "Figure5.pdf"), width = 18, height = 22)
+ggsave(plot = fig5, file.path(plotDir, "Figure5_revis.pdf"), width = 18, height = 22)
 
 
 ```
