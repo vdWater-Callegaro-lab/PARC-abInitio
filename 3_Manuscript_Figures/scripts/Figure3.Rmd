@@ -67,7 +67,6 @@ library(tidyverse)
 library(patchwork)
 library(here)
 library(GGally)
-library(ggplotlify)
 library(grid)
 ```
 
@@ -289,14 +288,16 @@ ggsave(file.path(getwd(), "figures", "EUT046", "fig3c.pdf"), width=4.1, height=1
 
 ## Figure 3d
 ```{r}
+x_min <- norm_HALLMARK_combined %>% filter(timepoint %in% c("24h", "48h")) %>% pull(medianBMD) %>% min()
+x_max <- norm_HALLMARK_combined %>% filter(timepoint %in% c("24h", "48h")) %>% pull(medianBMD) %>% max() + 5
 
-fig3d_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY")
+fig3d_24h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "24h", pathway_oi = "HALLMARK_P53_PATHWAY") + scale_x_log10() + coord_cartesian(xlim = c(x_min, x_max))
 # save legend
 fig3d_24h_leg = fig3d_24h + theme(legend.position = "bottom")
 ggsave(plot = fig3d_24h_leg, filename = file.path(plotDir, "fig3d_legend.pdf"), width = 15, height = 10.5)
 
 fig3d_24h = fig3d_24h + theme(legend.position = "none") 
-fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY") + theme(legend.position = "none")
+fig3d_48h = BMDaccumulationPlot_pathway_highlight_combined(BMDoutput = norm_HALLMARK_combined, timepoint_oi = "48h", pathway_oi = "HALLMARK_P53_PATHWAY") + theme(legend.position = "none") + scale_x_log10() + coord_cartesian(xlim = c(x_min, x_max))
 
 
 # combine
@@ -405,7 +406,7 @@ figure3 = fig3a_total /
 
 figure3
 
-ggsave(file.path(plotDir, "Figure3.pdf"), width = 17, height = 22)
+ggsave(file.path(plotDir, "Figure3_revis.pdf"), width = 17, height = 22)
 
 
 
