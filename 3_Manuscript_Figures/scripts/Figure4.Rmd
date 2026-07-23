@@ -68,7 +68,6 @@ library(ComplexUpset)
 library(UpSetR)
 library(purrr)
 library(pheatmap)
-library(ggplotlify)
 library(grid)
 
 # biomanager
@@ -190,6 +189,8 @@ ggsave(
 Accumulation plot median BMD of choice, highlight p53 pathway
 
 ```{r}
+x_max <- 50
+x_min <- norm_pathwaysChoice_combined %>% pull(medianBMD) %>% min()
 
 fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_select,
                                                  analysis_summary = "BMDE-noWTT-CPM-RF-S5",
@@ -197,7 +198,7 @@ fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_sel
   labs(subtitle = "highlight p53 WGCNA module (hRPTECTERT1_35)") +
   theme(plot.title = element_text(color = "blue2"),
         plot.subtitle = element_text(color = "red")) +
-  xlim(c(0,50))
+  scale_x_log10() 
 
 
 
@@ -208,15 +209,15 @@ fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHW
   labs(subtitle = "highlight p53 transcriptional gene network (WIKIPATHWAYS)") + 
   theme(plot.title = element_text(color = "gray30"),
         plot.subtitle = element_text(color = "red")) +
-  xlim(c(0,50))
+  scale_x_log10()
 
 fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
                                                  analysis_summary = "DRO-Quad-UQ-RF-S0",
                                                  pathway_oi = "p53 signaling pathway") +
   labs(subtitle = "highlight p53 signaling pathway (KEGG)") + 
   theme(plot.title = element_text(color = "firebrick"),
-        plot.subtitle = element_text(color = "red")) + 
-  xlim(0,50)
+        plot.subtitle = element_text(color = "red")) +
+  scale_x_log10() 
 
 
 
@@ -227,7 +228,7 @@ fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_se
   labs(subtitle = "highlight p53 pathway (HALLMARK)") +
   theme(plot.title = element_text(color = "gold1"),
         plot.subtitle = element_text(color = "red")) +
-  xlim(c(0,50))
+  scale_x_log10()
 
 
 
@@ -518,7 +519,7 @@ figure4 = fig4a_total /
 
 figure4
 
-ggsave(plot = figure4, file.path(plotDir, "Figure4.pdf"), width = 19, height = 24)
+ggsave(plot = figure4, file.path(plotDir, "Figure4_revis.pdf"), width = 19, height = 24)
 
 ```
 
