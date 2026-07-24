@@ -198,7 +198,8 @@ fig4b_LU = BMDaccumulationPlot_pathway_highlight(BMDoutput = LU_norm_modules_sel
   labs(subtitle = "highlight p53 WGCNA module (hRPTECTERT1_35)") +
   theme(plot.title = element_text(color = "blue2"),
         plot.subtitle = element_text(color = "red")) +
-  scale_x_log10() 
+  scale_x_log10() +
+  geom_vline(xintercept = 0.1, lty = 2, color = "#9b9797")
 
 
 
@@ -209,7 +210,8 @@ fig4b_BPI = BMDaccumulationPlot_pathway_highlight(BMDoutput = BPI_norm_WIKIPATHW
   labs(subtitle = "highlight p53 transcriptional gene network (WIKIPATHWAYS)") + 
   theme(plot.title = element_text(color = "gray30"),
         plot.subtitle = element_text(color = "red")) +
-  scale_x_log10()
+  scale_x_log10() +
+  geom_vline(xintercept = 0.1, lty = 2, color = "#9b9797")
 
 fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select,
                                                  analysis_summary = "DRO-Quad-UQ-RF-S0",
@@ -221,14 +223,14 @@ fig4b_AU = BMDaccumulationPlot_pathway_highlight(BMDoutput = AU_norm_KEGG_select
 
 
 
-
 fig4b_GU = BMDaccumulationPlot_pathway_highlight(BMDoutput = GU_norm_HALLMARK_select,
                                                  analysis_summary = "DRO-Quad-VST-RF-S0",
                                                  pathway_oi = "HALLMARK_P53_PATHWAY") +
   labs(subtitle = "highlight p53 pathway (HALLMARK)") +
   theme(plot.title = element_text(color = "gold1"),
         plot.subtitle = element_text(color = "red")) +
-  scale_x_log10()
+  scale_x_log10() +
+  geom_vline(xintercept = 0.1, lty = 2, color = "#9b9797")
 
 
 
