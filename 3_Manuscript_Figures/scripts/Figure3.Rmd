@@ -111,7 +111,8 @@ pw_gene_cor = data.table::fread(file.path(outputDir, "pathway_vs_gene_correlatio
 Here we plot the accumulation of the HALLMARK pathways
 
 ```{r}
-x_max <- norm_HALLMARK_combined %>% pull(medianBMD) %>% max() %>% round() + 5
+x_min <- norm_HALLMARK_combined %>% pull(medianBMD) %>% min()
+x_max <- norm_HALLMARK_combined %>% pull(medianBMD) %>% max() + 3
 
 fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, analysis_summary = "BMDE-noWTT-CPM-RF-S5") + 
   theme(
@@ -124,13 +125,13 @@ fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_selec
   theme(
     plot.title = element_text(color = "forestgreen")
   ) +
-  scale_x_log10()
+  scale_x_log10() 
 
 fig3a_AU = BMDaccumulationPlot_pathway(BMDoutput = AU_norm_HALLMARK_select, analysis_summary = "DRO-Quad-UQ-RF-S0") +
   theme(
     plot.title = element_text(color = "firebrick")
   ) +
-  scale_x_log10()
+  scale_x_log10() 
 
 
 fig3a_BPI = BMDaccumulationPlot_pathway(BMDoutput = BPI_norm_HALLMARK_select, analysis_summary = "DRO-Quad-VST-C10-S0") + 
@@ -145,7 +146,8 @@ fig3a_GU = BMDaccumulationPlot_pathway(BMDoutput = GU_norm_HALLMARK_select, anal
   theme(
     plot.title = element_text(color = "gold1")
   ) +
-  scale_x_log10()
+  scale_x_log10() +
+  geom_vline(xintercept = 0.1, lty = 2, color = "#9b9797")
 
 
 
