@@ -124,7 +124,7 @@ permuted_metadata_clean <- metadata_files %>%
 
 ## Save files
 ```{r}
-output_dir <- file.path("output", studyNR, "permuted_metadata_clean")
+output_dir <- file.path("output", studyNR, "LeidenU_permuted_metadata_clean")
 dir.create(output_dir, showWarnings = FALSE)
 
 iwalk(permuted_metadata_clean, ~ {
