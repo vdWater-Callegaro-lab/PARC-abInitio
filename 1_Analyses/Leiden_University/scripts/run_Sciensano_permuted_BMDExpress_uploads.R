@@ -56,7 +56,7 @@ METADATA_PATTERN <- "\\.(csv|tsv|txt)$"
 # Candidate metadata columns. The first matching name is used.
 SAMPLE_COLUMN_CANDIDATES <- "SAMPLE_ID"
 
-DOSE_COLUMN_CANDIDATES <- "CONCENTRATION"
+DOSE_COLUMN_CANDIDATES <- "permuted_concentration"
 
 TIME_COLUMN_CANDIDATES <- "TIME"
 
