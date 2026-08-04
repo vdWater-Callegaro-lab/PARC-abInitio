@@ -1,0 +1,225 @@
+---
+title: "Supplemental figure X"
+author: "Imke Bruns"
+date: "2026-08-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+MANUSCRIPT SUPPLEMENTAL FIGURE X
+
+# Settings
+
+## Set studyNR
+```{r}
+studyNR = "EUT046"
+```
+
+
+## Load packages
+```{r}
+library(tidyverse)
+library(patchwork)
+library(purrr)
+library(here)
+library(data.table)
+
+```
+
+
+## Load functions
+```{r}
+source(here("functions.R"), local = knitr::knit_global())
+```
+
+
+
+## Directories
+```{r}
+inputDir = file.path(here(), "input", studyNR)
+outputDir = file.path(here(), "output", studyNR)
+
+if(!dir.exists(outputDir)){
+  dir.create(outputDir)
+}
+
+plotDir = file.path(here(), "figures", studyNR)
+
+if(!dir.exists(plotDir)){
+  dir.create(plotDir)
+}
+```
+
+
+
+# Load data
+```{r}
+LeidenU_earlyTp <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/BMD_analysis/EUT046/updatedVersion/EmpNull_permutations/output/LeidenU_WTT_permuted_4h_to_16h.txt", check.names = TRUE)
+LeidenU_lateTp <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/BMD_analysis/EUT046/updatedVersion/EmpNull_permutations/output/LeidenU_WTT_permuted_24h_to_72h.txt", check.names = TRUE)
+Sciensano_earlyTp <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/BMD_analysis/EUT046/updatedVersion/EmpNull_permutations/output/Sciensano_WTT_permuted_4h_to_16h.txt", check.names = TRUE)
+Sciensano_lateTp_p1 <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/BMD_analysis/EUT046/updatedVersion/EmpNull_permutations/output/Sciensano_WTT_permuted_24h_to_72h_1_50.txt", check.names = TRUE)
+Sciensano_lateTp_p2 <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/BMD_analysis/EUT046/updatedVersion/EmpNull_permutations/output/Sciensano_WTT_permuted_24h_to_72h_51_100.txt", check.names = TRUE)
+
+dromics_output <- fread("~/Documents/GitHub/PARC-abInitio/1_Analyses/Leiden_University/output/EUT046/permuted_quadratic_prefilter/quadratic_prefilter_summary.csv")
+```
+
+
+# Wrangle
+```{r}
+all_timepoints <- paste0(dromics_output %>% pull(timepoint) %>% unique(), "h")
+all_permutations <- dromics_output %>% pull(permutation) %>% unique()
+  
+leidenU_comb <- bind_rows(
+  LeidenU_earlyTp,
+  LeidenU_lateTp
+) %>% separate(Analysis, into = c("BMD", "input", "timepoint", "perm", "perm_nr"), extra = "drop", remove = FALSE) %>%
+  mutate(permutation = paste0("metadata_perm_", perm_nr))
+
+leidenU_drg <- leidenU_comb %>% filter(Adjusted.P.Value < 0.05)
+
+
+leidenU_nselect <- leidenU_drg %>%
+  count(permutation, timepoint, name = "n_selected") %>%
+  complete(
+    permutation = all_permutations,
+    timepoint = all_timepoints,
+    fill = list(n_selected = 0)
+  ) %>%
+  mutate(partner = "Leiden_University")
+  
+
+# Sciensano_comb <- bind_rows(
+#   Sciensano_earlyTp,
+#   Sciensano_lateTp_p1,
+#   Sciensano_lateTp_p2
+# ) %>% separate(Analysis, into = c("BMD", "input", "timepoint"), extra = "drop", remove = FALSE)
+# 
+# Sciensano_drg <- Sciensano_comb %>% filter(Unadjusted.P.Value < 0.05 & Max.Fold.Change.Unsigned >= 1.5)
+# 
+# Sciensano_nselect <- Sciensano_drg %>%
+#   group_by(timepoint) %>%
+#   summarize(n_selected = n()) %>%
+#   mutate(partner = "Sciensano")
+
+
+nselected_combined <- dromics_output %>% 
+  select(partner, timepoint, n_selected, permutation) %>%
+  mutate(timepoint = paste0(timepoint, "h")) %>%
+  bind_rows(leidenU_nselect) %>%
+  mutate(analysis = case_when(
+    partner == "Aristotle_University" ~ "DRO-Quad-UQ-RF-S0",
+    partner == "BPI" ~ "DRO-Quad-VST-C10-S0",
+    partner == "Ghent_University" ~ "DRO-Quad-VST-RF-S0",
+    partner == "Leiden_University" ~ "BMDE-noWTT-CPM-RF-S5"
+  ))
+
+
+data.table::fwrite(nselected_combined, file.path(outputDir, "nselected_crg_after_permutations_combined.txt"))
+```
+
+
+
+```{r}
+nselect_summary <- nselected_combined %>%
+  group_by(analysis, timepoint) %>%
+  summarise(
+    n_permutations = n_distinct(permutation),
+
+    n_nonzero = sum(n_selected > 0, na.rm = TRUE),
+    pct_nonzero = 100 * mean(n_selected > 0, na.rm = TRUE),
+
+    mean_all = mean(n_selected, na.rm = TRUE),
+    max_all = max(n_selected, na.rm = TRUE),
+
+    mean_positive = ifelse(
+      n_nonzero > 0,
+      mean(n_selected[n_selected > 0], na.rm = TRUE),
+      NA_real_
+    ),
+    median_positive = ifelse(
+      n_nonzero > 0,
+      median(n_selected[n_selected > 0], na.rm = TRUE),
+      NA_real_
+    ),
+    min_positive = ifelse(
+      n_nonzero > 0,
+      min(n_selected[n_selected > 0], na.rm = TRUE),
+      NA_real_
+    ),
+    max_positive = ifelse(
+      n_nonzero > 0,
+      max(n_selected[n_selected > 0], na.rm = TRUE),
+      NA_real_
+    ),
+    .groups = "drop"
+  ) 
+```
+
+```{r}
+library(ggplot2)
+
+p1 <- ggplot(
+  nselect_summary,
+  aes(
+    x = timepoint,
+    y = pct_nonzero,
+    colour = analysis,
+    group = analysis
+  )
+) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  labs(
+    x = "Timepoint",
+    y = "Permutations with at least one selection (%)",
+    colour = "Analysis"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 20)
+  ) +
+  theme_classic() +
+  scale_color_manual(values = c("firebrick", "gold1", "blue2", "gray30"),
+                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "DRO-Quad-VST-C10-S0")) #forestgreen
+
+
+p2 <- ggplot(
+  nselected_combined,
+  aes(
+    x = factor(timepoint),
+    y = n_selected + 1,
+    colour = analysis
+  )
+) +
+  geom_jitter(
+    width = 0.18,
+    height = 0,
+    alpha = 0.25,
+    size = 1.3
+  ) +
+  facet_wrap(~ analysis) +
+  labs(
+    x = "Timepoint",
+    y = "Number selected"
+  ) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_y_log10() +
+  scale_color_manual(values = c("firebrick", "gold1", "blue2", "gray30"),
+                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "DRO-Quad-VST-C10-S0")) #forestgreen
+```
+
+
+Combine plots
+```{r}
+p1 / p2 +
+  plot_layout(heights = c(1, 1.5), guides = "collect") 
+
+ggsave(file.path(plotDir, "SupplementalFigureX.pdf"), width=10, height=10)
+```
+
