@@ -81,7 +81,7 @@ bootstrapped_tpods_AU = bootstrap_tpods(df_bmd = AU_norm_BMD_select %>%
 ### COMBINE RESULTS
 boot_all <- list(
   `BMDE-noWTT-CPM-RF-S5`    = bootstrapped_tpods_LU,
-  `BMDE-WTT-CPM-RF-S0`  = bootstrapped_tpods_SC,
+  `BMDE-WTT-DESEQ-RF-S0`  = bootstrapped_tpods_SC,
   `DRO-Quad-VST-RF-S0`     = bootstrapped_tpods_GU,
   `DRO-Quad-VST-C10-S0`        = bootstrapped_tpods_BPI,
   `DRO-Quad-UQ-RF-S0` = bootstrapped_tpods_AU

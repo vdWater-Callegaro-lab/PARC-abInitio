@@ -173,7 +173,7 @@ p4 = norm_BMD_combined_wide_LUmodels %>%
   ggplot(aes(x=LU_finalBMD, y=SC_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
   labs(x = "BMC (BMDE-noWTT-CPM-RF-S5)",
-       y = "BMC (BMDE-WTT-CPM-RF-S0)", 
+       y = "BMC (BMDE-WTT-DESEQ-RF-S0)", 
        color = "Best Model")+
   scale_color_manual(values = model_cols)
 
@@ -189,7 +189,7 @@ norm_BMD_combined_wide_SCmodels = norm_BMD_combined_wide %>%
 p5 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=AU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+  labs(x = "BMC (BMDE-WTT-DESEQ-RF-S0)",
        y = "BMC (DRO-Quad-UQ-RF-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
@@ -197,7 +197,7 @@ p5 = norm_BMD_combined_wide_SCmodels %>%
 p6 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=BPI_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+  labs(x = "BMC (BMDE-WTT-DESEQ-RF-S0)",
        y = "BMC (DRO-Quad-VST-C10-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
@@ -205,7 +205,7 @@ p6 = norm_BMD_combined_wide_SCmodels %>%
 p7 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=GU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+  labs(x = "BMC (BMDE-WTT-DESEQ-RF-S0)",
        y = "BMC (DRO-Quad-VST-RF-S0)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
@@ -213,7 +213,7 @@ p7 = norm_BMD_combined_wide_SCmodels %>%
 p8 = norm_BMD_combined_wide_SCmodels %>%
   ggplot(aes(x=SC_finalBMD, y=LU_finalBMD, color = Best.Model)) +
   geom_point(size = 0.5) +
-  labs(x = "BMC (BMDE-WTT-CPM-RF-S0)",
+  labs(x = "BMC (BMDE-WTT-DESEQ-RF-S0)",
        y = "BMC (BMDE-noWTT-CPM-RF-S5)", 
        color = "Best Model") +
   scale_color_manual(values = model_cols)
@@ -234,7 +234,7 @@ row2 <- wrap_elements(
  p5 + p6 + p7 + p8 +
    plot_layout(nrow = 1, axis = "collect", guides = "collect") +
   plot_annotation(
-    title = "BMDE-WTT-CPM-RF-S0 Models Fit",
+    title = "BMDE-WTT-DESEQ-RF-S0 Models Fit",
     tag_levels = "I"
   ))
 

@@ -429,14 +429,14 @@ friendly_labels <- raw_cols %>%
   dplyr::recode(AU = "DRO-Quad-UQ-RF-S0",
                 GU = "DRO-Quad-VST-RF-S0",
                 LU = "BMDE-noWTT-CPM-RF-S5",
-                SC = "BMDE-WTT-CPM-RF-S0",
+                SC = "BMDE-WTT-DESEQ-RF-S0",
                 BPI = "DRO-Quad-VST-C10-S0")
 
 partner_cols = c("DRO-Quad-VST-C10-S0" = "gray30", 
                 "DRO-Quad-VST-RF-S0" = "gold1",
                 "BMDE-noWTT-CPM-RF-S5" = "blue2",
                 "DRO-Quad-UQ-RF-S0" = "firebrick",
-                "BMDE-WTT-CPM-RF-S0" = "forestgreen")
+                "BMDE-WTT-DESEQ-RF-S0" = "forestgreen")
 
 colnames(plotMat) <- friendly_labels
 

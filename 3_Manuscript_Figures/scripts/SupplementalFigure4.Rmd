@@ -124,9 +124,9 @@ nselected_combined <- dromics_output %>%
     partner == "BPI" ~ "DRO-Quad-VST-C10-S0",
     partner == "Ghent_University" ~ "DRO-Quad-VST-RF-S0",
     partner == "Leiden_University" ~ "BMDE-noWTT-CPM-RF-S5",
-    partner == "Sciensano" ~ "BMDE-WTT-CPM-RF-S0"
+    partner == "Sciensano" ~ "BMDE-WTT-DESEQ-RF-S0"
   ),
-  analysis = factor(analysis, levels = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")),
+  analysis = factor(analysis, levels = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")),
   timepoint = factor(timepoint, levels = timepoint_levels))
 
 
@@ -195,7 +195,7 @@ p1 <- ggplot(
   ) +
   theme_classic() +
   scale_color_manual(values = c("blue2", "forestgreen", "firebrick", "gray30", "gold1"),
-                     breaks = c("BMDE-noWTT-CPM-RF-S5","BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")) 
+                     breaks = c("BMDE-noWTT-CPM-RF-S5","BMDE-WTT-DESEQ-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")) 
 
 
 p2 <- ggplot(
@@ -221,7 +221,7 @@ p2 <- ggplot(
   theme(legend.position = "none") +
   scale_y_log10() +
   scale_color_manual(values = c("firebrick", "gold1", "blue2", "gray30", "forestgreen"),
-                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "DRO-Quad-VST-C10-S0", "BMDE-WTT-CPM-RF-S0"))
+                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "DRO-Quad-VST-C10-S0", "BMDE-WTT-DESEQ-RF-S0"))
 ``` 
 
 

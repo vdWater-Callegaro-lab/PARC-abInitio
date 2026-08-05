@@ -235,7 +235,7 @@ Sciensano_norm_BMD_select = Sciensano_norm_BMD %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"), 
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
   ),
-  analysis_summary = "BMDE-WTT-CPM-RF-S0") %>% dplyr::select(
+  analysis_summary = "BMDE-WTT-DESEQ-RF-S0") %>% dplyr::select(
     gene_symbol_entrez_id,
     timepoint, 
     "finalBMD" = Best.BMD,
@@ -310,7 +310,7 @@ LU_norm_HALLMARK_select = LU_norm_HALLMARK %>% mutate(
 Sciensano_norm_HALLMARK_select = Sciensano_norm_HALLMARK %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-), analysis_summary = "BMDE-WTT-CPM-RF-S0") %>%
+), analysis_summary = "BMDE-WTT-DESEQ-RF-S0") %>%
   dplyr::select(
     Pathway.Name,
     timepoint,
@@ -376,7 +376,7 @@ LU_norm_modules_select = LU_norm_modules %>% mutate(
 Sciensano_norm_TXDDI_GENOMARK_select = Sciensano_norm_TXDDI_GENOMARK %>% mutate(timepoint = factor(
   str_extract(Analysis, "\\d{1,2}h"),
   levels = c("4h", "8h", "16h", "24h", "48h", "72h")
-), analysis_summary = "BMDE-WTT-CPM-RF-S0") %>%
+), analysis_summary = "BMDE-WTT-DESEQ-RF-S0") %>%
   dplyr::select(
     Pathway.Name,
     timepoint,

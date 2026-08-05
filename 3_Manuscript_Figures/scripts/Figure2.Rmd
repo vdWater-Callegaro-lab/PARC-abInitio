@@ -187,7 +187,7 @@ fig2b_LU = BMDaccumulationPlot(BMDoutput = LU_norm_BMD_select, analysis_summary 
   ylim(c(0, 6300)) +
   geom_vline(xintercept = 0.1, lty = 2, color = "#9b9797")
 
-fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDE-WTT-CPM-RF-S0") + 
+fig2b_SC = BMDaccumulationPlot(Sciensano_norm_BMD_select, analysis_summary = "BMDE-WTT-DESEQ-RF-S0") + 
   scale_x_log10() +
   theme(plot.title = element_text(color = "forestgreen")) +
   ylim(c(0, 6300)) +
@@ -306,7 +306,7 @@ fig2c_norm = norm_BMD_combined %>% separate(gene_symbol_entrez_id, into = c("gen
        x = "BMC") +
   scale_x_log10() +
   scale_color_manual(values = c("firebrick", "gray30", "gold1", "blue2", "forestgreen"),
-                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0")) +
+                     breaks = c("DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0", "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0")) +
   theme(
     # legend.title = element_blank()
     legend.position = "none"
@@ -354,7 +354,7 @@ fig2d_cor <- GGally::ggpairs(
   norm_BMD_combined_wide,
   aes(color = timepoint),
   columns = c( "LU_finalBMD", "SC_finalBMD",  "AU_finalBMD","BPI_finalBMD", "GU_finalBMD"),
-  columnLabels = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
+  columnLabels = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0",  "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
   lower = list(continuous = GGally::wrap("points", size = 0.05)),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -485,7 +485,7 @@ fig2e_bs <- ggplot(
     ),
     breaks = c(
       "BMDE-noWTT-CPM-RF-S5",
-      "BMDE-WTT-CPM-RF-S0",
+      "BMDE-WTT-DESEQ-RF-S0",
       "DRO-Quad-UQ-RF-S0",
       "DRO-Quad-VST-RF-S0",
       "DRO-Quad-VST-C10-S0"
@@ -501,7 +501,7 @@ fig2e_bs <- ggplot(
     ),
     breaks = c(
       "BMDE-noWTT-CPM-RF-S5",
-      "BMDE-WTT-CPM-RF-S0",
+      "BMDE-WTT-DESEQ-RF-S0",
       "DRO-Quad-UQ-RF-S0",
       "DRO-Quad-VST-RF-S0",
       "DRO-Quad-VST-C10-S0"

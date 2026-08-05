@@ -72,7 +72,7 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 # dose responsive genes
 drg_afterprefilter = tibble(
   "BMDE-noWTT-CPM-RF-S5" = LU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "BMDE-WTT-CPM-RF-S0" = SC_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDE-WTT-DESEQ-RF-S0" = SC_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-UQ-RF-S0" = AU_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-VST-C10-S0" = BPI_pref %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-VST-RF-S0" = GU_pref %>% pull(timepoint) %>% table() %>% as.numeric()
@@ -100,7 +100,7 @@ data.table::fwrite(drg_afterprefilter, file.path(getwd(), "output", "EUT046", "d
 # retained after post model filters
 retained_pmf = tibble(
   "BMDE-noWTT-CPM-RF-S5" = LU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
-  "BMDE-WTT-CPM-RF-S0" = Sciensano_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
+  "BMDE-WTT-DESEQ-RF-S0" = Sciensano_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-VST-C10-S0" = BPI_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-UQ-RF-S0" = AU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric(),
   "DRO-Quad-VST-RF-S0" = GU_norm_BMD_select %>% pull(timepoint) %>% table() %>% as.numeric()

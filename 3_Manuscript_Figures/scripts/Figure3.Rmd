@@ -121,7 +121,7 @@ fig3a_LU = BMDaccumulationPlot_pathway(BMDoutput= LU_norm_HALLMARK_select, analy
   scale_x_log10() 
 
 
-fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, analysis_summary = "BMDE-WTT-CPM-RF-S0") +
+fig3a_SC = BMDaccumulationPlot_pathway(BMDoutput = Sciensano_norm_HALLMARK_select, analysis_summary = "BMDE-WTT-DESEQ-RF-S0") +
   theme(
     plot.title = element_text(color = "forestgreen")
   ) +
@@ -190,7 +190,7 @@ fig3b_cor <- GGally::ggpairs(
   norm_HALLMARK_combined_wide,
   aes(color = timepoint),
   columns = c("LU_medianBMD", "SC_medianBMD", "AU_medianBMD", "BPI_medianBMD", "GU_medianBMD"),
-  columnLabels = c( "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
+  columnLabels = c( "BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0"),
   lower = list(continuous = GGally::wrap("points")),
   diag  = list(
     continuous = GGally::wrap("densityDiag", alpha = 0.5),
@@ -240,14 +240,14 @@ pwgene_plot <- pw_gene_cor %>%
       analysis_summary_a == "DRO-Quad-VST-C10-S0" ~ "M4",
       analysis_summary_a == "DRO-Quad-VST-RF-S0" ~ "M5",
       analysis_summary_a == "BMDE-noWTT-CPM-RF-S5" ~ "M1",
-      analysis_summary_a == "BMDE-WTT-CPM-RF-S0" ~ "M2"
+      analysis_summary_a == "BMDE-WTT-DESEQ-RF-S0" ~ "M2"
     ),
     analysis_summary_b = case_when(
       analysis_summary_b == "DRO-Quad-UQ-RF-S0" ~ "M3",
       analysis_summary_b == "DRO-Quad-VST-C10-S0" ~ "M4",
       analysis_summary_b == "DRO-Quad-VST-RF-S0" ~ "M5",
       analysis_summary_b == "BMDE-noWTT-CPM-RF-S5" ~ "M1",
-      analysis_summary_b == "BMDE-WTT-CPM-RF-S0" ~ "M2"
+      analysis_summary_b == "BMDE-WTT-DESEQ-RF-S0" ~ "M2"
     )
   ) %>%
   mutate(
@@ -335,7 +335,7 @@ ggsave(
 ## Figure 3e
 ```{r}
 
-lvls <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
+lvls <- c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0",  "DRO-Quad-UQ-RF-S0","DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
 
 norm_BMD_combined_HALLMARKp53 <- norm_BMD_combined_HALLMARKp53 %>%
   dplyr::mutate(analysis_summary = factor(analysis_summary, levels = lvls))

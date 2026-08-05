@@ -26,7 +26,7 @@ table6 = tibble(timepoint = timepoint_levels) %>% left_join(
   ) %>%
   left_join(
     Sciensano_norm_HALLMARK_select %>% filter(Pathway.Name == "HALLMARK_P53_PATHWAY") %>%
-      select(timepoint, "Median BMC (BMDE-WTT-CPM-RF-S0)" = medianBMD)
+      select(timepoint, "Median BMC (BMDE-WTT-DESEQ-RF-S0)" = medianBMD)
   ) %>%
   left_join(
     Sciensano_BMD_pathway_select %>% filter(pathway == "HALLMARK_P53_PATHWAY") %>%

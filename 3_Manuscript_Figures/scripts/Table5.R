@@ -14,7 +14,7 @@ load(file.path(getwd(), "output", "EUT046", "WrangledInput", "WrangledInputData.
 
 
 #### HALLMARK
-analysis_summary_order = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-CPM-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
+analysis_summary_order = c("BMDE-noWTT-CPM-RF-S5", "BMDE-WTT-DESEQ-RF-S0", "DRO-Quad-UQ-RF-S0", "DRO-Quad-VST-C10-S0", "DRO-Quad-VST-RF-S0")
 timepoint_order = c("4h", "8h", "16h", "24h", "48h", "72h")
 
 

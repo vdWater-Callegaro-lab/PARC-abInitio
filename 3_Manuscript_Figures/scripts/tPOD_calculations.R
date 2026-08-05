@@ -96,7 +96,7 @@ tpod_orig_AU <- bind_rows(
 # generate table (NEED TO ADD CI)
 tpod_orig_all <- list(
   `BMDE-noWTT-CPM-RF-S5`    = tpod_orig_LU,
-  `BMDE-WTT-CPM-RF-S0`  = tpod_orig_SC,
+  `BMDE-WTT-DESEQ-RF-S0`  = tpod_orig_SC,
   `DRO-Quad-VST-RF-S0`     = tpod_orig_GU,
   `DRO-Quad-VST-C10-S0`        = tpod_orig_BPI,
   `DRO-Quad-UQ-RF-S0` = tpod_orig_AU
