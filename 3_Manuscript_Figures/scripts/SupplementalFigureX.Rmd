@@ -20,6 +20,11 @@ MANUSCRIPT SUPPLEMENTAL FIGURE X
 studyNR = "EUT046"
 ```
 
+## Set timepoint levels
+```{r}
+timepoint_levels <- c("4h", "8h", "16h", "24h", "48h", "72h")
+```
+
 
 ## Load packages
 ```{r}
@@ -120,7 +125,8 @@ nselected_combined <- dromics_output %>%
     partner == "Ghent_University" ~ "DRO-Quad-VST-RF-S0",
     partner == "Leiden_University" ~ "BMDE-noWTT-CPM-RF-S5",
     partner == "Sciensano" ~ "BMDE-WTT-CPM-RF-S0"
-  ))
+  ),
+  timepoint = factor(timepoint, levels = timepoint_levels))
 
 
 data.table::fwrite(nselected_combined, file.path(outputDir, "nselected_crg_after_permutations_combined.txt"))
