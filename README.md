@@ -55,8 +55,8 @@ Users can use the repository to:
 The version of this repository associated with the manuscript submission is archived on Zenodo.
 
 
-- GitHub release: `v1.0.0-submission`
-- Zenodo version DOI: https://doi.org/10.5281/zenodo.20413136 
+- GitHub release: `v1.1.0-revision`
+- Zenodo version DOI: https://doi.org/10.5281/zenodo.20413135
 
 
 Please cite the Zenodo version DOI when referring to the repository version used for the submitted manuscript.
